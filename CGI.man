@@ -73,7 +73,7 @@
 .nr % 0
 .rr F
 .\}
-.TH CGI 1 "perl " "31/May/96" "User Contributed Perl Documentation"
+.TH CGI 1 "perl " "2/Dec/96" "User Contributed Perl Documentation"
 .IX Title "CGI 1"
 .UC
 .IX Name "CGI - Simple Common Gateway Interface Class"
@@ -186,7 +186,7 @@ information).
 The current version of CGI.pm is available at
 .PP
 .Vb 2
-\&  http://www-genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
+\&  http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 \&  ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 .Ve
 .SH "INSTALLATION:"
@@ -212,6 +212,13 @@ as your home directory, or in cgi-bin itself and prefix all Perl
 scripts that call it with something along the lines of the following
 preamble:
 .PP
+.Vb 2
+\&        use lib '/home/davis/lib';
+\&        use CGI;
+.Ve
+If you are using a version of perl earlier than 5.002 (such as NT perl), use
+this instead:
+.PP
 .Vb 4
 \&        BEGIN {
 \&                unshift(@INC,'/home/davis/lib');
@@ -223,7 +230,9 @@ It redefines the \fIdie()\fR, \fIwarn()\fR, \fIconfess()\fR and \fIcroak()\fR er
 so that they write nicely formatted error messages into the server's
 error log (or to the output stream of your choice).  This avoids long
 hours of groping through the error and access logs, trying to figure
-out which CGI script is generating fatal error messages.
+out which CGI script is generating  error messages.  If you choose,
+you can even have fatal error messages echoed to the browser to avoid
+the annoying and uninformative \*(L"Server Error\*(R" message.
 .SH "DESCRIPTION"
 .IX Header "DESCRIPTION"
 .Sh "\s-1CREATING\s0 A \s-1NEW\s0 \s-1QUERY\s0 \s-1OBJECT\s0:"
@@ -467,10 +476,10 @@ You can also retrieve the unprocessed query string with \fIquery_string()\fR:
 .Vb 1
 \&    $the_string = $query->query_string;
 .Ve
-.Sh "\s-1COMPATABILITY\s0 \s-1WITH\s0 \s-1CGI\s0\-\s-1LIB\s0.\s-1PL\s0"
-.IX Subsection "\s-1COMPATABILITY\s0 \s-1WITH\s0 \s-1CGI\s0\-\s-1LIB\s0.\s-1PL\s0"
+.Sh "\s-1COMPATIBILITY\s0 \s-1WITH\s0 \s-1CGI\s0\-\s-1LIB\s0.\s-1PL\s0"
+.IX Subsection "\s-1COMPATIBILITY\s0 \s-1WITH\s0 \s-1CGI\s0\-\s-1LIB\s0.\s-1PL\s0"
 To make it easier to port existing programs that use cgi-lib.pl
-the compatability routine \*(L"ReadParse\*(R" is provided.  Porting is
+the compatibility routine \*(L"ReadParse\*(R" is provided.  Porting is
 simple:
 .PP
 \s-1OLD\s0 \s-1VERSION\s0
@@ -573,8 +582,9 @@ all string constants just to play it safe.
 .Vb 1
 \&             -or-
 .Ve
-.Vb 5
+.Vb 6
 \&        print $query->header(-type=>'image/gif',
+\&                             -nph=>1,
 \&                             -status=>'402 Payment required',
 \&                             -expires=>'+3d',
 \&                             -cookie=>$cookie,
@@ -582,7 +592,7 @@ all string constants just to play it safe.
 .Ve
 \fIheader()\fR returns the Content-type: header.  You can provide your own
 \s-1MIME\s0 type if you choose, otherwise it defaults to text/html.  An
-optional second paramer specifies the status code and a human-readable
+optional second parameter specifies the status code and a human-readable
 message.  For example, you can specify 204, \*(L"No response\*(R" to create a
 script that tells the browser to do nothing at all.  If you want to
 add additional fields to the header, just tack them on to the end:
@@ -624,11 +634,10 @@ Netscape cookies have a special format that includes interesting attributes
 such as expiration time.  Use the \fIcookie()\fR method to create and retrieve
 session cookies.
 .PP
-As of version 1.56, all \s-1HTTP\s0 headers produced by \s-1CGI\s0.pm contain the
-Pragma: no-cache instruction.  However, as of version 1.57, this is
-turned \s-1OFF\s0 by default because it causes Netscape 2.0 and higher to
-produce an annoying warning message every time the \*(L"back\*(R" button is
-hit.  Turn it on again with the method \fIcache()\fR.
+The \fB\-nph\fR parameter, if set to a true value, will issue the correct
+headers to work with a \s-1NPH\s0 (no-parse-header) script.  This is important
+to use with certain servers, such as Microsoft Internet Explorer, which
+expect all their scripts to be \s-1NPH\s0.
 .Sh "\s-1GENERATING\s0 A \s-1REDIRECTION\s0 \s-1INSTRUCTION\s0"
 .IX Subsection "\s-1GENERATING\s0 A \s-1REDIRECTION\s0 \s-1INSTRUCTION\s0"
 .PP
@@ -645,6 +654,17 @@ when when you generate a redirection to another document on your site.
 This is due to a well-intentioned optimization that some servers use.
 The solution to this is to use the full \s-1URL\s0 (including the http: part)
 of the document you are redirecting to.
+.PP
+You can use named parameters:
+.PP
+.Vb 2
+\&    print $query->redirect(-uri=>'http://somewhere.else/in/movie/land',
+\&                           -nph=>1);
+.Ve
+The \fB\-nph\fR parameter, if set to a true value, will issue the correct
+headers to work with a \s-1NPH\s0 (no-parse-header) script.  This is important
+to use with certain servers, such as Microsoft Internet Explorer, which
+expect all their scripts to be \s-1NPH\s0.
 .Sh "\s-1CREATING\s0 \s-1THE\s0 \s-1HTML\s0 \s-1HEADER\s0:"
 .IX Subsection "\s-1CREATING\s0 \s-1THE\s0 \s-1HTML\s0 \s-1HEADER\s0:"
 .PP
@@ -652,7 +672,7 @@ of the document you are redirecting to.
 \&   print $query->start_html(-title=>'Secrets of the Pyramids',
 \&                            -author=>'fred@capricorn.org',
 \&                            -base=>'true',
-\&                            -meta=>{'keywords'=>'pharoah secret mummy',
+\&                            -meta=>{'keywords'=>'pharaoh secret mummy',
 \&                                    'copyright'=>'copyright 1996 King Tut'},
 \&                            -BGCOLOR=>'blue');
 .Ve
@@ -684,7 +704,7 @@ containing name/value pairs of meta information.  These will be turned
 into a series of header <\s-1META\s0> tags that look something like this:
 .PP
 .Vb 2
-\&    <META NAME="keywords" CONTENT="pharoah secret mummy">
+\&    <META NAME="keywords" CONTENT="pharaoh secret mummy">
 \&    <META NAME="description" CONTENT="copyright 1996 King Tut">
 .Ve
 There is no support for the \s-1HTTP\s0\-\s-1EQUIV\s0 type of <\s-1META\s0> tag.  This is
@@ -867,7 +887,7 @@ Forms that use this type of encoding are not easily interpreted
 by \s-1CGI\s0 scripts unless they use \s-1CGI\s0.pm or another library designed
 to handle them.
 .PP
-For compatability, the \fIstartform()\fR method uses the older form of
+For compatibility, the \fIstartform()\fR method uses the older form of
 encoding by default.  If you want to use the newer form of encoding
 by default, you can call \fBstart_multipart_form()\fR instead of
 \fBstartform()\fR.
@@ -1195,7 +1215,7 @@ The optional sixth argument is a pointer to an associative array
 containing long user-visible labels for the list items (\-labels).
 If not provided, the values will be displayed.
 .Sp
-When this form is procesed, all selected list items will be returned as
+When this form is processed, all selected list items will be returned as
 a list under the parameter name \*(L'list_name\*(R'.  The values of the
 selected items can be retrieved with:
 .Sp
@@ -1273,7 +1293,7 @@ To include row and column headings in the returned table, you
 can use the \fB\-rowheader\fR and \fB\-colheader\fR parameters.  Both
 of these accept a pointer to an array of headings to use.
 The headings are just decorative.  They don't reorganize the
-interpetation of the checkboxes -- they're still a single named
+interpretation of the checkboxes -- they're still a single named
 unit.
 .PP
 When the form is processed, all checked boxes will be returned as
@@ -1725,7 +1745,7 @@ saved on the server's side of the connection.
 .IX Header "WORKING WITH NETSCAPE FRAMES"
 It's possible for CGI.pm scripts to write into several browser
 panels and windows using Netscape's frame mechanism.  
-There are three techniques for defining new frames programatically:
+There are three techniques for defining new frames programmatically:
 .Ip "1. Create a <Frameset> document" 4
 .IX Item "1. Create a <Frameset> document"
 After writing out the \s-1HTTP\s0 header, instead of creating a standard
@@ -1845,7 +1865,7 @@ the a nice \s-1HTML\s0 dump shown above:
 .IX Header "FETCHING ENVIRONMENT VARIABLES"
 Some of the more useful environment variables can be fetched
 through this interface.  The methods are as follows:
-.Ip "\fBaccept()\fR" 0
+.Ip "\fBaccept()\fR" 4
 .IX Item "\fBaccept()\fR"
 Return a list of \s-1MIME\s0 types that the remote browser
 accepts. If you give this method a single argument
@@ -1855,7 +1875,7 @@ floating point value corresponding to the browser's
 preference for this type from 0.0 (don't want) to 1.0.
 Glob types (e.g. text/*) in the browser's accept list
 are handled correctly.
-.Ip "\fBraw_cookie()\fR" 0
+.Ip "\fBraw_cookie()\fR" 4
 .IX Item "\fBraw_cookie()\fR"
 Returns the \s-1HTTP_COOKIE\s0 variable, an \s-1HTTP\s0 extension
 implemented by Netscape browsers version 1.1
@@ -1863,49 +1883,49 @@ and higher.  Cookies have a special format, and this
 method call just returns the raw form (?cookie dough).
 See \fIcookie()\fR for ways of setting and retrieving
 cooked cookies.
-.Ip "\fBuser_agent()\fR" 0
+.Ip "\fBuser_agent()\fR" 4
 .IX Item "\fBuser_agent()\fR"
 Returns the \s-1HTTP_USER_AGENT\s0 variable.  If you give
 this method a single argument, it will attempt to
 pattern match on it, allowing you to do something
 like \f(CW$query\fR\->\fIuser_agent\fR\|(netscape);
-.Ip "\fBpath_info()\fR" 0
+.Ip "\fBpath_info()\fR" 4
 .IX Item "\fBpath_info()\fR"
 Returns additional path information from the script \s-1URL\s0.
 E.G. fetching /cgi-bin/your_script/additional/stuff will
 result in \f(CW$query\fR\->\fIpath_info()\fR returning
 \*(L"additional/stuff\*(R".
-.Ip "\fBpath_translated()\fR" 0
+.Ip "\fBpath_translated()\fR" 4
 .IX Item "\fBpath_translated()\fR"
 As per \fIpath_info()\fR but returns the additional
 path information translated into a physical path, e.g.
 \*(L"/usr/local/etc/httpd/htdocs/additional/stuff\*(R".
-.Ip "\fBremote_host()\fR" 0
+.Ip "\fBremote_host()\fR" 4
 .IX Item "\fBremote_host()\fR"
 Returns either the remote host name or \s-1IP\s0 address.
 if the former is unavailable.
-.Ip "\fBscript_name()\fR Return the script name as a partial \s-1URL\s0, for self-refering scripts." 0
+.Ip "\fBscript_name()\fR Return the script name as a partial \s-1URL\s0, for self-refering scripts." 4
 .IX Item "\fBscript_name()\fR Return the script name as a partial \s-1URL\s0, for self-refering scripts."
-.Ip "\fBreferer()\fR" 0
+.Ip "\fBreferer()\fR" 4
 .IX Item "\fBreferer()\fR"
 Return the \s-1URL\s0 of the page the browser was viewing
 prior to fetching your script.  Not available for all
 browsers.
-.Ip "\fBauth_type ()\fR" 0
+.Ip "\fBauth_type ()\fR" 4
 .IX Item "\fBauth_type ()\fR"
 Return the authorization/verification method in use for this
 script, if any.
-.Ip "\fBremote_user ()\fR" 0
+.Ip "\fBremote_user ()\fR" 4
 .IX Item "\fBremote_user ()\fR"
 Return the authorization/verification name used for user
 verification, if this script is protected.
-.Ip "\fBuser_name ()\fR" 0
+.Ip "\fBuser_name ()\fR" 4
 .IX Item "\fBuser_name ()\fR"
 Attempt to obtain the remote user's name, using a variety
 of different techniques.  This only works with older browsers
 such as Mosaic.  Netscape does not reliably report the user
 name!
-.Ip "\fBrequest_method()\fR" 0
+.Ip "\fBrequest_method()\fR" 4
 .IX Item "\fBrequest_method()\fR"
 Returns the method used to access your script, usually
 one of \*(L'\s-1POST\s0\*(R', \*(L'\s-1GET\s0\*(R' or \*(L'\s-1HEAD\s0\*(R'.
@@ -2089,6 +2109,50 @@ importing \s-1CGI\s0.pm methods, you can create visually elegant scripts:
 \&           "Your favorite color is ",em(param('color')),".\en";
 \&    }
 \&    print end_html;
+.Ve
+.SH "USING NPH SCRIPTS"
+.IX Header "USING NPH SCRIPTS"
+NPH, or \*(L"no-parsed-header\*(R", scripts bypass the server completely by
+sending the complete HTTP header directly to the browser.  This has
+slight performance benefits, but is of most use for taking advantage
+of HTTP extensions that are not directly supported by your server,
+such as server push and PICS headers.
+.PP
+Servers use a variety of conventions for designating CGI scripts as
+NPH.  Many Unix servers look at the beginning of the script's name for
+the prefix \*(L"nph-\*(R".  The Macintosh WebSTAR server and Microsoft's
+Internet Information Server, in contrast, try to decide whether a
+program is an NPH script by examining the first line of script output.
+.PP
+CGI.pm supports NPH scripts with a special NPH mode.  When in this
+mode, CGI.pm will output the necessary extra header information when
+the \fIheader()\fR and \fIredirect()\fR methods are
+called.
+.PP
+\fBImportant:\fR If you use the Microsoft Internet
+Information Server, you >must designate your script as an NPH
+script.  Otherwise many of CGI.pm's features, such as redirection and
+the ability to output non-HTML files, will fail.
+.PP
+There are a number of ways to put CGI.pm into NPH mode:
+.Ip "In the \fBuse\fR statement Simply add \*(L":nph\*(R" to the list of symbols to be imported into your script:" 4
+.IX Item "In the \fBuse\fR statement Simply add \*(L":nph\*(R" to the list of symbols to be imported into your script:"
+.Sp
+.Vb 1
+\&      use CGI qw(:standard :nph)
+.Ve
+.Ip "By calling the \fBnph()\fR method:" 4
+.IX Item "By calling the \fBnph()\fR method:"
+Call \fBnph()\fR with a non-zero parameter at any point after using \s-1CGI\s0.pm in your program.
+.Sp
+.Vb 1
+\&      CGI->nph(1)
+.Ve
+.Ip "By using \fB\-nph\fR parameters in the \fBheader()\fR and \fBredirect()\fR  statements:" 4
+.IX Item "By using \fB\-nph\fR parameters in the \fBheader()\fR and \fBredirect()\fR  statements:"
+.Sp
+.Vb 1
+\&      print $q->header(-nph=&gt;1);
 .Ve
 .SH "AUTHOR INFORMATION"
 .IX Header "AUTHOR INFORMATION"

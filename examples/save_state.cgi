@@ -58,7 +58,7 @@ sub restore_parameters {
 # complain bitterly and die.
 sub clean_name {
    local($name) = @_;
-   unless ($name=~/^[\w\.-_]+$/) {
+   unless ($name=~/^[\w\._\-]+$/) {
       print "<STRONG>$name has naughty characters.  Only ";
       print "alphanumerics are allowed.  You can't use absolute names.</STRONG>";
       die "Attempt to use naughty characters";

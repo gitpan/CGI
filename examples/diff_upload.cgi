@@ -40,6 +40,8 @@ if ($file1 && $file2) {
     print "<PRE>\n";
     $options = "-c" if param('type') eq 'context';
     system "$DIFF $options $realfile1 $realfile2 | $PERL -pe 's/>/&gt;/g; s/</&lt;/g;'";
+    close $file1;
+    close $file2;
     print "</PRE>\n";
 }
 

@@ -41,6 +41,7 @@ if ($file = param('filename')) {
 	$words += @words=split(/\s+/);
 	$characters += length($_);
     }
+    close $file;
     grep($stats{$_}++,param('count'));
     if (%stats) {
 	print strong("Lines: "),$lines,br if $stats{'count lines'};

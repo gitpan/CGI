@@ -21,8 +21,15 @@ require 5.001;
 # Set this to 1 to enable copious autoloader debugging messages
 $AUTOLOAD_DEBUG=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.27 1996/10/22 12:08 lstein Exp $';
-$CGI::VERSION='2.27';
+# Set this to 1 to enable NPH scripts
+# or: 
+#    1) use CGI qw(:nph)
+#    2) $CGI::nph(1)
+#    3) print header(-nph=>1)
+$NPH=0;
+
+$CGI::revision = '$Id: CGI.pm,v 2.28 1996/12/01 19:46 lstein Exp $';
+$CGI::VERSION='2.28';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -65,7 +72,7 @@ if ($needs_binmode) {
 			 tt i b blockquote pre img a address cite samp dfn html head
 			 base body link nextid title meta kbd start_html end_html
 			 input select option/],
-	      ':html3'=>[qw/table caption th td TR super sub strike applet PARAM embed basefont/],
+	      ':html3'=>[qw/div table caption th td TR super sub strike applet PARAM embed basefont/],
 	      ':netscape'=>[qw/blink frameset frame script font fontsize center/],
 	      ':form'=>[qw/textfield textarea filefield password_field hidden checkbox checkbox_group 
 		       submit reset defaults radio_group popup_menu button autoEscape
@@ -88,13 +95,25 @@ sub import {
     my $self = shift;
     my ($callpack, $callfile, $callline) = caller;
     foreach (@_) {
+	$NPH++, next if $_ eq ':nph';
 	foreach (&expand_tags($_)) {
 	    tr/a-zA-Z0-9_//cd;	# don't allow weird function names
 	    $EXPORT{$_}++;
 	}
     }
+    # To allow overriding, search through the packages
+    # Till we find one in which the correct subroutine is defined.
+    my @packages = ($self,@{"$self\:\:ISA"});
     foreach $sym (keys %EXPORT) {
-        *{"${callpack}::$sym"} = \&{"CGI::$sym"};
+	my $pck;
+	my $def = $DefaultClass;
+	foreach $pck (@packages) {
+	    if (defined(&{"$pck\:\:$sym"})) {
+		$def = $pck;
+		last;
+	    }
+	}
+        *{"${callpack}::$sym"} = \&{"$def\:\:$sym"};
     }
 }
 
@@ -121,11 +140,9 @@ sub new {
     return $self;
 }
 
-# We provide a DESTROY method
-# that does nothing so that the
-# autoloader doesn't bother searching
-# for one if it isn't defined
-sub DESTROY {}
+# We provide a DESTROY method so that the autoloader
+# doesn't bother trying to find it.
+sub DESTROY { }
 
 #### Method: param
 # Returns the value(s)of a named parameter.
@@ -150,7 +167,7 @@ sub param {
 	my(@values);
 
 	if (substr($p[0],0,1) eq '-' || $self->use_named_parameters) {
-	    @values = defined($value) ? (ref($value) eq 'ARRAY' ? @{$value} : $value) : ();
+	    @values = defined($value) ? (ref($value) && ref($value) eq 'ARRAY' ? @{$value} : $value) : ();
 	} else {
 	    foreach ($value,@other) {
 		push(@values,$_) if defined($_);
@@ -175,6 +192,7 @@ sub param {
 sub delete {
     my($self,$name) = self_or_default(@_);
     delete $self->{$name};
+    delete $self->{'.fieldnames'}->{$name};
     @{$self->{'.parameters'}}=grep($_ ne $name,$self->param());
     return wantarray ? () : undef;
 }
@@ -260,7 +278,7 @@ sub init {
     # if we get called more than once, we want to initialize
     # ourselves from the original query (which may be gone
     # if it was read from STDIN originally.)
-    if (defined(@QUERY_PARAM) && !$initializer) {
+    if (defined(@QUERY_PARAM) && !defined($initializer)) {
 
 	foreach (@QUERY_PARAM) {
 	    $self->param('-name'=>$_,'-value'=>$QUERY_PARAM{$_});
@@ -275,7 +293,7 @@ sub init {
   METHOD: {
       if (defined($initializer)) {
 
-	  if (ref($initializer) eq 'HASH') {
+	  if (ref($initializer) && ref($initializer) eq 'HASH') {
 	      foreach (keys %$initializer) {
 		  $self->param('-name'=>$_,'-value'=>$initializer->{$_});
 	      }
@@ -360,12 +378,13 @@ sub init {
     $self->save_request unless $initializer;
 }
 
+
 # FUNCTIONS TO OVERRIDE:
 
 # Turn a string into a filehandle
 sub to_filehandle {
     my $string = shift;
-    if ($string && (ref($string) eq '')) {
+    if ($string && ref($string) && (ref($string) eq '')) {
 	my($package) = caller(1);
 	my($tmp) = $string=~/[':]/ ? $string : "$package\:\:$string"; 
 	return $tmp if defined(fileno($tmp));
@@ -637,6 +656,7 @@ END_OF_FUNC
 'FETCH' => <<'END_OF_FUNC',
 sub FETCH {
     return $_[0] if $_[1] eq 'CGI';
+    return undef unless defined $_[0]->param($_[1]);
     return join("\0",$_[0]->param($_[1]));
 }
 END_OF_FUNC
@@ -658,6 +678,7 @@ END_OF_FUNC
 sub EXISTS {
     exists $_[0]->{$_[1]};
 }
+END_OF_FUNC
 
 'DELETE' => <<'END_OF_FUNC',
 sub DELETE {
@@ -721,7 +742,7 @@ END_OF_FUNC
 'make_attributes' => <<'END_OF_FUNC',
 sub make_attributes {
     my($self,$attr) = @_;
-    return () unless $attr && ref($attr) eq 'HASH';
+    return () unless $attr && ref($attr) && ref($attr) eq 'HASH';
     my(@att);
     foreach (keys %{$attr}) {
 	my($key) = $_;
@@ -791,8 +812,8 @@ sub header {
     my($self,@p) = self_or_CGI(@_);
     my(@header);
 
-    my($type,$status,$cookie,$target,$expires,@other) = 
-	$self->rearrange([TYPE,STATUS,[COOKIE,COOKIES],TARGET,EXPIRES],@p);
+    my($type,$status,$cookie,$target,$expires,$nph,@other) = 
+	$self->rearrange([TYPE,STATUS,[COOKIE,COOKIES],TARGET,EXPIRES,NPH],@p);
 
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
@@ -805,6 +826,7 @@ sub header {
 
     $type = $type || 'text/html';
 
+    push(@header,'HTTP/1.0 ' . ($status || '200 OK')) if $nph || $NPH;
     push(@header,"Status: $status") if $status;
     push(@header,"Window-target: $target") if $target;
     # push all the cookies -- there may be several
@@ -848,14 +870,15 @@ END_OF_FUNC
 'redirect' => <<'END_OF_FUNC',
 sub redirect {
     my($self,@p) = self_or_CGI(@_);
-    my($url,$target,$cookie,@other) = $self->rearrange([[URI,URL],TARGET,COOKIE],@p);
+    my($url,$target,$cookie,$nph,@other) = $self->rearrange([[URI,URL],TARGET,COOKIE,NPH],@p);
     $url = $url || $self->self_url;
     my(@o);
     foreach (@other) { push(@o,split("=")); }
     push(@o,
 	 '-Status'=>'302 Found',
 	 '-Location'=>$url,
-	 '-URI'=>$url);
+	 '-URI'=>$url,
+         '-nph'=>($nph||$NPH));
     push(@o,'-Target'=>$target) if $target;
     push(@o,'-Cookie'=>$cookie) if $cookie;
     return $self->header(@o);
@@ -894,7 +917,7 @@ sub start_html {
     push(@result,"<BASE HREF=\"http://".$self->server_name.":".$self->server_port.$self->script_name."\">")
 	if $base && !$xbase;
     push(@result,"<BASE HREF=\"$xbase\">") if $xbase;
-    if ($meta && (ref($meta) eq 'HASH')) {
+    if ($meta && ref($meta) && (ref($meta) eq 'HASH')) {
 	foreach (keys %$meta) { push(@result,qq(<META NAME="$_" CONTENT="$meta->{$_}">)); }
     }
     push(@result,<<END) if $script;
@@ -959,7 +982,8 @@ sub startform {
 
     $method = $method || 'POST';
     $enctype = $enctype || &URL_ENCODED;
-    $action = $action ? qq/ACTION="$action"/ : '';
+    $action = $action ? qq/ACTION="$action"/ : $method eq 'GET' ?
+	'ACTION="'.$self->script_name.'"' : '';
     my($other) = @other ? " @other" : '';
     $self->{'.parametersToAdd'}={};
     return qq/<FORM METHOD="$method" $action ENCTYPE="$enctype"$other>\n/;
@@ -1257,13 +1281,12 @@ sub checkbox {
 
     my($name,$checked,$value,$label,$override,@other) = 
 	$self->rearrange([NAME,[CHECKED,SELECTED,ON],VALUE,LABEL,[OVERRIDE,FORCE]],@p);
-
-    if (!$override && $self->{'.fieldnames'}->{$name}) {
-	$checked = $self->param($name) ? ' CHECKED' : '';
-	$value = defined $self->param($name) ? $self->param($name) :
-	    (defined $value ? $value : 'on');
+    
+    if (!$override && defined($self->param($name))) {
+	$value = $self->param($name) unless defined $value;
+	$checked = $self->param($name) eq $value ? ' CHECKED' : '';
     } else {
-	$checked = defined($checked) ? ' CHECKED' : '';
+	$checked = $checked ? ' CHECKED' : '';
 	$value = defined $value ? $value : 'on';
     }
     my($the_label) = defined $label ? $label : $name;
@@ -1693,7 +1716,7 @@ sub cookie {
 
     # Pull out our parameters.
     @values = map escape($_),
-           ref($value) eq 'ARRAY' ? @$value : (ref($value) eq 'HASH' ? %$value : $value);
+           ref($value) && ref($value) eq 'ARRAY' ? @$value : ref($value) && (ref($value) eq 'HASH' ? %$value : $value);
 
     my(@constant_values);
     push(@constant_values,"domain=$domain") if $domain;
@@ -1743,6 +1766,7 @@ sub expires {
 	return $time;
     }
     my($sec,$min,$hour,$mday,$mon,$year,$wday) = gmtime(time+$offset);
+    $year += 1900 unless $year < 100;
     return sprintf("%s, %02d-%s-%02d %02d:%02d:%02d GMT",
 		   $WDAY[$wday],$mday,$MON[$mon],$year,$hour,$min,$sec);
 }
@@ -1790,7 +1814,7 @@ END_OF_FUNC
 ####
 'query_string' => <<'END_OF_FUNC',
 sub query_string {
-    my $self = shift;
+    my($self) = self_or_default(@_);
     my($param,$value,@pairs);
     foreach $param ($self->param) {
 	my($eparam) = &escape($param);
@@ -1998,6 +2022,7 @@ END_OF_FUNC
 ####
 'protocol' => <<'END_OF_FUNC',
 sub protocol {
+    local($^W)=0;
     my $self = shift;
     return 'https' if $self->https() eq 'ON'; 
     return 'https' if $self->server_port == 443;
@@ -2050,6 +2075,17 @@ sub user_name {
 }
 END_OF_FUNC
 
+#### Method: nph
+# Set or return the NPH global flag
+####
+'nph' => <<'END_OF_FUNC',
+sub nph {
+    my ($self,$param) = self_or_CGI(@_);
+    $CGI::nph = $param if defined($param);
+    return $CGI::nph;
+}
+END_OF_FUNC
+
 # -------------- really private subroutines -----------------
 # Smart rearrangement of parameters to allow named parameter
 # calling.  We do the rearangement if:
@@ -2077,7 +2113,7 @@ sub rearrange {
 	my($value);
 	# this is an awful hack to fix spurious warnings when the
 	# -w switch is set.
-	if (ref($key) eq 'ARRAY') {
+	if (ref($key) && ref($key) eq 'ARRAY') {
 	    foreach (@$key) {
 		last if defined($value);
 		$value = $param{$_};
@@ -2099,7 +2135,8 @@ sub previous_or_default {
     my($self,$name,$defaults,$override) = @_;
     my(%selected);
 
-    if (!$override && ($self->{'.fieldnames'}->{$name} || $self->param($name))) {
+    if (!$override && ($self->{'.fieldnames'}->{$name} || 
+		       defined($self->param($name)) ) ) {
 	grep($selected{$_}++,$self->param($name));
     } elsif (defined($defaults) && ref($defaults) && 
 	     (ref($defaults) eq 'ARRAY')) {
@@ -2232,7 +2269,6 @@ sub read_multipart {
 	# asking for $query->{$query->param('foo')}, where 'foo'
 	# is the name of the file upload field.
 	$self->{'.tmpfiles'}->{$filename}=$tmpfile;
-
     }
 }
 END_OF_FUNC
@@ -2545,7 +2581,7 @@ information).
 
 The current version of CGI.pm is available at
 
-  http://www-genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
+  http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
 =head1 INSTALLATION:
@@ -2568,6 +2604,12 @@ library directory, you can put CGI.pm into some convenient spot, such
 as your home directory, or in cgi-bin itself and prefix all Perl
 scripts that call it with something along the lines of the following
 preamble:
+
+        use lib '/home/davis/lib';
+        use CGI;
+
+If you are using a version of perl earlier than 5.002 (such as NT perl), use
+this instead:
 
 	BEGIN {
 		unshift(@INC,'/home/davis/lib');
@@ -2894,6 +2936,7 @@ all string constants just to play it safe.
              -or-
 
         print $query->header(-type=>'image/gif',
+			     -nph=>1,
 			     -status=>'402 Payment required',
 			     -expires=>'+3d',
 			     -cookie=>$cookie,
@@ -2941,11 +2984,10 @@ Netscape cookies have a special format that includes interesting attributes
 such as expiration time.  Use the cookie() method to create and retrieve
 session cookies.
 
-As of version 1.56, all HTTP headers produced by CGI.pm contain the
-Pragma: no-cache instruction.  However, as of version 1.57, this is
-turned OFF by default because it causes Netscape 2.0 and higher to
-produce an annoying warning message every time the "back" button is
-hit.  Turn it on again with the method cache().
+The B<-nph> parameter, if set to a true value, will issue the correct
+headers to work with a NPH (no-parse-header) script.  This is important
+to use with certain servers, such as Microsoft Internet Explorer, which
+expect all their scripts to be NPH.
 
 =head2 GENERATING A REDIRECTION INSTRUCTION
 
@@ -2961,6 +3003,17 @@ when when you generate a redirection to another document on your site.
 This is due to a well-intentioned optimization that some servers use.
 The solution to this is to use the full URL (including the http: part)
 of the document you are redirecting to.
+
+You can use named parameters:
+
+    print $query->redirect(-uri=>'http://somewhere.else/in/movie/land',
+                           -nph=>1);
+
+The B<-nph> parameter, if set to a true value, will issue the correct
+headers to work with a NPH (no-parse-header) script.  This is important
+to use with certain servers, such as Microsoft Internet Explorer, which
+expect all their scripts to be NPH.
+
 
 =head2 CREATING THE HTML HEADER:
 
@@ -4443,6 +4496,52 @@ importing CGI.pm methods, you can create visually elegant scripts:
 	   "Your favorite color is ",em(param('color')),".\n";
     }
     print end_html;
+
+=head1 USING NPH SCRIPTS
+
+NPH, or "no-parsed-header", scripts bypass the server completely by
+sending the complete HTTP header directly to the browser.  This has
+slight performance benefits, but is of most use for taking advantage
+of HTTP extensions that are not directly supported by your server,
+such as server push and PICS headers.
+
+Servers use a variety of conventions for designating CGI scripts as
+NPH.  Many Unix servers look at the beginning of the script's name for
+the prefix "nph-".  The Macintosh WebSTAR server and Microsoft's
+Internet Information Server, in contrast, try to decide whether a
+program is an NPH script by examining the first line of script output.
+
+
+CGI.pm supports NPH scripts with a special NPH mode.  When in this
+mode, CGI.pm will output the necessary extra header information when
+the header() and redirect() methods are
+called.
+
+B<Important:> If you use the Microsoft Internet
+Information Server, you >must designate your script as an NPH
+script.  Otherwise many of CGI.pm's features, such as redirection and
+the ability to output non-HTML files, will fail.
+
+There are a number of ways to put CGI.pm into NPH mode:
+
+=over 4
+
+=item In the B<use> statement
+Simply add ":nph" to the list of symbols to be imported into your script:
+
+      use CGI qw(:standard :nph)
+
+=item By calling the B<nph()> method:
+
+Call B<nph()> with a non-zero parameter at any point after using CGI.pm in your program.
+
+      CGI->nph(1)
+
+=item By using B<-nph> parameters in the B<header()> and B<redirect()>  statements:
+
+      print $q->header(-nph=&gt;1);
+
+=back
 
 =head1 AUTHOR INFORMATION
 

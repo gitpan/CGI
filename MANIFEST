@@ -3,6 +3,7 @@ CGI.man
 CGI.pm
 CGI/Carp.pm
 CGI/Fast.pm
+CGI/Push.pm
 MANIFEST
 Makefile.PL
 README
@@ -24,6 +25,7 @@ examples/javascript.cgi
 examples/make_links.pl
 examples/monty.cgi
 examples/multiple_forms.cgi
+examples/nph-clock.cgi
 examples/popup.cgi
 examples/save_state.cgi
 examples/tryit.cgi
