@@ -18,7 +18,7 @@ require 5.004;
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.18 1999/06/09 14:52:45 lstein Exp $';
-$CGI::VERSION='2.53';
+$CGI::VERSION='2.54';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -453,7 +453,7 @@ sub init {
 
     # We now have the query string in hand.  We do slightly
     # different things for keyword lists and parameter lists.
-    if ($query_string ne '') {
+    if (defined $query_string && $query_string) {
 	if ($query_string =~ /=/) {
 	    $self->parse_params($query_string);
 	} else {
@@ -518,7 +518,7 @@ sub cgi_error {
 
 # unescape URL-encoded data
 sub unescape {
-  shift() if ref($_[0]) || $_[0] eq $DefaultClass;
+  shift() if ref($_[0]) || (defined $_[1] && $_[0] eq $DefaultClass);
   my $todecode = shift;
   return undef unless defined($todecode);
   $todecode =~ tr/+/ /;       # pluses become spaces
@@ -532,12 +532,11 @@ sub unescape {
 
 # URL-encode data
 sub escape {
-    shift() if ref($_[0]) || $_[0] eq $DefaultClass;
-    my $toencode = shift;
-    return undef unless defined($toencode);
-    $toencode=~s/ /+/g;
-    $toencode=~s/([^a-zA-Z0-9_.+-])/uc sprintf("%%%02x",ord($1))/eg;
-    return $toencode;
+  shift() if ref($_[0]) || (defined $_[1] && $_[0] eq $DefaultClass);
+  my $toencode = shift;
+  return undef unless defined($toencode);
+  $toencode=~s/([^a-zA-Z0-9_.-])/uc sprintf("%%%02x",ord($1))/eg;
+  return $toencode;
 }
 
 sub save_request {
@@ -851,8 +850,9 @@ END_OF_FUNC
 # with Steve Brenner's cgi-lib.pl routines
 'Vars' => <<'END_OF_FUNC',
 sub Vars {
+    my $q = shift;
     my %in;
-    tie(%in,CGI);
+    tie(%in,CGI,$q);
     return %in if wantarray;
     return \%in;
 }
@@ -917,7 +917,8 @@ END_OF_FUNC
 
 'TIEHASH' => <<'END_OF_FUNC',
 sub TIEHASH { 
-    return $Q || new CGI;
+    return $_[1] if defined $_[1];
+    return $Q || new shift;
 }
 END_OF_FUNC
 
@@ -1520,7 +1521,8 @@ END_OF_FUNC
 'endform' => <<'END_OF_FUNC',
 sub endform {
     my($self,@p) = self_or_default(@_);    
-    return ($self->get_fields,"</FORM>");
+    return wantarray ? ($self->get_fields,"</FORM>") : 
+                        $self->get_fields ."\n</FORM>";
 }
 END_OF_FUNC
 
@@ -2126,7 +2128,7 @@ sub hidden {
 
     $name=$self->escapeHTML($name);
     foreach (@value) {
-	$_=$self->escapeHTML($_);
+	$_ = defined($_) ? $self->escapeHTML($_) : '';
 	push(@result,qq/<INPUT TYPE="hidden" NAME="$name" VALUE="$_">/);
     }
     return wantarray ? @result : join('',@result);
@@ -5075,7 +5077,7 @@ Example:
 
    $file = $query->upload('uploaded_file');
    if (!$file && $query->cgi_error) {
-      print $query->header(-status->$query->cgi_error);
+      print $query->header(-status=>$query->cgi_error);
       exit 0;
    }
 
@@ -5493,7 +5495,7 @@ parameter.  See checkbox_group() for further details.
 
 =head2 CREATING A RESET BUTTON
 
-   print $query->reset
+   print $query->Reset
 
 reset() creates the "reset" button.  Note that it restores the
 form to its value from the last time the script was called, 
