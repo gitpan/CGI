@@ -6,7 +6,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.68, 5/18/2000, L. Stein
+Version 2.69, 7/27/2000, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -131,6 +131,18 @@ master copy of this document maintained at <a
 href="http://stein.cshl.org/WWW/software/CGI/">http://stein.cshl.org/WWW/software/CGI/</a>.
 
 <P>
+
+<h2><font color="red">Beta Test Version</font></h2>
+
+There is a beta of version 3.0X available, courtesy David James.
+Please try and report any bugs or misfeatures to <a
+href="mailto:lstein@cshl.org">me</a>.
+
+<ul>
+  <li><a href="CGI.pm-3.01.tar.gz">Download 3.01 BETA</a></li>
+</ul>
+
+<p>
 
 This package requires perl 5.004 or higher.  Earlier versions of Perl
 may work, but CGI.pm has not been tested with them.  If you're really
@@ -1039,14 +1051,7 @@ All parameters are optional:
       &lt;META NAME="keywords" CONTENT="pharoah secret mummy"&gt;
       &lt;META NAME="description" CONTENT="copyright 1996 King Tut"&gt;
       </pre></blockquote>
-      There is no support for the HTTP-EQUIV type of &lt;META&gt; tag.  This is
-      because you can modify the HTTP header directly with the
-      <a href="#header">header</a> method.  Example:
-      <blockquote>
-      <pre>
-      print $q-&gt;header(-Refresh=&gt;'10; URL=http://www.capricorn.com');
-      </pre>
-      </blockquote>
+      To create an HTTP-EQUIV tag, use the <B>-head</B> argument as described below.
   <li>A <strong>-lang</strong>> argument is used to incorporate a language attribute into
       the &lt;HTM&gt;> tag.  The default if not specified is "en-US" for US English.  For example:
 <blockquote><pre>
@@ -1084,6 +1089,11 @@ All parameters are optional:
 				     -href=&gt;'http://www.capricorn.com/s1.html'})
 			      ]
 		      );
+      </pre>
+      To create an HTTP-EQUIV tag, use something like this:
+      <pre>
+      print header(-head=&gt;meta({-http_equiv=&gt;'Content-Type',
+                                   -content=&gt;'text/html'}))
       </pre>
   <LI>A <strong>-script</strong> parameter to define Netscape <a
       href="#javascripting">JavaScript</a> functions
@@ -2575,15 +2585,11 @@ dashes.
   <dd>Turns off "sticky" behavior in fill-out forms.  Every form
       element will act as if you passed -override.
       <p>
-  <dt><b>-xhtml</b>
-  <dd>Enable support for XHTML (<a
-href="http://www.w3.org/TR/xhtml1/">http://www.w3.org/TR/xhtml1/</a>)
-      output.  This
-      changes the default DTD and adds a closing / to all unpaired tags,
-      such as &lt;BR /&gt;.
-      <p>
-      This doesn't yet (May 2000) make the document fully XHTML compliant, because
-      the tags are still in all-caps.
+  <dt><b>-no_xhtml</b>
+  <dd>By default, CGI.pm versions 2.69 and higher emit XHTML
+      (<a href="http://www.w3.org/TR/xhtml1/">http://www.w3.org/TR/xhtml1/</a>).
+      The -no_xhtml pragma disables this feature.  Thanks to Michalis Kabrianis
+      &lt;kabrianis@hellug.gr&gt; for this feature.
       <p>
   <dt><b>-nph</b>
   <dd>This makes CGI.pm produce a header appropriate for an NPH (no
@@ -2880,11 +2886,11 @@ You can suppress this behavior in any of the following ways:
 
 <H3><A NAME="dumping">Dumping Out All The Name/Value Pairs</A></H3>
 
-The <STRONG>dump()</STRONG> method produces a string consisting of all the query's
+The <STRONG>Dump()</STRONG> method produces a string consisting of all the query's
 name/value pairs formatted nicely as a nested list.  This is useful
 for debugging purposes:
 <PRE>
-   print $query-&gt;dump
+   print $query-&gt;Dump
 </PRE>   
    Produces something that looks like this:
 <PRE>
@@ -3518,6 +3524,11 @@ print h1('CGI with Style'),
       );
 print end_html;
 </pre></blockquote>
+
+<p>
+
+Pass an array reference to <B>-style</B> in order to incorporate
+multiple stylesheets into your document.
 
 <p>
 <a href="#contents">Table of contents</a>
@@ -4633,7 +4644,26 @@ you.
 
 <H2><A NAME="new">Revision History</A></H2>
 
+<h3>Version 2.69</h3>
+<ol>
+  <li>startform() now creates default ACTION for POSTs as well as GETs.
+      This may break some browsers, but it no longer violates the HTML spec.
+  <li>CGI.pm now emits XHTML by default.  Disable with -no_xhtml.
+  <li>We no longer interpret &#ddd sequences in non-latin character
+      sets.
+</ol>
+
 <h3>Version 2.68</h3>
+<ol>
+  <li>No longer attempts to escape characters when dealing with non
+      ISO-8861 character sets.
+  <li>checkbox() function now defaults to using -value as its label,
+      rather than -name.  The current behavior is what has been documented
+      from the beginning.
+  <li>-style accepts array reference to incorporate multiple
+      stylesheets into document.
+</ol>
+
 <ol>
   <li>Fixed two bugs that caused the -compile pragma to fail with a
       syntax error.
@@ -5451,6 +5481,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Thu May 18 13:53:19 EDT 2000
+Last modified: Thu Jul 27 22:59:03 EDT 2000
 <!-- hhmts end -->
 </BODY> </HTML>
