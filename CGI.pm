@@ -20,7 +20,7 @@ require 5.003;
 
 
 $CGI::revision = '$Id: CGI.pm,v 1.3 1997/08/29 11:29:33 lstein Exp lstein $';
-$CGI::VERSION='2.37';
+$CGI::VERSION='2.37b4';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -375,7 +375,7 @@ sub init {
 	  && defined($ENV{'CONTENT_TYPE'})
 	  && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|) {
 
-	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary="?(.*)"?/;
+	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary="?([^";]+)"?/;
 	  $self->read_multipart($boundary,$ENV{'CONTENT_LENGTH'},$initializer);
 	  last METHOD;
       } 
@@ -659,6 +659,8 @@ sub rearrange {
     return (@return_array);
 }
 
+
+
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
 ###############################################################################
@@ -732,6 +734,7 @@ sub ReadParse {
 	*in=*{"${pkg}::in"};
     }
     tie(%in,CGI);
+    return scalar(keys %in);
 }
 END_OF_FUNC
 
@@ -982,15 +985,16 @@ sub header {
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
-	next unless my($header,$value) = /([^\s=]+)=(.+)/;
-	substr($header,1,1000)=~tr/A-Z/a-z/;
-	($value)=$value=~/^"(.*)"$/;
-	$_ = "$header: $value";
+	next unless my($header,$value) = /([^\s=]+)="?([^"]+)"?/;
+	($_ = $header) =~ s/^(\w)(.*)/$1 . lc $2 . ": $value"/e;
     }
 
     $type = $type || 'text/html';
 
-    push(@header,'HTTP/1.0 ' . ($status || '200 OK')) if $nph || $NPH;
+    # Maybe future compatibility.  Maybe not.
+    my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
+    push(@header,$protocol . ' ' . ($status || '200 OK')) if $nph || $NPH;
+
     push(@header,"Status: $status") if $status;
     push(@header,"Window-target: $target") if $target;
     # push all the cookies -- there may be several
@@ -1042,21 +1046,13 @@ sub redirect {
     my($url,$target,$cookie,$nph,@other) = $self->rearrange([[URI,URL],TARGET,COOKIE,NPH],@p);
     $url = $url || $self->self_url;
     my(@o);
-    foreach (@other) { push(@o,split("=")); }
-    if($MOD_PERL or exists $self->{'.req'}) {
-	my $r = $self->{'.req'} || Apache->request;
-	$r->header_out(Location => $url);
-	$r->err_header_out(Location => $url);
-	$r->status(302);
-	return;
-    }
-    push(@o,
-	 '-Status'=>'302 Found',
+    foreach (@other) { tr/"//d; push(@o,split("=")); }
+    unshift(@o,
+	 '-Status'=>'302 Moved',
 	 '-Location'=>$url,
-	 '-URI'=>$url,
 	 '-nph'=>($nph||$NPH));
-    push(@o,'-Target'=>$target) if $target;
-    push(@o,'-Cookie'=>$cookie) if $cookie;
+    unshift(@o,'-Target'=>$target) if $target;
+    unshift(@o,'-Cookie'=>$cookie) if $cookie;
     return $self->header(@o);
 }
 END_OF_FUNC
@@ -2024,7 +2020,15 @@ END_OF_FUNC
 ####
 'path_info' => <<'END_OF_FUNC',
 sub path_info {
-    return $ENV{'PATH_INFO'};
+    my ($self,$info) = self_or_default(@_);
+    if (defined($info)) {
+	$info = "/$info" if $info ne '' &&  substr($info,0,1) ne '/';
+	$self->{'.path_info'} = $info;
+    } elsif (! defined($self->{'.path_info'}) ) {
+	$self->{'.path_info'} = defined($ENV{'PATH_INFO'}) ? 
+	    $ENV{'PATH_INFO'} : '';
+    }
+    return $self->{'.path_info'};
 }
 END_OF_FUNC
 
