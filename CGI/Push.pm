@@ -7,104 +7,96 @@ package CGI::Push;
 # documentation in manual or html file format (these utilities are part of the
 # Perl 5 distribution).
 
-# Copyright 1995-2000, Lincoln D. Stein.  All rights reserved.
+# Copyright 1995,1996, Lincoln D. Stein.  All rights reserved.
 # It may be used and modified freely, but I do request that this copyright
-# notice remain attached to the file.  You may modify this module as you 
+# notice remain attached to the file.  You may modify this module as you
 # wish, but if you redistribute a modified version, please attach a note
 # listing the modifications you have made.
 
 # The most recent version and complete docs are available at:
 #   http://stein.cshl.org/WWW/software/CGI/
 
-$CGI::Push::VERSION='1.04';
+$CGI::Push::VERSION='1.01';
 use CGI;
-use CGI::Util 'rearrange';
-@ISA = ('CGI');
+@ISA = ('CGI::Object');
 
-$CGI::DefaultClass = 'CGI::Push';
-$CGI::Push::AutoloadClass = 'CGI';
+*CGI::Object::do_push = \&do_push;
+*CGI::Object::push_delay = \&push_delay;
 
 # add do_push() and push_delay() to exported tags
 push(@{$CGI::EXPORT_TAGS{':standard'}},'do_push','push_delay');
 
+my $do_push_params = {TYPE=>0,NEXT_PAGE=>1,DELAY=>2,LAST_PAGE=>3,COOKIE=>4,COOKIES=>4,TARGET=>5,EXPIRES=>6};
+my $do_push_defaults = ['text/html',\&simple_counter,1,'',undef,undef,undef];
+
 sub do_push {
-    my ($self,@p) = CGI::self_or_default(@_);
+    my $self = shift;
 
     # unbuffer output
     $| = 1;
     srand;
-    my ($random) = sprintf("%08.0f",rand()*1E8);
-    my ($boundary) = "----=_NeXtPaRt$random";
+    my ($random) = sprintf("%16.0f",rand()*1E16);
+    my ($boundary) = "----------------------------------$random";
 
     my (@header);
-    my ($type,$callback,$delay,$last_page,$cookie,$target,$expires,$nph,@other) = rearrange([TYPE,NEXT_PAGE,DELAY,LAST_PAGE,[COOKIE,COOKIES],TARGET,EXPIRES,NPH],@p);
-    $type = 'text/html' unless $type;
-    $callback = \&simple_counter unless $callback && ref($callback) eq 'CODE';
-    $delay = 1 unless defined($delay);
+    my ($type,$callback,$delay,$last_page,$cookie,$target,$expires,@other) =
+    $self->rearrange($do_push_params,$do_push_defaults,@_);
     $self->push_delay($delay);
-    $nph = 1 unless defined($nph);
 
     my(@o);
     foreach (@other) { push(@o,split("=")); }
     push(@o,'-Target'=>$target) if defined($target);
     push(@o,'-Cookie'=>$cookie) if defined($cookie);
-    push(@o,'-Type'=>"multipart/x-mixed-replace;boundary=\"$boundary\"");
-    push(@o,'-Server'=>"CGI.pm Push Module") if $nph;
+    push(@o,'-Type'=>"multipart/x-mixed-replace; boundary=$boundary");
+    push(@o,'-Server'=>"CGI.pm Push Module");
     push(@o,'-Status'=>'200 OK');
-    push(@o,'-nph'=>1) if $nph;
+    push(@o,'-nph'=>1);
     print $self->header(@o);
-
-    $boundary = "$CGI::CRLF--$boundary";
-
-    print "WARNING: YOUR BROWSER DOESN'T SUPPORT THIS SERVER-PUSH TECHNOLOGY.${boundary}$CGI::CRLF";
-
-    my (@contents) = &$callback($self,++$COUNTER);
+    print "${boundary}$CGI::CRLF";
 
     # now we enter a little loop
+    my @contents;
     while (1) {
-        print "Content-type: ${type}$CGI::CRLF$CGI::CRLF" unless $type =~ /^dynamic|heterogeneous$/i;
-        print @contents;
-        @contents = &$callback($self,++$COUNTER);
-        if ((@contents) && defined($contents[0])) {
-            print "${boundary}$CGI::CRLF";
-            do_sleep($self->push_delay()) if $self->push_delay();
-        } else {
-            if ($last_page && ref($last_page) eq 'CODE') {
-                print "${boundary}$CGI::CRLF";
-                do_sleep($self->push_delay()) if $self->push_delay();
-                print "Content-type: ${type}$CGI::CRLF$CGI::CRLF" unless $type =~ /^dynamic|heterogeneous$/i;
-                print  &$last_page($self,$COUNTER);
-            }
-            print "${boundary}--$CGI::CRLF";
-            last;
-        }
+    last unless (@contents = &$callback($self,++$COUNTER)) && defined($contents[0]);
+    print "Content-type: ${type}$CGI::CRLF$CGI::CRLF"
+        unless $type eq 'dynamic';
+    print @contents,"$CGI::CRLF";
+    print "${boundary}$CGI::CRLF";
+    do_sleep($self->push_delay()) if $self->push_delay();
     }
-    print "WARNING: YOUR BROWSER DOESN'T SUPPORT THIS SERVER-PUSH TECHNOLOGY.$CGI::CRLF";
+
+    # Optional last page
+    if ($last_page && ref($last_page) eq 'CODE') {
+    print "Content-type: ${type}$CGI::CRLF$CGI::CRLF" unless $type =~ /^dynamic|heterogeneous$/i;
+    print  &$last_page($self,$COUNTER),"$CGI::CRLF${boundary}$CGI::CRLF";
+    }
 }
 
 sub simple_counter {
     my ($self,$count) = @_;
-    return $self->start_html("CGI::Push Default Counter"),
-           $self->h1("CGI::Push Default Counter"),
-           "This page has been updated ",$self->strong($count)," times.",
-           $self->hr(),
-           $self->a({'-href'=>'http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html'},'CGI.pm home page'),
-           $self->end_html;
+    return (
+        CGI->start_html("CGI::Push Default Counter"),
+        CGI->h1("CGI::Push Default Counter"),
+        "This page has been updated ",CGI->strong($count)," times.",
+        CGI->hr(),
+        CGI->a({'-href'=>'http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html'},'CGI.pm home page'),
+        CGI->end_html
+        );
 }
 
 sub do_sleep {
     my $delay = shift;
     if ( ($delay >= 1) && ($delay!~/\./) ){
-        sleep($delay);
+    sleep($delay);
     } else {
-        select(undef,undef,undef,$delay);
+    select(undef,undef,undef,$delay);
     }
 }
 
 sub push_delay {
-    my ($self,$delay) = CGI::self_or_default(@_);
-    return defined($delay) ? $self->{'.delay'} = 
-        $delay : $self->{'.delay'};
+   my ($self,$delay) = CGI::self_or_default(@_);
+   return defined($delay) ? $self->{'.delay'} =
+    $delay : $self->{'.delay'};
 }
 
 1;
@@ -125,18 +117,18 @@ CGI::Push - Simple Interface to Server Push
         my($q,$counter) = @_;
         return undef if $counter >= 10;
         return start_html('Test'),
-               h1('Visible'),"\n",
+           h1('Visible'),"\n",
                "This page has been called ", strong($counter)," times",
                end_html();
-    }
+      }
 
-    sub last_page {
-        my($q,$counter) = @_;
-        return start_html('Done'),
-               h1('Finished'),
-               strong($counter - 1),' iterations.',
-               end_html;
-    }
+     sub last_page {
+     my($q,$counter) = @_;
+         return start_html('Done'),
+                h1('Finished'),
+                strong($counter),' iterations.',
+                end_html;
+     }
 
 =head1 DESCRIPTION
 
@@ -148,11 +140,8 @@ You provide CGI::Push with a pointer to a subroutine that will draw
 one page.  Every time your subroutine is called, it generates a new
 page.  The contents of the page will be transmitted to the browser
 in such a way that it will replace what was there beforehand.  The
-technique will work with HTML pages as well as with graphics files, 
+technique will work with HTML pages as well as with graphics files,
 allowing you to create animated GIFs.
-
-Only Netscape Navigator supports server push.  Internet Explorer
-browsers do not.
 
 =head1 USING CGI::Push
 
@@ -187,7 +176,7 @@ This required parameter points to a reference to a subroutine responsible for
 drawing each new page.  The subroutine should expect two parameters
 consisting of the CGI object and a counter indicating the number
 of times the subroutine has been called.  It should return the
-contents of the page as an B<array> of one or more items to print.  
+contents of the page as an B<array> of one or more items to print.
 It can return a false value (or an empty array) in order to abort the
 redrawing loop and print out the final page (if any)
 
@@ -196,7 +185,7 @@ redrawing loop and print out the final page (if any)
         return undef if $counter > 100;
         return start_html('testing'),
                h1('testing'),
-               "This page called $counter times";
+           "This page called $counter times";
     }
 
 You are of course free to refer to create and use global variables
@@ -217,7 +206,7 @@ defaults to "text/html".  Normally the module assumes that each page
 is of a homogenous MIME type.  However if you provide either of the
 magic values "heterogeneous" or "dynamic" (the latter provided for the
 convenience of those who hate long parameter names), you can specify
-the MIME type -- and other header fields -- on a per-page basis.  See 
+the MIME type -- and other header fields -- on a per-page basis.  See
 "heterogeneous pages" for more details.
 
 =item -delay
@@ -227,12 +216,10 @@ refresh the page faster.  Fractional values are allowed.
 
 B<If not specified, -delay will default to 1 second>
 
-=item -cookie, -target, -expires, -nph
+=item -cookie, -target, -expires
 
 These have the same meaning as the like-named parameters in
 CGI::header().
-
-If not specified, -nph will default to 1 (as needed for many servers, see below).
 
 =back
 
@@ -241,7 +228,7 @@ If not specified, -nph will default to 1 (as needed for many servers, see below)
 Ordinarily all pages displayed by CGI::Push share a common MIME type.
 However by providing a value of "heterogeneous" or "dynamic" in the
 do_push() -type parameter, you can specify the MIME type of each page
-on a case-by-case basis.  
+on a case-by-case basis.
 
 If you use this option, you will be responsible for producing the
 HTTP header for each page.  Simply modify your draw routine to
@@ -250,35 +237,35 @@ look like this:
     sub my_draw_routine {
         my($q,$counter) = @_;
         return header('text/html'),   # note we're producing the header here
-               start_html('testing'),
+           start_html('testing'),
                h1('testing'),
-               "This page called $counter times";
+           "This page called $counter times";
     }
 
 You can add any header fields that you like, but some (cookies and
 status fields included) may not be interpreted by the browser.  One
 interesting effect is to display a series of pages, then, after the
-last page, to redirect the browser to a new URL.  Because redirect() 
+last page, to redirect the browser to a new URL.  Because redirect()
 does b<not> work, the easiest way is with a -refresh header field,
 as shown below:
 
     sub my_draw_routine {
         my($q,$counter) = @_;
-        return undef if $counter > 10;
+    return undef if $counter > 10;
         return header('text/html'),   # note we're producing the header here
-               start_html('testing'),
+           start_html('testing'),
                h1('testing'),
-               "This page called $counter times";
+           "This page called $counter times";
     }
 
     sub my_last_page {
-        return header(-refresh=>'5; URL=http://somewhere.else/finished.html',
-                      -type=>'text/html'),
-               start_html('Moved'),
-               h1('This is the last page'),
-               'Goodbye!'
-               hr,
-               end_html; 
+    header(-refresh=>'5; URL=http://somewhere.else/finished.html',
+           -type=>'text/html'),
+        start_html('Moved'),
+        h1('This is the last page'),
+    'Goodbye!'
+         hr,
+         end_html;
     }
 
 =head2 Changing the Page Delay on the Fly
@@ -292,21 +279,16 @@ parameters, push_delay() just returns the current delay.
 
 =head1 INSTALLING CGI::Push SCRIPTS
 
-Server push scripts must be installed as no-parsed-header (NPH)
-scripts in order to work correctly on many servers.  On Unix systems,
-this is most often accomplished by prefixing the script's name with "nph-".  
-Recognition of NPH scripts happens automatically with WebSTAR and 
+Server push scripts B<must> be installed as no-parsed-header (NPH)
+scripts in order to work correctly.  On Unix systems, this is most
+often accomplished by prefixing the script's name with "nph-".
+Recognition of NPH scripts happens automatically with WebSTAR and
 Microsoft IIS.  Users of other servers should see their documentation
 for help.
 
-Apache web server from version 1.3b2 on does not need server
-push scripts installed as NPH scripts: the -nph parameter to do_push()
-may be set to a false value to disable the extra headers needed by an
-NPH script.
-
 =head1 AUTHOR INFORMATION
 
-Copyright 1995-1998, Lincoln D. Stein.  All rights reserved.  
+Copyright 1995-1998, Lincoln D. Stein.  All rights reserved.
 
 This library is free software; you can redistribute it and/or modify
 it under the same terms as Perl itself.

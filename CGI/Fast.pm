@@ -52,13 +52,13 @@ CGI::Fast - CGI Interface for Fast CGI
     use CGI::Fast qw(:standard);
     $COUNTER = 0;
     while (new CGI::Fast) {
-	print header;
-	print start_html("Fast CGI Rocks");
-	print
-	    h1("Fast CGI Rocks"),
-	    "Invocation number ",b($COUNTER++),
+    print header;
+    print start_html("Fast CGI Rocks");
+    print
+        h1("Fast CGI Rocks"),
+        "Invocation number ",b($COUNTER++),
             " PID ",b($$),".",
-	    hr;
+        hr;
         print end_html;
     }
 
@@ -107,7 +107,7 @@ A typical FastCGI script will look like this:
     use CGI::Fast;
     &do_some_initialization();
     while ($q = new CGI::Fast) {
-	&process_request($q);
+    &process_request($q);
     }
 
 Each time there's a new request, CGI::Fast returns a
@@ -123,7 +123,7 @@ CGI.pm's default CGI object mode also works.  Just modify the loop
 this way:
 
     while (new CGI::Fast) {
-	&process_request;
+    &process_request;
     }
 
 Calls to header(), start_form(), etc. will all operate on the
@@ -170,5 +170,5 @@ This section intentionally left blank.
 =head1 SEE ALSO
 
 L<CGI::Carp>, L<CGI>
-
+ 
 =cut
