@@ -1,36 +1,25 @@
-CGI.pm version 2.21 is now available.  This is the "everything but the
-kitchen sink" module for CGI programming in Perl 5.  New in this
-version:
+CGI.pm version 2.22 is now available to play with.  
+New in this version:
 
-* Lots of methods are now importable:
+* CGI::Fast for use with FastCGI standard.
 
-	use CGI qw(:standard);
-	print param('field_no_1');
+* Added some missing HTML shortcut methods:
 
-* HTML shortcut methods:
+	PARAM()
+	TR()
 
-	print h1("Hi mom!"),"I'm on ",strong("TV");
+  Because of conflicts with tr// function and CGI::param()
+  these are uppercase now.
 
-* Initialize CGI objects from strings and hashes:
+* Minimal support for the SSL protocol.
 
-     $query = new CGI({'dinosaur'=>'barney',
-		      'song'=>'I love you',
-		      'friends'=>[qw/Jessica George Nancy/]});
+* Bug fixes for inheritance.
 
-* No longer requires SelfLoader module.  
+* I/O now goes through a bottleneck method CGI::readStream.  You can
+  subclass and override it to make it compatible with things like
+  Apache mod_perl (but I haven't tried this yet).
 
-* Performance enhancements.  Loading time is now down to <0.2 seconds
-(Linux/Pentium90).
-
-* New cgi-lib compatability mode to ease migrating scripts from Steve
-Brenner's cgi-lib.pl to CGI.pm.
-
-* Many bug fixes, including fixes for binary file uploads under
-  Windows/NT.
-
-CGI.pm 2.21 can be found at:
-
-   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
+* Improvements and fixes for CGI::Carp.
 
 Lincoln
 

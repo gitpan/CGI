@@ -21,8 +21,8 @@ require 5.001;
 # Set this to 1 to enable copious autoloader debugging messages
 $AUTOLOAD_DEBUG=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.21 1996/05/31 07:25 lstein Exp $';
-$CGI::VERSION='2.21';
+$CGI::revision = '$Id: CGI.pm,v 2.22 1996/08/09 09:32 lstein Exp $';
+$CGI::VERSION='2.22';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -35,6 +35,9 @@ $OS = 'UNIX';
 
 # Some OS logic.  Binary mode enabled on DOS, NT and VMS
 $needs_binmode = $OS=~/WINDOWS|NT|VMS/;
+
+# This is the default class for the CGI object to use when all else fails.
+$DefaultClass = 'CGI' unless defined $CGI::DefaultClass;
 
 # The path separator is a slash, backslash or semicolon, depending
 # on the paltform.
@@ -51,27 +54,29 @@ $SL = {
 $CRLF = "\015\012";
 
 if ($needs_binmode) {
-    binmode(main::STDOUT);
-    binmode(main::STDIN);
-    binmode(main::STDERR);
+    $CGI::DefaultClass->binmode(main::STDOUT);
+    $CGI::DefaultClass->binmode(main::STDIN);
+    $CGI::DefaultClass->binmode(main::STDERR);
 }
 
 %OVERLOAD = ('""'=>'as_string');
 %EXPORT_TAGS = (
-	      ':html2'=>[h1..h7,qw/p br hr ol ul li dl dt dd menu code var strong em
+	      ':html2'=>[h1..h6,qw/p br hr ol ul li dl dt dd menu code var strong em
 			 tt i b blockquote pre img a address cite samp dfn html head
 			 base body link nextid title meta kbd start_html end_html
 			 input select option/],
-	      ':html3'=>[qw/table caption th td super sub strike applet param embed/],
+	      ':html3'=>[qw/table caption th td TR super sub strike applet PARAM embed basefont/],
 	      ':netscape'=>[qw/blink frameset frame script font fontsize center/],
 	      ':form'=>[qw/textfield textarea filefield password_field hidden checkbox checkbox_group 
 		       submit reset defaults radio_group popup_menu button
-		       scrolling_list image_button start_form end_form 
-		       start_multipart_form isindex URL_ENCODED MULTIPART/],
+		       scrolling_list image_button start_form end_form startform endform
+		       start_multipart_form isindex tmpFileName URL_ENCODED MULTIPART/],
 	      ':cgi'=>[qw/param path_info path_translated url self_url script_name cookie 
 		       raw_cookie request_method query_string accept user_agent remote_host 
-		       remote_addr referer server_name server_port remote_ident auth_type
-		       remote_user user_name header redirect import_names/],
+		       remote_addr referer server_name server_port server_protocol
+		       remote_ident auth_type http
+		       remote_user user_name header redirect import_names put/],
+	      ':ssl' => [qw/https/],
 	      ':cgi-lib' => [qw/ReadParse PrintHeader HtmlTop HtmlBot SplitParam/],
 	      ':html' => [qw/:html2 :html3 :netscape/],
 	      ':standard' => [qw/:html2 :form :cgi/],
@@ -109,19 +114,10 @@ sub expand_tags {
 ####
 sub new {
     my($class,$initializer) = @_;
-    my($IN,$filehandle);
-    if ($initializer && (ref($initializer) eq '')) {
-	my($package) = caller;
-	# force into caller's package if necessary
-	$filehandle = $initializer;
-	$IN = $filehandle=~/[':]/ ? $filehandle : "$package\:\:$filehandle"; 
-	if (fileno($IN) ne '') {
-	    $initializer = $IN;
-	}
-    }
     my $self = {};
-    bless $self,$class;
-    $self->initialize($initializer);
+    bless $self,ref $class || $class || $DefaultClass;
+    $initializer = to_filehandle($initializer) if $initializer;
+    $self->init($initializer);
     return $self;
 }
 
@@ -154,7 +150,7 @@ sub param {
 	my(@values);
 
 	if (substr($p[0],0,1) eq '-' || $self->use_named_parameters) {
-	    @values = defined($value) ? (ref($value) ? @{$value} : $value) : ();
+	    @values = defined($value) ? (ref($value) eq 'ARRAY' ? @{$value} : $value) : ();
 	} else {
 	    foreach ($value,@other) {
 		push(@values,$_) if defined($_);
@@ -185,11 +181,24 @@ sub delete {
 
 sub self_or_default {
     my (@param) = @_;
-    unless (substr(ref($_[0]),0,3) eq 'CGI') {
-	$Q = new CGI unless defined($Q);
+    unless (ref($_[0]) eq 'CGI' || eval "\$_[0]->isaCGI()") { # optimize for the common case
+	$Q = $CGI::DefaultClass->new unless defined($Q);
 	unshift(@param,$Q);
     }
     return @param;
+}
+
+sub self_or_CGI {
+    my(@param) = @_;
+    if ($_[0] && (substr(ref($_[0]),0,3) eq 'CGI' || eval "\$_[0]->isaCGI()")) {
+	return @param;
+    } else {
+	return ($DefaultClass,@param);
+    }
+}
+
+sub isaCGI {
+    return 1;
 }
 
 #### Method: import_names
@@ -238,7 +247,7 @@ sub use_named_parameters {
 # If a keyword list is found, this method creates a bogus
 # parameter list with the single parameter 'keywords'.
 
-sub initialize {
+sub init {
     my($self,$initializer) = @_;
     my($query_string,@lines);
     my($meth) = '';
@@ -270,7 +279,7 @@ sub initialize {
 	  }
 	  
 	  $initializer = $$initializer if ref($initializer);
-	  if (fileno($initializer) ne '') {
+	  if (defined(fileno($initializer))) {
 	      while (<$initializer>) {
 		  chomp;
 		  last if /^=/;
@@ -296,21 +305,18 @@ sub initialize {
 	
       # If the method is POST, fetch the query from standard
       # input.
-	
       if ($meth eq 'POST') {
-
 	  if ($ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|) {
 	      my($boundary) = $ENV{'CONTENT_TYPE'}=~/boundary=(\S+)/;
 	      $self->read_multipart($boundary,$ENV{'CONTENT_LENGTH'});
 	  } else {
-	      $query_string ='';	# hack to avoid 'uninitialized variable' warnings
-	      read(STDIN,$query_string,$ENV{'CONTENT_LENGTH'}) 
+	      $self->read_from_client(\*STDIN,\$query_string,$ENV{'CONTENT_LENGTH'},0)
 		  if $ENV{'CONTENT_LENGTH'} > 0;
 	  }
 	  last METHOD;
       }
 	  
-	  # If neither is set, assume we're being debugged offline.
+      # If neither is set, assume we're being debugged offline.
       # Check the command line and then the standard input for data.
       # We use the shellwords package in order to behave the way that
       # UN*X programmers expect.
@@ -340,6 +346,49 @@ sub initialize {
     # Clear out our default submission button flag if present
     $self->delete('.submit');
     $self->save_request unless $initializer;
+}
+
+# FUNCTIONS TO OVERRIDE:
+
+# Turn a string into a filehandle
+sub to_filehandle {
+    my $string = shift;
+    if ($string && (ref($string) eq '')) {
+	my($package) = caller(1);
+	my($tmp) = $string=~/[':]/ ? $string : "$package\:\:$string"; 
+	return $tmp if defined(fileno($tmp));
+    }
+    return $string;
+}
+
+# Create a new multipart buffer
+sub new_MultipartBuffer {
+    my($self,$boundary,$length,$filehandle) = @_;
+    return MultipartBuffer->new($self,$boundary,$length,$filehandle);
+}
+
+# Read data from a file handle
+sub read_from_client {
+    my($self, $fh, $buff, $len, $offset) = @_;
+    local $^W=0;		# prevent a warning
+    return read($fh, $$buff, $len, $offset);
+}
+
+# put a filehandle into binary mode (DOS)
+sub binmode {
+    binmode($_[1]);
+}
+
+# send output to the browser
+sub put {
+    my($self,@p) = self_or_default(@_);
+    $self->print(@p);
+}
+
+# print to standard output (for overriding in mod_perl)
+sub print {
+    shift;
+    CORE::print(@_);
 }
 
 # unescape URL-encoded data
@@ -415,7 +464,9 @@ sub as_string {
 AUTOLOAD {
     print STDERR "CGI::AUTOLOAD for $AUTOLOAD\n" if $CGI::AUTOLOAD_DEBUG;
     my($func) = $AUTOLOAD;
-    my($pack,$func_name) = split('::',$func);
+    my($pack,$func_name) = $func=~/(.+)::([^:]+)$/;
+    $pack = $CGI::DefaultClass
+	unless defined(${"$pack\:\:AUTOLOADED_ROUTINES"});
     my($sub) = \%{"$pack\:\:SUBS"};
     unless (%$sub) {
 	my($auto) = \${"$pack\:\:AUTOLOADED_ROUTINES"};
@@ -424,10 +475,10 @@ AUTOLOAD {
     }
     my($code)= $sub->{$func_name};
     $code = "sub $AUTOLOAD { }" if (!$code and $func_name =~ m/::DESTROY$/);
-    if ((!$code && substr($pack,0,3) eq 'CGI')) {
+    if (!$code) {
 	if ($EXPORT{':any'} || 
 	    $EXPORT{$func_name} || 
-	    (%EXPORT_OK || grep($EXPORT_OK{$_}++,&expand_tags(':all')))
+	    (%EXPORT_OK || grep(++$EXPORT_OK{$_},&expand_tags(':html')))
 	    && $EXPORT_OK{$func_name}) {
 	    $code = $sub->{'HTML_FUNC'};
 	    $code=~s/func_name/$func_name/mg;
@@ -439,12 +490,13 @@ AUTOLOAD {
 	$@ =~ s/ at .*\n//;
         die $@;
     }
-    goto &$func;
+    goto &{"$pack\:\:$func_name"};
 }
 
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
 ###############################################################################
+$AUTOLOADED_ROUTINES = '';	# get rid of -w warning
 $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 
 %SUBS = (
@@ -459,13 +511,25 @@ END_OF_FUNC
 
 'HTML_FUNC' => <<'END_OF_FUNC',
 sub func_name { 
-    shift if substr(ref($_[0]),0,3) eq 'CGI';
+    shift if $_[0] &&
+	(substr(ref($_[0]),0,3) eq 'CGI' ||
+	    eval "\$_[0]->isaCGI()");
     my($attr) = '';
     if (ref($_[0]) && ref($_[0]) eq 'HASH') {
-	$attr = CGI::make_attributes('',shift);
+	my(@attr) = CGI::make_attributes('',shift);
+	$attr = " @attr" if @attr;
     }
-    return @_ ? "<func_name$attr>@_</func_name>" :
-	"<func_name$attr>";
+    my($tag,$untag) = ("<func_name$attr>","</func_name>");
+    return $tag unless @_;
+    if (ref($_[0]) eq 'ARRAY') {
+	my(@r);
+	foreach (@{$_[0]}) {
+	    push(@r,"$tag$_$untag");
+	}
+	return "@r";
+    } else {
+	return  "$tag@_$untag";
+    }
 }
 END_OF_FUNC
 
@@ -647,7 +711,7 @@ sub make_attributes {
 	$key=~tr/a-z/A-Z/; # parameters are upper case
 	push(@att,$attr->{$_} ne '' ? qq/$key="$attr->{$_}"/ : qq/$key/);
     }
-    return " @att";
+    return @att;
 }
 END_OF_FUNC
 
@@ -706,23 +770,23 @@ END_OF_FUNC
 ####
 'header' => <<'END_OF_FUNC',
 sub header {
-    my($self,@p) = self_or_default(@_);
+    my($self,@p) = self_or_CGI(@_);
+    my(@header);
 
     my($type,$status,$cookie,$target,$expires,@other) = 
-	$self->rearrange([TYPE,STATUS,COOKIE,TARGET,EXPIRES],@p);
+	$self->rearrange([TYPE,STATUS,[COOKIE,COOKIES],TARGET,EXPIRES],@p);
 
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
-	next unless my($header,$value) = /^\s*(\S*)=(.*)$/;
+	next unless my($header,$value) = /(\S+)=(.+)/;
 	substr($header,1,1000)=~tr/A-Z/a-z/;
 	($value)=$value=~/^"(.*)"$/;
 	$_ = "$header: $value";
     }
 
     $type = $type || 'text/html';
-    push(@other,"Pragma: no-cache") if $self->cache();
-    my(@header);
+
     push(@header,"Status: $status") if $status;
     push(@header,"Window-target: $target") if $target;
     # push all the cookies -- there may be several
@@ -733,7 +797,8 @@ sub header {
 	}
     }
     push(@header,"Expires: " . &expires($expires)) if $expires;
-    push(@header,@other) if @other;
+    push(@header,"Pragma: no-cache") if $self->cache();
+    push(@header,@other);
     push(@header,"Content-type: $type");
 
     my $header = join($CRLF,@header);
@@ -764,16 +829,18 @@ END_OF_FUNC
 ####
 'redirect' => <<'END_OF_FUNC',
 sub redirect {
-    my($self,@p) = self_or_default(@_);
-    my($url,$target) = $self->rearrange([[URI,URL],TARGET],@p);
+    my($self,@p) = self_or_CGI(@_);
+    my($url,$target,$cookie,@other) = $self->rearrange([[URI,URL],TARGET,COOKIE],@p);
     $url = $url || $self->self_url;
-    my(@r);
-    push(@r,"Status: 302 Found",
-	 "Location: ${url}",
-	 "URI: $url");
-    push(@r,"Window-target: $target") if $target;
-    push(@r,"Content-type: text/html"); # patches a bug in some servers
-    return join($CRLF,@r)."${CRLF}${CRLF}";
+    my(@o);
+    foreach (@other) { push(@o,split("=")); }
+    push(@o,
+	 '-Status'=>'302 Found',
+	 '-Location'=>$url,
+	 '-URI'=>$url);
+    push(@o,'-Target'=>$target) if $target;
+    push(@o,'-Cookie'=>$cookie) if $cookie;
+    return $self->header(@o);
 }
 END_OF_FUNC
 
@@ -793,7 +860,7 @@ END_OF_FUNC
 ####
 'start_html' => <<'END_OF_FUNC',
 sub start_html {
-    my($self,@p) = self_or_default(@_);
+    my($self,@p) = &self_or_CGI(@_);
     my($title,$author,$base,$xbase,$script,$meta,@other) = 
 	$self->rearrange([TITLE,AUTHOR,BASE,XBASE,SCRIPT,META],@p);
 
@@ -847,7 +914,7 @@ END_OF_FUNC
 #   A string containing a <ISINDEX> tag
 'isindex' => <<'END_OF_FUNC',
 sub isindex {
-    my($self,@p) = self_or_default(@_);
+    my($self,@p) = self_or_CGI(@_);
     my($action,@other) = $self->rearrange([ACTION],@p);
     $action = qq/ACTION="$action"/ if $action;
     return "<ISINDEX $action @other>";
@@ -863,7 +930,7 @@ END_OF_FUNC
 #   $enctype ->encoding to use (URL_ENCODED or MULTIPART)
 'startform' => <<'END_OF_FUNC',
 sub startform {
-    my($self,@p) = self_or_default(@_);
+    my($self,@p) = self_or_CGI(@_);
 
     my($method,$action,$enctype,@other) = 
 	$self->rearrange([METHOD,ACTION,ENCTYPE],@p);
@@ -889,7 +956,7 @@ END_OF_FUNC
 # synonym for startform
 'start_multipart_form' => <<'END_OF_FUNC',
 sub start_multipart_form {
-    my($self,@p) = self_or_default(@_);
+    my($self,@p) = self_or_CGI(@_);
     my($method,$action,$enctype,@other) = 
 	$self->rearrange([METHOD,ACTION,ENCTYPE],@p);
     $self->startform($method,$action,$enctype || &MULTIPART,@other);
@@ -1084,11 +1151,11 @@ sub submit {
     $label=$self->escapeHTML($label);
     $value=$self->escapeHTML($value);
 
-    my($name) = 'NAME=".submit"';
-    $name = qq/NAME="$label"/ if $label;
+    my($name) = ' NAME=".submit"';
+    $name = qq/ NAME="$label"/ if $label;
     $value = $value || $label;
     my($val) = '';
-    $val = qq/ VALUE="$value"/ if $value;
+    $val = qq/ VALUE="$value"/ if defined($value);
     my($other) = join(' ',@other);
     return qq/<INPUT TYPE="submit"$name$val$other>/;
 }
@@ -1107,7 +1174,7 @@ sub reset {
     my($self,@p) = self_or_default(@_);
     my($label,@other) = $self->rearrange([NAME],@p);
     $label=$self->escapeHTML($label);
-    my($value) = $label ? qq/ VALUE="$label"/ : '';
+    my($value) = defined($label) ? qq/ VALUE="$label"/ : '';
     my($other) = join(' ',@other);
     return qq/<INPUT TYPE="reset"$value$other>/;
 }
@@ -1220,7 +1287,7 @@ sub checkbox_group {
 
     # Create the elements
     my(@elements);
-    my(@values) = @$values ? @$values : $self->param($name);
+    my(@values) = $values ? @$values : $self->param($name);
     my($other) = join(" ",@other);
     foreach (@values) {
 	$checked = $checked{$_} ? ' CHECKED' : '';
@@ -1318,7 +1385,7 @@ sub radio_group {
     $name=$self->escapeHTML($name);
 
     my(@elements);
-    my(@values) = @$values ? @$values : $self->param($name);
+    my(@values) = $values ? @$values : $self->param($name);
     my($other) = join(" ",@other);
     foreach (@values) {
 	my($checkit) = $checked eq $_ ? ' CHECKED' : '';
@@ -1365,11 +1432,12 @@ sub popup_menu {
     } else {
 	$selected = $default;
     }
-
     $name=$self->escapeHTML($name);
     my($other) = join(" ",@other);
+
+    my(@values) = $values ? @$values : $self->param($name);
     $result = qq/<SELECT NAME="$name"$other>\n/;
-    foreach (@{$values}) {
+    foreach (@values) {
 	my($selectit) = defined($selected) ? ($selected eq $_ ? 'SELECTED' : '' ) : '';
 	my($label) = $_;
 	$label = $labels->{$_} if defined($labels) && $labels->{$_};
@@ -1412,16 +1480,16 @@ sub scrolling_list {
 			    SIZE,MULTIPLE,LABELS,[OVERRIDE,FORCE]],@p);
 
     my($result);
-    $size = $size || scalar(@{$values});
+    my(@values) = $values ? @$values : $self->param($name);
+    $size = $size || scalar(@values);
 
     my(%selected) = $self->previous_or_default($name,$defaults,$override);
-
     my($is_multiple) = $multiple ? ' MULTIPLE' : '';
     my($has_size) = $size ? " SIZE=$size" : '';
     my($other) = join(" ",@other);
+
     $name=$self->escapeHTML($name);
     $result = qq/<SELECT NAME="$name"$has_size$is_multiple$other>\n/;
-    my(@values) = @$values ? @$values : $self->param($name);
     foreach (@values) {
 	my($selectit) = $selected{$_} ? 'SELECTED' : '';
 	my($label) = $_;
@@ -1512,7 +1580,8 @@ END_OF_FUNC
 sub self_url {
     my($self) = self_or_default(@_);
     my($query_string) = $self->query_string;
-    my $name = "http://" . $self->server_name;
+    my $protocol = $self->protocol();
+    my $name = "$protocol://" . $self->server_name;
     $name .= ":" . $self->server_port
 	unless $self->server_port == 80;
     $name .= $self->script_name;
@@ -1539,7 +1608,8 @@ END_OF_FUNC
 'url' => <<'END_OF_FUNC',
 sub url {
     my($self) = self_or_default(@_);
-    my $name = "http://" . $self->server_name;
+    my $protocol = $self->protocol();
+    my $name = "$protocol://" . $self->server_name;
     $name .= ":" . $self->server_port
 	unless $self->server_port == 80;
     $name .= $self->script_name;
@@ -1663,7 +1733,6 @@ sub request_method {
 }
 END_OF_FUNC
 
-
 #### Method: path_translated
 # Return the physical path information provided
 # by the URL (if any)
@@ -1708,11 +1777,11 @@ END_OF_FUNC
 ####
 'accept' => <<'END_OF_FUNC',
 sub accept {
-    my($self,$search) = self_or_default(@_);
+    my($self,$search) = self_or_CGI(@_);
     my(%prefs,$type,$pref,$pat);
     
-    my(@accept) = split(',',$ENV{'HTTP_ACCEPT'});
-    
+    my(@accept) = split(',',$self->http('accept'));
+
     foreach (@accept) {
 	($pref) = /q=(\d\.\d+|\d+)/;
 	($type) = m#(\S+/[^;]+)#;
@@ -1749,9 +1818,9 @@ END_OF_FUNC
 ####
 'user_agent' => <<'END_OF_FUNC',
 sub user_agent {
-    my($self,$match)=self_or_default(@_);
-    return $ENV{'HTTP_USER_AGENT'} unless $match;
-    return ($ENV{'HTTP_USER_AGENT'} =~ /$match/i);
+    my($self,$match)=self_or_CGI(@_);
+    return $self->http('user_agent') unless $match;
+    return $self->http('user_agent') =~ /$match/i;
 }
 END_OF_FUNC
 
@@ -1763,7 +1832,8 @@ END_OF_FUNC
 ####
 'raw_cookie' => <<'END_OF_FUNC',
 sub raw_cookie {
-    return $ENV{'HTTP_COOKIE'};
+    my($self) = self_or_CGI(@_);
+    return $self->http('cookie') || '';
 }
 END_OF_FUNC
 
@@ -1814,7 +1884,8 @@ END_OF_FUNC
 ####
 'referer' => <<'END_OF_FUNC',
 sub referer {
-    return $ENV{'HTTP_REFERER'};
+    my($self) = self_or_CGI(@_);
+    return $self->http('referer');
 }
 END_OF_FUNC
 
@@ -1838,6 +1909,62 @@ sub server_port {
 }
 END_OF_FUNC
 
+#### Method: server_protocol
+# Return the protocol (usually HTTP/1.0)
+####
+'server_protocol' => <<'END_OF_FUNC',
+sub server_protocol {
+    return $ENV{'SERVER_PROTOCOL'} || 'HTTP/1.0'; # for debugging
+}
+END_OF_FUNC
+
+#### Method: http
+# Return the value of an HTTP variable, or
+# the list of variables if none provided
+####
+'http' => <<'END_OF_FUNC',
+sub http {
+    my ($self,$parameter) = self_or_CGI(@_);
+    return $ENV{$parameter} if $parameter=~/^HTTP/;
+    return $ENV{"HTTP_\U$parameter\E"} if $parameter;
+    my(@p);
+    foreach (keys %ENV) {
+	push(@p,$_) if /^HTTP/;
+    }
+    return @p;
+}
+END_OF_FUNC
+
+#### Method: https
+# Return the value of HTTPS
+####
+'https' => <<'END_OF_FUNC',
+sub https {
+    my ($self,$parameter) = self_or_CGI(@_);
+    return $ENV{$parameter} if $parameter=~/^HTTPS/;
+    return $ENV{"HTTPS_\U$parameter\E"} if $parameter;
+    my(@p);
+    foreach (keys %ENV) {
+	push(@p,$_) if /^HTTPS/;
+    }
+    return @p;
+}
+END_OF_FUNC
+
+#### Method: protocol
+# Return the protocol (http or https currently)
+####
+'protocol' => <<'END_OF_FUNC',
+sub protocol {
+    my $self = shift;
+    return 'https' if $self->https(); 
+    return 'https' if $self->server_port == 443;
+    my $prot = $self->server_protocol;
+    return 'http' if $prot =~ /http/i;
+    my($protocol,$version) = split('/',$prot);
+    return "\L$protocol\E";
+}
+END_OF_FUNC
 
 #### Method: remote_ident
 # Return the identity of the remote user
@@ -1877,7 +2004,8 @@ END_OF_FUNC
 ####
 'user_name' => <<'END_OF_FUNC',
 sub user_name {
-    return $ENV{'HTTP_FROM'} || $ENV{'REMOTE_IDENT'} || $ENV{'REMOTE_USER'};
+    my ($self) = self_or_CGI(@_);
+    return $self->http('from') || $ENV{'REMOTE_IDENT'} || $ENV{'REMOTE_USER'};
 }
 END_OF_FUNC
 
@@ -1901,8 +2029,6 @@ END_OF_FUNC
 sub rearrange {
     my($self,$order,@param) = @_;
 
-# I don't understand this one!
-#    return ('') x $#$order unless @param;
     return () unless @param;
 
     return @param unless (defined($param[0]) && substr($param[0],0,1) eq '-')
@@ -1994,7 +2120,7 @@ END_OF_FUNC
 'read_multipart' => <<'END_OF_FUNC',
 sub read_multipart {
     my($self,$boundary,$length) = @_;
-    my($buffer) = new MultipartBuffer($boundary,$length);
+    my($buffer) = $self->new_MultipartBuffer($boundary,$length);
     return unless $buffer;
     my(%header,$body);
     while (!$buffer->eof) {
@@ -2024,7 +2150,7 @@ sub read_multipart {
 	# the file for reading.
 	my($tmpfile) = new TempFile;
 	open (OUT,">$tmpfile") || die "CGI open of $tmpfile: $!\n";
-	binmode(OUT) if $CGI::needs_binmode;
+	$self->binmode(OUT) if $CGI::needs_binmode;
 	chmod 0666,$tmpfile;	# make sure anyone can delete it.
 	my $data;
 	while ($data = $buffer->read) {
@@ -2039,14 +2165,14 @@ sub read_multipart {
 	my($filehandle);
 	if ($filename=~/^[a-zA-Z_]/) {
 	    my($frame,$cp)=(1);
-	    do { $cp = caller($frame++); } until substr($cp,0,3) ne 'CGI';
+	    do { $cp = caller($frame++); } until !eval("$cp->isaCGI()");
 	    $filehandle = "$cp\:\:$filename";
 	} else {
 	    $filehandle = "\:\:$filename";
 	}
 
 	open($filehandle,$tmpfile) || die "CGI open of $tmpfile: $!\n";
-	binmode($filehandle) if $CGI::needs_binmode;
+	$self->binmode($filehandle) if $CGI::needs_binmode;
 
 	push(@{$self->{$param}},$filename);
 
@@ -2067,8 +2193,9 @@ END_OF_FUNC
 
 'tmpFileName' => <<'END_OF_FUNC'
 sub tmpFileName {
-    my($self,$filename) = @_;
+    my($self,$filename) = self_or_default(@_);
     return $self->{'.tmpfiles'}->{$filename};
+}
 END_OF_FUNC
 
 );
@@ -2087,16 +2214,18 @@ $CRLF=$CGI::CRLF;
 
 #reuse the autoload function
 *MultipartBuffer::AUTOLOAD = \&CGI::AUTOLOAD;
+*MultipartBuffer::binmode = \&CGI::binmode;
 
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
 ###############################################################################
+$AUTOLOADED_ROUTINES = '';	# prevent -w error
 $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 %SUBS =  (
 
 'new' => <<'END_OF_FUNC',
 sub new {
-    my($package,$boundary,$length,$filehandle) = @_;
+    my($package,$interface,$boundary,$length,$filehandle) = @_;
     my $IN;
     if ($filehandle) {
 	my($package) = caller;
@@ -2105,7 +2234,7 @@ sub new {
     }
     $IN = "main::STDIN" unless $IN;
 
-    binmode($IN) if $CGI::needs_binmode;
+    $self->binmode($IN) if $CGI::needs_binmode;
     
     # If the user types garbage into the file upload field,
     # then Netscape passes NOTHING to the server (not good).
@@ -2113,25 +2242,21 @@ sub new {
     # a read timeout.  If nothing is ready to read
     # by then, we return.
 
-    # this guy is commented out because it has never worked
-    # correctly for Solaris-based servers.
-
-    # return undef if wouldBlock($IN,$TIMEOUT);
-
     # Netscape seems to be a little bit unreliable
     # about providing boundary strings.
     if ($boundary) {
+
 	# Under the MIME spec, the boundary consists of the 
 	# characters "--" PLUS the Boundary string
 	$boundary = "--$boundary";
 	# Read the topmost (boundary) line plus the CRLF
 	my($null) = '';
-	read($IN,$null,length($boundary)+2);
-	$length -= (length($boundary) + 2);
+	$length -= $interface->read_from_client($IN,\$null,length($boundary)+2,0);
+
     } else { # otherwise we find it ourselves
 	my($old);
 	($old,$/) = ($/,$CRLF);	# read a CRLF-delimited line
-	$boundary = <$IN>;		
+	$boundary = <$IN>;	# BUG: This won't work correctly under mod_perl
 	$length -= length($boundary);
 	chomp($boundary);		# remove the CRLF
 	$/ = $old;			# restore old line separator
@@ -2140,13 +2265,14 @@ sub new {
     my $self = {LENGTH=>$length,
 		BOUNDARY=>$boundary,
 		IN=>$IN,
+		INTERFACE=>$interface,
 		BUFFER=>'',
 	    };
 
     $FILLUNIT = length($boundary)
 	if length($boundary) > $FILLUNIT;
 
-    return bless $self,$package;
+    return bless $self,ref $package || $package;
 }
 END_OF_FUNC
 
@@ -2192,6 +2318,7 @@ END_OF_FUNC
 'read' => <<'END_OF_FUNC',
 sub read {
     my($self,$bytes) = @_;
+
     # default number of bytes to read
     $bytes = $bytes || $FILLUNIT;	
 
@@ -2243,15 +2370,18 @@ END_OF_FUNC
 'fillBuffer' => <<'END_OF_FUNC',
 sub fillBuffer {
     my($self,$bytes) = @_;
+    return unless $self->{LENGTH};
+
     my($boundaryLength) = length($self->{BOUNDARY});
     my($bufferLength) = length($self->{BUFFER});
     my($bytesToRead) = $bytes - $bufferLength + $boundaryLength + 2;
     $bytesToRead = $self->{LENGTH} if $self->{LENGTH} < $bytesToRead;
 
-    # Client may have aborted.  Make sure we time out if the read
-    # will block for more than TIMEOUT seconds.
-    die "CGI.pm: Client timed out during multipart read.\n" if wouldBlock($self->{IN},$TIMEOUT);
-    my $bytesRead = read($self->{IN},$self->{BUFFER},$bytesToRead,$bufferLength);
+    # Try to read some data.  We may hang here if the browser is screwed up.  
+    my $bytesRead = $self->{INTERFACE}->read_from_client($self->{IN},
+							 \$self->{BUFFER},
+							 $bytesToRead,
+							 $bufferLength);
     
     # An apparent bug in the Netscape Commerce server causes the read()
     # to return zero bytes repeatedly without blocking if the
@@ -2271,7 +2401,7 @@ END_OF_FUNC
 
 
 # Return true when we've finished reading
-'eof' => <<'END_OF_FUNC',
+'eof' => <<'END_OF_FUNC'
 sub eof {
     my($self) = @_;
     return 1 if (length($self->{BUFFER}) == 0)
@@ -2279,25 +2409,6 @@ sub eof {
 }
 END_OF_FUNC
 
-
-# utility function -- return TRUE if a read on the filehandle
-# blocks for more than the specified timeout.
-# NOTE: This piece of code has been commented out because it
-# causes problems on Solaris and DEC Unix 3.2 systems (and
-# maybe others)
-'wouldBlock' => <<'END_OF_FUNC',
-sub wouldBlock {
-
-    return undef;
-
-    my($handle,$timeout) = @_;
-    my($rin) = '';
-    vec($rin,fileno($handle),1)=1;
-    my($nfound,$timeleft) =
-	select($rin,undef,undef,$timeout);
-    return !$nfound;
-}
-END_OF_FUNC
 );
 END_OF_AUTOLOAD
 
@@ -2327,6 +2438,7 @@ sub as_string {
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
 ###############################################################################
+$AUTOLOADED_ROUTINES = '';	# prevent -w error
 $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 %SUBS = (
 
@@ -2355,6 +2467,7 @@ package CGI;
 # when running with the -w switch.  Touch them all once to get rid of the
 # warnings.  This is ugly and I hate it.
 if ($^W) {
+    $CGI::CGI = '';
     $CGI::CGI=<<EOF;
     $CGI::VERSION;
     $MultipartBuffer::SPIN_LOOP_MAX;
@@ -2421,7 +2534,9 @@ It redefines the die(), warn(), confess() and croak() error routines
 so that they write nicely formatted error messages into the server's
 error log (or to the output stream of your choice).  This avoids long
 hours of groping through the error and access logs, trying to figure
-out which CGI script is generating fatal error messages.
+out which CGI script is generating  error messages.  If you choose,
+you can even have fatal error messages echoed to the browser to avoid
+the annoying and unimformative "Server Error" message.
 
 =head1 DESCRIPTION
 

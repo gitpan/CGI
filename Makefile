@@ -10,7 +10,7 @@
 
 #	DISTNAME => q[CGI.pm]
 #	NAME => q[CGI]
-#	VERSION => q[2.21]
+#	VERSION => q[2.22]
 #	dist => { COMPRESS=>q[gzip -9f], SUFFIX=>q[gz] }
 #	linkext => { LINKTYPE=>q[] }
 
@@ -45,9 +45,9 @@ AR_STATIC_ARGS = cr
 NAME = CGI
 DISTNAME = CGI.pm
 NAME_SYM = CGI
-VERSION = 2.21
-VERSION_SYM = 2_21
-XS_VERSION = 2.21
+VERSION = 2.22
+VERSION_SYM = 2_22
+XS_VERSION = 2.22
 INST_LIB = ./blib/lib
 INST_ARCHLIB = ./blib/arch
 INST_EXE = ./blib/bin
@@ -99,7 +99,8 @@ O_FILES =
 H_FILES = 
 MAN1PODS = 
 MAN3PODS = CGI.pm \
-	CGI/Carp.pm
+	CGI/Carp.pm \
+	CGI/Fast.pm
 INST_MAN1DIR = ./blib/man1
 INSTALLMAN1DIR = $(PREFIX)/man/man1
 MAN1EXT = 1
@@ -139,7 +140,8 @@ EXPORT_LIST =
 PERL_ARCHIVE = 
 
 INST_PM = $(INST_LIBDIR)/CGI.pm \
-	$(INST_LIBDIR)/CGI/Carp.pm
+	$(INST_LIBDIR)/CGI/Carp.pm \
+	$(INST_LIBDIR)/CGI/Fast.pm
 
 
 # --- MakeMaker const_loadlibs section:
@@ -368,6 +370,14 @@ $(INST_LIBDIR)/CGI/.exists :: /usr/local/lib/perl5/i486-linux/5.002/CORE/perl.h
 	-@$(CHMOD) 755 $(INST_LIBDIR)/CGI
 
 
+# installpm: CGI/Fast.pm => $(INST_LIBDIR)/CGI/Fast.pm, splitlib=$(INST_LIB)
+
+$(INST_LIBDIR)/CGI/Fast.pm: CGI/Fast.pm Makefile $(INST_LIBDIR)/CGI/.exists $(INST_ARCHAUTODIR)/.exists
+	@rm -f $@
+	$(UMASK_NULL) && cp CGI/Fast.pm $@
+	@$(AUTOSPLITFILE) $@ $(INST_LIB)/auto
+
+
 
 # --- MakeMaker manifypods section:
 POD2MAN_EXE = /usr/local/bin/pod2man
@@ -378,10 +388,13 @@ POD2MAN = $(PERL) -we '%m=@ARGV;for (keys %m){' \
 -e 'chmod 0644, $$m{$$_} or warn "chmod 644 $$m{$$_}: $$!\n";}'
 
 manifypods : CGI/Carp.pm \
+	CGI/Fast.pm \
 	CGI.pm
 	@$(POD2MAN) \
 	CGI/Carp.pm \
 	$(INST_MAN3DIR)/CGI::Carp.$(MAN3EXT) \
+	CGI/Fast.pm \
+	$(INST_MAN3DIR)/CGI::Fast.$(MAN3EXT) \
 	CGI.pm \
 	$(INST_MAN3DIR)/CGI.$(MAN3EXT)
 
@@ -614,9 +627,9 @@ TEST_VERBOSE=0
 TEST_TYPE=test_$(LINKTYPE)
 
 test :: $(TEST_TYPE)
+	@echo 'No tests defined for $(NAME) extension.'
 
 test_dynamic :: all
-	PERL_DL_NONLAZY=1 $(FULLPERL) -I$(INST_ARCHLIB) -I$(INST_LIB) -I$(PERL_ARCHLIB) -I$(PERL_LIB) test.pl
 
 test_ : test_dynamic
 

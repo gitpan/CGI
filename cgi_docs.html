@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.21, 5/31/96, L. Stein
+Version 2.22, 8/7/96, L. Stein
 <p>
 Mirrors of this document may be found at:
 <ul>
@@ -109,13 +109,14 @@ href="#import">importing CGI methods</a> for an explanation.)
   <li><a href="#frames">Support for Netscape frames</a>
   <li><a href="#javascripting">Support for JavaScript</a>
   <LI><A HREF="#advanced">Advanced techniques</A>
+  <LI><A HREF="#mod_perl">Using CGI.pm with mod_perl and FastCGI</A>
   <LI><A HREF="#migrating">Migrating from cgi-lib.pl</A>
   <LI><a href="#upload_caveats">Using the File Upload Feature</a>
   <LI><A HREF="#non_unix">Using CGI.pm on non-Unix Platforms</A>
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.21?</A>
+  <LI><A HREF="#new">What's new in version 2.22?</A>
 </MENU>
 
 <HR>
@@ -747,7 +748,7 @@ facility, the HTML shortcuts can make CGI scripts easier to read.  For
 example:
 
 <pre>
-   use CGI shortcuts;
+   use CGI ':standard';
    print h1("Road Guide"),
          ol(
           li(a {href=&gt;"start.html"},"The beginning"),
@@ -755,6 +756,18 @@ example:
           li(a {href=&gt;"end.html"},"The end")
          );
 </pre>
+
+<p>
+
+Most HTML tags are represented as lowercase function calls.  There are a
+couple of exceptions:
+
+<ol>
+  <li>The &lt;tr&gt; tag used to start a new table row conflicts with the
+      perl <cite>translate</cite> function <code>tr()</code>.  Use TR() instead.
+  <li>The &lt;param&gt; tag used to pass parameters to an applet
+      conflicts with CGI's own <code>param() </code> method.  Use PARAM() instead.
+</ol>
 
 <h4>Tags with Attributes</h4>
 
@@ -767,6 +780,43 @@ wish:
 <pre>
    use CGI shortcuts;
    print a({href=&gt;"bad_art.html"},"Jump to the silly exhibit");
+</pre>
+
+<h4>Repeating Patterns</h4>
+
+As a convenience for creating lists, tables and other repeating HTML
+patterns, if you pass a reference to an array as an HTML shortcut's
+argument, it will <em>distribute</em> the tag across the array's
+values.  This is easier to show than to explain:
+
+<pre>
+   use CGI shortcuts;
+   print ol(li(['fee','fie','foe','fum']));
+</pre>
+
+This will return the following HTML (newlines have been inserted to
+improve readability):
+
+<pre>
+   &lt;ol&gt;
+     &lt;li&gt;fee&lt;/li&gt;
+     &lt;li&gt;fie&lt;/li&gt;
+     &lt;li&gt;foe&lt;/li&gt;
+     &lt;li&gt;fum&lt;/li&gt;
+   &lt;/ol&gt;
+</pre>
+
+This feature also works correctly with tag attributes:
+
+<pre>
+   print TR(td({align=>'left'},[qw/eenie meenie minie moe/]);
+</pre>
+
+Be aware the behavior of HTML shortcuts when you provide additional
+arguments after the array reference is currently undefined.
+
+<pre>
+   print li([qw/eenie meenie minie/],'moe'); # <strong>UNDEFINED BEHAVIOR!</strong>
 </pre>
 
 <P>
@@ -1094,7 +1144,9 @@ of the file using standard Perl file reading calls:
 You can have several file upload fields in the same form, and even
 give them the same name if you like (in the latter case <CODE>param()</CODE>
 will return a list of file names).
+
 <P>
+
 When processing an uploaded file, CGI.pm creates a temporary file on
 your hard disk and passes you a file handle to that file.  After you
 are finished with the file handle, CGI.pm unlinks (deletes) the
@@ -1867,6 +1919,7 @@ into a string, as in:
 <A NAME="environment">
 <H2>HTTP Session Variables</H2>
 </A>
+
 Some of the more useful environment variables can be fetched
 through this interface.  The methods are as follows:
 <DL>
@@ -1929,6 +1982,68 @@ through this interface.  The methods are as follows:
        such as Mosaic.  Netscape does not reliably report the user
        name!
 </DL>
+
+<h3>http() and https() methods</h3>
+
+In addition to these methods, CGI.pm defines http() and https()
+methods.  The first is used to fetch variables set by the browser in
+the HTTP header.  The second is used to fetch variables pertaining to
+the SSL protocol, when the server is running in "secure" mode.
+
+<p>
+
+To get a list of all the HTTP variables:
+
+<pre>
+  @variables = $q->http();
+</pre>
+
+This will return an array of HTTP variable names, such as
+<cite>HTTP_HOST</cite>, <cite>HTTP_REFERER</cite> and
+<cite>HTTP_ACCEPT</cite>.
+
+To get the value of a specific HTTP variable:
+
+<pre>
+   $host = $q->http('HTTP_HOST');
+      <em>-or just-</em>
+   $host = $q->http('host');
+</pre>
+
+As a convenience, this method will add the 'HTTP_' prefix for you and
+fix the capitalization.
+
+<p>
+
+The https() function works similarly, but it returns information only
+when the server is running in "secure" mode using the SSL protocol.
+On my system the environment variables set during SSL operation
+include:
+
+<dl>
+  <dt>HTTPS
+  <dd>Set to 'on' if SSL is running.
+  <dt>HTTPS_CIPHER
+  <dd>Set to the method being used to encipher the data.
+  <dt>HTTPS_KEYSIZE
+  <dd>Set to the length (in bits) of the RSA public/private key pair.
+  <dt>HTTPS_SECRETKEYSIZE
+  <dd>Set to the length (in bits) of the symmetrical (DES)
+      key.
+</dl>
+
+You can find out whether the script is running in SSL mode this way:
+
+<pre>
+   $secret = $q->https
+</pre>
+
+or fetch the size of the secret key like this:
+
+<pre>
+   $keysize = $q->https('secretkeysize');
+</pre>
+
 <A HREF="#contents">Table of contents</A>
 
 <HR>
@@ -2412,6 +2527,126 @@ print $query-&gt;end_html;
 <A HREF="#contents">Table of contents</A>
 <HR>
 
+<h2><a name="mod_perl">Using CGI.pm with mod_perl and FastCGI</a></h2>
+
+<h3>FastCGI</h3>
+
+<a href="http://www.fastcgi.com">FastCGI</a> is a protocol invented by
+OpenMarket that markedly speeds up CGI scripts under certain
+circumstances.  It works by opening up the script at server startup
+time and redirecting the script's IO to a Unix domain socket.  Every
+time a new CGI request comes in, the script is passed new parameters
+to work on.  This allows the script to perform all its time-consuming
+operations at initialization time (including loading CGI.pm!) and then
+respond quickly to new requests.
+
+<p>
+
+FastCGI modules are available for the Apache and NCSA servers as well
+as for OpenMarket's own server.  In order to use FastCGI with Perl you
+have to run a specially-modified version of the Perl interpreter.
+Precompiled Binaries and a patch kit are all available on OpenMarket's
+FastCGI web site.
+
+<p>
+
+To use FastCGI with CGI.pm, change your scripts as follows:
+
+<h4>Old Script</h4>
+<blockquote><pre>
+#!/usr/local/bin/perl
+use CGI qw(:standard);
+print header,
+      start_html("CGI Script"),
+      h1("CGI Script"),
+      "Not much to see here",
+      hr,
+      address(a({href=>'/'},"home page"),  
+      end_html;
+</pre></blockquote>
+
+<h4>New Script</h4>
+<blockquote><pre>
+#!/usr/local/fcgi/bin/perl
+use Fast::CGI qw(:standard);
+
+# Do time-consuming initialization up here.
+while (new CGI::Fast) {
+   print header,
+      start_html("CGI Script"),
+      h1("CGI Script"),
+      "Not much to see here",
+      hr,
+      address(a({href=>'/'},"home page"),  
+      end_html;
+}
+</pre></blockquote>
+
+That's all there is to it.  The param() method, form-generation, HTML
+shortcuts, etc., all work the way you expect.
+
+<h3>mod_perl</h3>
+
+<a href="http://www.perl.com/CPAN/modules/Apache/">mod_perl</a> is a
+module for the Apache Web server that embeds a Perl interpreter into
+the Web server.  It can be run in either of two modes:
+
+<ol>
+  <li>Server launches a new Perl interpreter every time it needs to
+      interpret a Perl script.  This speeds CGI scripts somewhat
+      because there's no overhead for launching a new Perl process.
+  <li>A "fast" mode in which the server launches your script at
+      initialization time. You can
+      load all your favorite modules at initialization time, greatly
+      speeding things up.
+</ol>
+
+CGI.pm sort-of works with mod_perl.  The interface needs considerable
+cleaning up.  mod_perl comes with a Apache::CGI module that overrides
+several of CGI.pm's functions.  Here's how to convert your scripts to
+use method (1):
+
+<blockquote><pre>
+#!/usr/local/bin/perl
+use CGI qw(:standard);
+print header,
+      start_html("CGI Script"),
+      h1("CGI Script"),
+      "Not much to see here",
+      hr,
+      address(a({href=>'/'},"home page"),  
+      end_html;
+</pre></blockquote>
+
+<h4>New Script</h4>
+<blockquote><pre>
+#!/usr/bin/perl
+use Apache::CGI qw(:standard);
+
+# Do time-consuming initialization up here.
+put header,
+    start_html("CGI Script"),
+    h1("CGI Script"),
+    "Not much to see here",
+    hr,
+    address(a({href=>'/'},"home page"),  
+    end_html;
+}
+</pre></blockquote>
+
+The main thing to notice is that we replace all print() statements
+with put() statements.  This is because mod_perl doesn't use standard
+output to send data to the server.
+
+<p>
+
+I haven't yet experimented with the "fast" mode.  There's a bit of
+work on the programmer's interface that needs doing.
+
+<p>
+<A HREF="#contents">Table of contents</A>
+<HR>
+
 <H2><a name="migrating">Migrating from cgi-lib.pl</a></H2>
 
 To make it easier to convert older scripts that use cgi-lib.pl,
@@ -2486,18 +2721,44 @@ details on porting cgi-lib.pl scripts to CGI.pm.
 Using the File Upload Feature
 </A>
 </H2>
-First of all, because the file upload feature is so new,
-this code is has not been tested as much as I'd like.
-A complicating factor is that the various versions of Netscape
-on the Macintosh, Unix and Windows platforms don't all seem
-to implement file uploading in exactly the same way.  I've tried
-to make CGI.pm work with all versions on all platforms, but I keep
-getting reports from people of instances that break the file upload
-feature.  (Currently the only unresolved problem is a report that
-uploads of large binary files are aborted when SSL is in use.  If
-you can reproduce this problem and have some idea what's happening
-I'd like to know about it.)
-<P>
+
+The file upload feature doesn't work with every combination of browser
+and server.  The various versions of Netscape on the Macintosh, Unix
+and Windows platforms don't all seem to implement file uploading in
+exactly the same way.  I've tried to make CGI.pm work with all
+versions on all platforms, but I keep getting reports from people of
+instances that break the file upload feature.
+
+<p>
+
+Known problems include:
+
+<ol>
+  <li>File upload doesn't work with Microsoft's IIS server for Windows NT.
+      It does work with the Netscape NT servers, with WebSite, and with
+      Purveyor.  If anyone has access to a IIS server and would like
+      to help me out with this problem, I'd appreciate it.
+  <li>Large file uploads may fail when using SSL on the Netscape
+      servers (all platforms).  This is a documented bug in the
+      Netscape implementation of SSL and not a problem with CGI.pm.
+  <li>If you try to upload a <strong>directory</strong> path with Unix
+      Netscape, the browser will hang until you hit the "stop" button.
+      I haven't tried to figure this one out since I think it's dumb
+      of Netscape to allow this to happen at all.
+  <li>If you create the CGI object in one package (e.g. "main") and
+      then obtain the filehandle in a different package (e.g. "foo"),
+      the filehandle will be accessible through "main" but not "foo".
+      In order to use the filehandle, try the following contortion:
+      <blockquote><pre>
+      $file = $query-&gt;param('file to upload');
+      $file = "main::$file";
+          ...
+      </pre></blockquote>
+      I haven't found a way to determine the correct caller in this
+      situation.  I might add a readFile() method to CGI if this
+      problem bothers enough people.
+</ol>
+
 The main technical challenge of handling file uploads is that
 it potentially involves sending more data to the CGI script
 than the script can hold in main memory.  For this reason
@@ -2507,12 +2768,22 @@ directory.  These temporary files
 have names like <CODE>CGItemp125421</CODE>, and should be
 deleted automatically.
 <P>
+
 <H3>Frequent Problems</H3>
+
 <H4>You can't retrieve the name of the uploaded file
 using the param() method</H4>
 Most likely the remote user isn't using version 2.0 (or higher)
 of Netscape.  Alternatively she just isn't filling in the form
 completely.
+
+<h4>When you accidentally try to upload a directory name,
+the browser hangs</h4>
+
+This seems to be a Netscape browser problem.  It starts to
+upload junk to the script, then hangs.  You can abort by
+hitting the "stop" button.
+
 <H4>You can read the name of the uploaded file, but can't
 retrieve the data</H4>
 First check that you've told CGI.pm to
@@ -2527,7 +2798,9 @@ for <CODE>/usr/tmp</CODE> and then for <CODE>/tmp</CODE>.
 If it can't find either of these directories, it tries
 for the current directory, which is usually the same
 directory that the script resides in.  
+
 <P>
+
 If you're on a non-Unix system you may need to modify
 CGI.pm to point at a suitable temporary directory. This
 directory must be
@@ -2640,8 +2913,25 @@ I don't have access to a VMS machine, and I'm not sure whether file upload
 works correctly.  Other features are known to work.
 
 <H4>Macintosh</H4>
-CGI.pm works with MacPerl version 5.0.6r1 or higher under
-the WebStar and MacHTTP servers.
+
+Most CGI.pm features work with MacPerl version 5.0.6r1 or higher under
+the WebStar and MacHTTP servers.  In order to install a Perl program
+to use with the Web, you'll need Matthias Nuuracher's PCGI extension,
+available at:
+
+<blockquote><pre>
+<a href="ftp://err.ethz.ch/pub/neeri/MacPerl/">ftp://err.ethz.ch/pub/neeri/MacPerl/</a>
+</pre></blockquote>
+
+Known incompatibilities between CGI.pm and MacPerl include:
+
+<ol>
+  <li>The perl compiler will object to the use of -values in named
+      parameters.  Put single quotes around this parameter ('-values')
+      or use the singular form ('-value') instead.
+  <li>File upload isn't working in my hands (Perl goes into an endless
+      loop).  Other people have gotten it to work.
+</ol>
 
 <HR>
 
@@ -2726,6 +3016,31 @@ Address bug reports and comments to:<BR>
 
 <HR>
 <H2><A NAME="new">Revision History</A></H2>
+<H3>Version 2.22</H3>
+<ol>
+  <li>Fixed self_url() and url() so that they work properly when
+      running under SSL.
+  <li>http() and https() methods for fetching arbitrary HTTP and HTTPS
+      variables.
+  <li>Fancied-up HTML shortcuts to allow for
+      li(['multiple','values','here']) behavior.
+  <li>New CGI::Fast module for use with FastCGI protocol.  See pod
+      documentation for details.
+  <li>Fixed problems with inheritance and autoloading.
+  <li>Added TR() (&lt;tr&gt;) and PARAM() (&lt;param&gt;) methods to
+      list of exported HTML tag-generating functions.
+  <li>Moved all CGI-related I/O to a bottleneck method so that this can
+      be overridden more easily in mod_perl (thanks to Doug MacEachern).
+  <li>put() method as substitute for print() for use in mod_perl.
+  <li>Fixed crash in tmpFileName() method.
+  <li>Added tmpFileName(), startform() and endform() to export list.
+  <li>Fixed problems with attributes in HTML shortcuts.
+  <li>Functions that don't actually need access to the CGI object now
+      no longer generate a default one.  May speed things up slightly.
+  <li>Aesthetic improvements in generated HTML.
+  <li>New examples.
+</ol>
+
 <H3>Version 2.21</H3>
 <ol>
   <li>Added the <cite>-meta</cite> argument to <cite>start_html()</cite>.
@@ -3028,6 +3343,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Fri May 31 07:29:47 EDT 1996
+Last modified: Wed Aug  7 10:32:03 EDT 1996
 <!-- hhmts end -->
 </BODY> </HTML>

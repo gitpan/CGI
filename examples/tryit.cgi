@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-use CGI standard;
+use CGI ':standard';
 
 print header;
 print start_html('A Simple Example'),
@@ -24,11 +24,11 @@ print start_html('A Simple Example'),
 
 if (param()) {
     print 
-	"Your name is",em(param('name')),
+	"Your name is: ",em(param('name')),
 	p,
 	"The keywords are: ",em(join(", ",param('words'))),
 	p,
-	"Your favorite color is ",em(param('color')),
+	"Your favorite color is: ",em(param('color')),
 	hr;
 }
 print a({href=>'../cgi_docs.html'},'Go to the documentation');

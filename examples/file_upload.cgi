@@ -1,61 +1,62 @@
-#!/usr/local/bin/perl
+#!/usr/local/bin/perl -w
 
-use CGI;
-$query = new CGI;
-print $query->header;
-print $query->start_html("File Upload Example");
+use CGI qw(:standard);
+use CGI::Carp;
 
-print <<EOF;
-<H1>File Upload Example</H1>
-This example demonstrates how to prompt the remote user to
-select a remote file for uploading.  <STRONG>This feature
-only works with Netscape 2.0 browsers.</STRONG>
-<P>
-Select the <VAR>browse</VAR> button to choose a text file
-to upload.  When you press the submit button, this script
-will count the number of lines, words, and characters in
-the file.
-EOF
-    ;
+print header;
+print start_html("File Upload Example");
+print strong("Version "),$CGI::VERSION,p;
+
+print h1("File Upload Example"),
+    'This example demonstrates how to prompt the remote user to
+    select a remote file for uploading. ',
+    strong("This feature only works with Netscape 2.0 browsers."),
+    p,
+    'Select the ',cite('browser'),' button to choose a text file
+    to upload.  When you press the submit button, this script
+    will count the number of lines, words, and characters in
+    the file.';
+
+@types = ('count lines','count words','count characters');
 
 # Start a multipart form.
-print $query->start_multipart_form;
-print "Enter the file to process:",
-    $query->filefield('filename','',45),"<BR>\n";
-@types = ('count lines','count words','count characters');
-print $query->checkbox_group('count',\@types,\@types),"\n<P>";
-print $query->reset,$query->submit('submit','Process File');
-print $query->endform;
+print  start_multipart_form(),
+    "Enter the file to process:",
+    filefield('filename','',45),
+    br,
+    checkbox_group('count',\@types,\@types),
+    p,
+    reset,submit('submit','Process File'),
+    endform;
 
 # Process the form if there is a file name entered
-if ($file = $query->param('filename')) {
-    print "<HR>\n";
-    print "<H2>$file</H2>\n";
+if ($file = param('filename')) {
+    $tmpfile=tmpFileName($file);
+    print hr(),
+          h2($file),
+          h3($tmpfile);
+    my($lines,$words,$characters,@words) = (0,0,0,0);
     while (<$file>) {
 	$lines++;
 	$words += @words=split(/\s+/);
 	$characters += length($_);
     }
-    grep($stats{$_}++,$query->param('count'));
+    grep($stats{$_}++,param('count'));
     if (%stats) {
-	print "<STRONG>Lines: </STRONG>$lines<BR>\n" if $stats{'count lines'};
-	print "<STRONG>Words: </STRONG>$words<BR>\n" if $stats{'count words'};
-	print "<STRONG>Characters: </STRONG>$characters<BR>\n"
-	    if $stats{'count characters'};
+	print strong("Lines: "),$lines,br if $stats{'count lines'};
+	print strong("Words: "),$words,br if $stats{'count words'};
+	print strong("Characters: "),$characters,br if $stats{'count characters'};
     } else {
-	print "<STRONG>No statistics selected.</STRONG>\n";
+	print strong("No statistics selected.");
     }
 }
 
-print <<EOF;
-<HR>
-<A HREF="../cgi_docs.html">CGI documentation</A>
-<HR>
-<ADDRESS>
-<A HREF="/~lstein">Lincoln D. Stein</A>
-</ADDRESS><BR>
-Last modified 22 Oct 1995.
-EOF
-    ;
-print $query->end_html;
+print hr(),
+    a({href=>"../cgi_docs.html"},"CGI documentation"),
+    hr,
+    address(
+	    a({href=>'/~lstein'},"Lincoln D. Stein")),
+    br,
+    'Last modified July 17, 1996',
+    end_html;
 
