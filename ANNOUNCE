@@ -1,14 +1,10 @@
-CGI.pm version 2.37 is now available to play with.  
-New in this version:
-
-* Bug fixes for NT and VMS
-* Better support for mod_perl
-* Cookies now in an independent module
-* New url_param() method
+CGI.pm version 2.38 is now available to play with.  This supersedes
+all the 2.37 betas that have been hanging around for the past three
+months.  There are no known bugs in this version (famous last words).
 
 Lincoln Stein
 
 ========================================================================
 Lincoln D. Stein
-lstein@genome.wi.mit.edu
+lstein@cshl.org
 ========================================================================

@@ -5,13 +5,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.37b30, 3/13/98, L. Stein
-<p>
-
-<strong>This is a beta release.</strong> 2.36 is the official release.
-This is a <i>near final</i> version, however, and contains fixes for
-many bugs that are present in 2.36.
-
+Version 2.38, 3/22/98, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -107,7 +101,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.37?</A>
+  <LI><A HREF="#new">What's new in version 2.38?</A>
 </MENU>
 
 <HR>
@@ -115,13 +109,9 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm-2.37b30.tar.gz">Download 2.37 beta (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.37b30.zip">Download 2.37 beta (pkzip archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package (Macintosh stuffit archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm.tar.gz">Download 2.36 package (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGIpm.zip">Download 2.36 package (pkzip archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.36.sit">Download 2.36 package (Macintosh stuffit archive)</A></STRONG>
-  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
+  <li><STRONG><A HREF="CGI.pm-2.38.tar.gz">Download 2.38 (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.38.zip">Download 2.38 (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package (Macintosh stuffit archive)</A></STRONG>  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
 </ul>
 
 <P>
@@ -169,7 +159,7 @@ In the former case don't panic.  Here's a recipe that will work
 (commands are given in MS-DOS/Windows form):
 
 <pre>
-  &gt; cd CGI.pm-2.37
+  &gt; cd CGI.pm-2.38
   &gt; copy CGI.pm C:\Perl\lib
   &gt; mkdir C:\Perl\lib\CGI
   &gt; copy CGI\*.pm C:\Perl\lib\CGI
@@ -3631,6 +3621,7 @@ hitting the "stop" button.
 
 <H4>You can read the name of the uploaded file, but can't
 retrieve the data</H4>
+
 First check that you've told CGI.pm to
 use the new <A HREF="#multipart">multipart/form-data</A>
 scheme.  If it still isn't working, there may be a problem
@@ -3652,14 +3643,24 @@ directory must be
 writable by the user ID under which the server runs (usually
 "nobody") and must have sufficient capacity to handle large
 file uploads.  Open up CGI.pm, and find the line:
+
 <PRE>
       package TempFile;
       foreach ('/usr/tmp','/tmp') {
-         do {$TMPDIRECTORY = $_; last} if -w $_;
+         do {$TMPDIRECTORY = $_; last} if -d $_ && -w _;
       }
 </PRE>
+
 Modify the foreach() line to contain a series of one or more
 directories to store temporary files in.
+
+<p>
+
+Alternatively, you can just skip the search entirely and force CGI.pm
+to store its temporary files in some logical location.  Do this at the
+top of your script with a line like this one:
+
+ $TempFile::TMPDIRECTORY='/WWW_ROOT';
 
 <h4>On Windows Systems, the temporary file is never deleted, but hangs
 around in <code>\temp</code>, taking up space.</h4>
@@ -3976,6 +3977,13 @@ Address bug reports and comments to:<BR>
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+
+<h3>Version 2.38</h3>
+
+I finally got tired of all the 2.37 betas and released 2.38.  The main
+difference between this version and the last 2.37 beta (2.37b30) are
+some fixes for VMS.  This should allow file upload to work properly on
+all VMS Web servers.
 
 <h3>Version 2.37, various beta versions</h3>
 <ol>
@@ -4511,6 +4519,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Fri Mar 13 16:14:28 EST 1998
+Last modified: Sun Mar 22 22:05:29 EST 1998
 <!-- hhmts end -->
 </BODY> </HTML>

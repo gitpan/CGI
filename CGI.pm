@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.25 1998/03/13 21:14:49 lstein Exp lstein $';
-$CGI::VERSION='2.37030';
+$CGI::revision = '$Id: CGI.pm,v 1.27 1998/03/23 03:09:59 lstein Exp $';
+$CGI::VERSION='2.38';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -357,7 +357,7 @@ sub init {
 	      last METHOD;
 	  }
 	  
-	  if ($fh ne '') {
+	  if (defined($fh) && ($fh ne '')) {
 	      while (<$fh>) {
 		  chomp;
 		  last if /^=/;
@@ -770,8 +770,8 @@ END_OF_FUNC
 sub keywords {
     my($self,@values) = self_or_default(@_);
     # If values is provided, then we set it.
-    $self->{'keywords'}=[@values] if @values;
-    my(@result) = @{$self->{'keywords'}};
+    $self->{'keywords'}=[@values] if defined(@values);
+    my(@result) = defined($self->{'keywords'}) ? @{$self->{'keywords'}} : ();
     @result;
 }
 END_OF_FUNC
@@ -2885,6 +2885,7 @@ sub readHeader {
     my($end);
     my($ok) = 0;
     my($bad) = 0;
+    my($CRLF) = "\015\012" if $OS eq 'VMS'; # inconsistency, inconsistency!
     do {
 	$self->fillBuffer($FILLUNIT);
 	$ok++ if ($end = index($self->{BUFFER},"${CRLF}${CRLF}")) >= 0;
@@ -3038,7 +3039,9 @@ package TempFile;
 
 $SL = $CGI::SL;
 unless ($TMPDIRECTORY) {
-    @TEMP=("${SL}usr${SL}tmp","${SL}var${SL}tmp","${SL}tmp","${SL}temp","${SL}Temporary Items");
+    @TEMP=("${SL}usr${SL}tmp","${SL}var${SL}tmp",
+	   "${SL}tmp","${SL}temp","${SL}Temporary Items",
+	   "${SL}WWW_ROOT");
     foreach (@TEMP) {
 	do {$TMPDIRECTORY = $_; last} if -d $_ && -w _;
     }

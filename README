@@ -1,6 +1,6 @@
 WHAT IS THIS?
 
-This is CGI.pm 2.37, an easy-to-use Perl5 library for writing World
+This is CGI.pm 2.38, an easy-to-use Perl5 library for writing World
 Wide Web CGI scripts.
 
 HOW DO I INSTALL IT?
@@ -8,13 +8,13 @@ HOW DO I INSTALL IT?
 To install this module, cd to the directory that contains this README
 file and type the following:
 
-	perl Makefile.PL
-	make
-	make install
+   perl Makefile.PL
+   make
+   make install
 
 If this doesn't work for you, try:
 
-	cp CGI.pm /usr/local/lib/perl5
+   cp CGI.pm /usr/local/lib/perl5
 
 If you have trouble installing CGI.pm because you have insufficient
 access privileges to add to the perl library directory, you can still
@@ -42,19 +42,23 @@ A collection of examples demonstrating various CGI features and
 techniques are in the directory "examples".  Many more examples of CGI
 scripts of various degrees of complexity can be found at:
 
-	http://www.genome.wi.mit.edu/WWW/examples/Ch9/
-
+   http://www.genome.wi.mit.edu/WWW/examples/Ch9/
 
 WHERE IS THE ONLINE DOCUMENTATION?
 
 Online documentation of for CGI.pm, and notifications of new versions
 can be found at:
 
-	http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
+   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 
+WHERE CAN I LEARN MORE?
+
+I have written a book about CGI.pm called "The Official Guide to
+Programming with CGI.pm" which will be published by John Wiley & Sons
+in the Spring of 1998.  If you like CGI.pm, you'll love this book.
 
 Have fun, and let me know how it turns out!
 
 Lincoln D. Stein
-lstein@w3.org
+lstein@cshl.org
 
