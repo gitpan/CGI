@@ -29,6 +29,7 @@ examples/make_links.pl
 examples/monty.cgi
 examples/multiple_forms.cgi
 examples/nph-clock.cgi
+examples/nph-multipart.cgi
 examples/popup.cgi
 examples/save_state.cgi
 examples/tryit.cgi

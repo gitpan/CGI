@@ -5,7 +5,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.39, 3/24/98, L. Stein
+Version 2.40, 5/20/98, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -68,7 +68,11 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 </PRE>
 
 <A HREF="examples/tryit.cgi">Select this link to try the script</A>
-<BR><A HREF="examples/">More scripting examples</A>
+<BR>
+<A HREF="examples/">More scripting examples</A>
+<BR>
+<a href="http://www.wiley.com/compbooks/stein/source.html">Source code
+examples from <cite>The Official Guide to CGI.pm</cite></a>
 
 <p>
 
@@ -77,6 +81,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 </A>
 <MENU>
   <LI><A HREF="#installation">Downloading & Installation</A>
+  <LI><a href="#functionvsoo">Function-Oriented vs Object-Oriented Use</a>
   <LI><A HREF="#query">Creating a new CGI query object</A>
   <LI><A HREF="#saving">Saving the state of the form</A>
   <LI><A HREF="#named_param">CGI Functions that Take Multiple Arguments</A>
@@ -96,12 +101,15 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#mod_perl">Using CGI.pm with mod_perl and FastCGI</A>
   <LI><A HREF="#migrating">Migrating from cgi-lib.pl</A>
   <LI><a href="#upload_caveats">Using the File Upload Feature</a>
+  <LI><a href="#push">Server Push</a>
   <LI><A HREF="#dos">Avoiding Denial of Service Attacks</A>
   <LI><A HREF="#non_unix">Using CGI.pm on non-Unix Platforms</A>
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
-  <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.39?</A>
+  <LI><A HREF="#book">The CGI.pm Book</A>
+  <LI><A HREF="#y2000">CGI.pm and the Year 2000 Problem</A>
+  <LI><A HREF="#bugs">Bug Reporting and Support</A>
+  <LI><A HREF="#new">What's new in version 2.40?</A>
 </MENU>
 
 <HR>
@@ -109,18 +117,28 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm-2.39.tar.gz">Download 2.39 (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.39.zip">Download 2.39 (pkzip archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package (Macintosh stuffit archive)</A></STRONG>  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
+  <li><STRONG><A HREF="CGI.pm-2.40.tar.gz">Download 2.40 (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.40.zip">Download 2.40 (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package
+      (Macintosh stuffit archive)</A></STRONG>
+  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
 </ul>
+
+<em>I'm looking for a volunteer to make a Macintosh Stuffit archive of
+version 2.40!</em>
+
+<p>
+
+The current version of the software can always be downloaded from the
+master copy of this document maintained at <a
+href="http://www.genome.wi.mit.edu/ftp/pub/software/WWW/">http://www.genome.wi.mit.edu/ftp/pub/software/WWW/</a>.
 
 <P>
 
-This package requires perl 5.003 <strong>patch level 7</strong> or
-higher.  Earlier versions of Perl may work, but CGI.pm has not been
-tested with them.  If you're really stuck, edit the source code to
-remove the line that says "require 5.00307", but don't be surprised if
-you run into problems.
+This package requires perl 5.004 or higher.  Earlier versions of Perl
+may work, but CGI.pm has not been tested with them.  If you're really
+stuck, edit the source code to remove the line that says "require
+5.004", but don't be surprised if you run into problems.
 
 <p>
 
@@ -150,9 +168,9 @@ server logs.  See the Carp.pm man page for more details.
 then you are either:
 
 <ol>
-  <li> Running a Windows NT port of Perl (or another port) that
+  <li> Running a Windows NT or Macintosh port of Perl that
       doesn't have make or the MakeMaker program built into it.
-  <li> Have an old version of Perl.  Upgrade to 5.003_7 or higher.
+  <li> Have an old version of Perl.  Upgrade to 5.004 or higher.
 </ol>
 
 In the former case don't panic.  Here's a recipe that will work
@@ -165,7 +183,13 @@ In the former case don't panic.  Here's a recipe that will work
   &gt; copy CGI\*.pm C:\Perl\lib\CGI
 </pre>
 
-Modify this if your Perl library has a different location.
+Modify this recipe if your Perl library has a different location.
+
+<p>
+
+For Macintosh users, just drag the file named CGI.pm into the folder
+where your other Perl .pm files are stored.  Also drag the subfolder
+named "CGI".
 
 <p>
 
@@ -196,6 +220,77 @@ CGI.pm.
 <A HREF="#non_unix">Notes on using CGI.pm in NT and other non-Unix platforms</A>
 
 <hr>
+
+<h2><a name="functionvsoo">Function-Oriented vs Object-Oriented
+Use</a></h2>
+
+CGI.pm can be used in two distinct modes called
+<cite>function-oriented</cite> and <cite>object-oriented</cite>.  In
+the function-oriented mode, you first import CGI functions into your
+script's namespace, then call these functions directly.  A simple
+function-oriented script looks like this:
+
+<blockquote><pre>
+#!/usr/local/bin/perl
+use CGI qw/:standard/;
+print header(),
+      start_html(-title=>'Wow!'),
+      h1('Wow!'),
+      'Look Ma, no hands!',
+      end_html();
+</pre></blockquote>
+
+The <cite>use</cite> operator loads the CGI.pm definitions and imports
+the ":standard" set of function definitions.  We then make calls to
+various functions such as <cite>header()</cite>, to generate the HTTP
+header, <cite>start_html()</cite>, to produce the top part of an HTML
+document, <cite>h1()</cite> to produce a level one header, and so
+forth.
+
+<p>
+
+In addition to the standard set, there are many optional sets of less
+frequently used CGI functions.  See <a href="#import">Importing CGI
+Methods</a> for full details.
+
+<p>
+
+In the object-oriented mode, you <cite>use CGI;</cite> without
+specifying any functions or function sets to import.  In this case,
+you communicate with CGI.pm via a CGI object.  The object is created
+by a call to <cite>CGI::new()</cite> and encapsulates all the state
+information about the current CGI transaction, such as values of the
+CGI parameters passed to your script.  Although more verbose, this
+coding style has the advantage of allowing you to create multiple CGI
+objects, save their state to disk or to a database, and otherwise
+manipulate them to achieve neat effects.
+
+<p>
+
+The same script written using the object-oriented style looks like
+this:
+
+<blockquote><pre>
+#!/usr/local/bin/perl
+use CGI;
+$q = new CGI;
+print $q->header(),
+      $q->start_html(-title=>'Wow!'),
+      $q->h1('Wow!'),
+      'Look Ma, no hands!',
+      $q->end_html();
+</pre></blockquote>
+
+The object-oriented mode also has the advantage of consuming somewhat
+less memory than the function-oriented coding style.  This may be of
+value to users of persistent Perl interpreters such as <a
+href="http://perl.apache.org">mod_perl</a>.
+
+<p>
+
+Many of the code examples below show the object-oriented coding
+style.  Mentally translate them into the function-oriented style if
+you prefer.
 
 <A NAME="query">
 <H2>Creating a new CGI object</H2>
@@ -513,6 +608,8 @@ interfere with similarly-named CGI parameters in POSTed forms.  If you
 try to mix a URL query string with a form submitted with the GET
 method, the results will not be what you expect.
 
+<p>
+
 <A HREF="#contents">Table of contents</A>
 
 <HR>
@@ -658,7 +755,7 @@ expiration date.  The following forms are all valid for the
 	now                               immediately
 	+3M                               in three months
         +10y                              in ten years time
-	Thu, 25-Apr-96 00:40:33 GMT  at the indicated time & date
+	Thu, 25-Apr-1999 00:40:33 GMT     at the indicated time & date
 </pre>
 
 When you use <strong>-expires</strong>, the script also generates a
@@ -2235,14 +2332,18 @@ Currently there are 8 method families defined in CGI.pm.  They are:
       as start_html() and end_html() that aren't exactly HTML2, but
       are close enough.
   <dt><cite>:html3</cite>
-  <dd>These are a few HTML3 extensions that are in common enough usage
-      to be worth including.
+  <dd>These contain various HTML3 tags for tables, frames, super- and
+      subscripts, applets and other objects.
   <dt><cite>:netscape</cite>
   <dd>These are Netscape extensions not included in the HTML3
-      category, including frameset(), blink() and center().
+      category including  blink() and center().
   <dt><cite>:html</cite>
   <dd>These are all the HTML generating shortcuts, comprising the
       union of <cite>html2, html3,</cite> and <cite>netscape</cite>.
+  <dt><cite>:multipart</cite>
+  <dd>These are various functions that simplify creating documents of
+      the various multipart MIME types, and are useful for
+      implementing server push.
   <dt><cite>:standard</cite>
   <dd>This is the union of <cite>html2, form,</cite> and
       <cite>:cgi</cite> (everything except the HTML3 and
@@ -2746,13 +2847,43 @@ See the <a href="./examples/cookie.cgi">cookie.cgi</a> example script
 for some ideas on how to use cookies effectively.
 <p>
 
-<strong>NOTE:</strong> There appear to be some (undocumented)
-restrictions on Netscape cookies.  In Netscape 2.01, at least, I
-haven't been able to set more than three cookies at a time.  There may
-also be limits on the length of cookies.  If you need to store a lot
+<strong>NOTE:</strong> There are some limitations on cookies.  Here is
+what RFC2109, section 6.3, states:
+
+<pre>
+   Practical user agent implementations have limits on the number and
+   size of cookies that they can store.  In general, user agents' cookie
+   support should have no fixed limits.  They should strive to store as
+   many frequently-used cookies as possible.  Furthermore, general-use
+   user agents should provide each of the following minimum capabilities
+   individually, although not necessarily simultaneously:
+
+      * at least 300 cookies
+
+      * at least 4096 bytes per cookie (as measured by the size of the
+        characters that comprise the cookie non-terminal in the syntax
+        description of the Set-Cookie header)
+
+      * at least 20 cookies per unique host or domain name
+
+   User agents created for specific purposes or for limited-capacity
+   devices should provide at least 20 cookies of 4096 bytes, to ensure
+   that the user can interact with a session-based origin server.
+
+   The information in a Set-Cookie response header must be retained in
+   its entirety.  If for some reason there is inadequate space to store
+   the cookie, it must be discarded, not truncated.
+
+   Applications should use as few and as small cookies as possible, and
+   they should cope gracefully with the loss of a cookie.
+</pre>
+
+Unfortunately, some browsers appear to have limits that are more
+restrictive than those given in the RFC.  If you need to store a lot
 of information, it's probably better to create a unique session ID,
 store it in a cookie, and use the session ID to locate an external
 file/database saved on the server's side of the connection.
+
 <p>
 <A HREF="#contents">Table of contents</A>
 
@@ -2937,6 +3068,13 @@ stylesheet can be found.  <strong>-code</strong> points to a scalar
 value to be incorporated into a &lt;STYLE&gt; section.  Style
 definitions in <strong>-code</strong> override similarly-named ones in
 <strong>-src</strong>, hence the name "cascading."
+
+<p>
+
+You may also specify the MIME type of the stylesheet by including an
+optional <strong>-type</strong> parameter in the hash pointed to by
+<strong>-style</strong>.  If not specified, the type defaults to
+'text/css'.
 
 <p>
 
@@ -3155,7 +3293,7 @@ sub clean_name {
 </PRE>
 
 If you use the CGI save() and restore() methods a lot, you might be
-interested in the Whitehead Genome Center's <cite>Boulderio</cite>
+interested in the <cite>Boulderio</cite>
 file format.  It's a way of transferring semi-strucured data from the
 standard output of one program to the standard input of the next.  It
 comes with a simple Perl database that allows you to store and
@@ -3164,7 +3302,7 @@ with the format used by save() and restore().  You can get more
 information on Boulderio from:
 
 <blockquote><pre>
-<a href="http://www.genome.wi.mit.edu/genome_software/other/boulder.html">http://www.genome.wi.mit.edu/genome_software/other/boulder.html</a>
+<a href="http://stein.cshl.org/software/boulder/">http://stein.cshl.org/software/boulder/</a>
 </pre></blockquote>
 
 <H3>A Script that Uses Self-Referencing URLs to Jump to Internal Links</H3>
@@ -3293,9 +3431,11 @@ autoloader, set this to the name of your own package.
 
 <p>
 
-More information on extending CGI.pm can be found in my forthcoming
-book, <cite>Lincoln Stein's Guide to CGI.pm</cite>, to be published to
-Wiley &amp; Sons in January 1998.
+More information on extending CGI.pm can be found in my new book,
+<cite>The Official Guide to CGI.pm</cite>, which was published by John
+Wiley &amp; Sons in April 1998.  Check out the book's <a
+href="http://www.wiley.com/compbooks/stein/">Web site</a>, which
+contains multiple useful coding examples.
 
 <p>
 <A HREF="#contents">Table of contents</A>
@@ -3717,6 +3857,71 @@ to move the temporary file elsewhere in the file system if you don't
 want it to be automatically deleted when CGI.pm exits.
 <HR>
 
+<h2><a name="push">Server Push</a></h2>
+
+<p> CGI.pm provides three simple functions for producing multipart
+documents of the type needed to implement server push.  These
+functions were graciously provided by Ed Jordan (<a
+href="mailto:ed@fidalgo.net">ed@fidalgo.net</a>).  To import these
+into your namespace, you must import the ":push" set.  You are also
+advised to put the script into NPH mode and to set $| to 1 to avoid
+buffering problems.  </p>
+
+<p>Here is a simple script that demonstrates server push:</p>
+
+<blockquote><pre>
+#!/usr/local/bin/perl
+use CGI qw/:push -nph/;
+$| = 1;
+print multipart_init(-boundary=&gt;'----------------here we go!');
+while (1) {
+   print multipart_start(-type=&gt;'text/plain'),
+         "The current time is ",scalar(localtime),"\n",
+         multipart_end;
+   sleep 1;
+}
+</pre></blockquote>
+
+<p> This script initializes server push by calling
+<cite>multipart_init()</cite>.  It then enters an infinite loop in
+which it begins a new multipart section by calling
+<cite>multipart_start()</cite>, prints the current local time, and
+ends a multipart section with <cite>multipart_end()</cite>.  It then
+sleeps a second, and begins again.</p>
+
+<dl>
+  <dt>multipart_init()
+  <dd>
+      <blockquote><pre>
+multipart_init(-boundary=&gt;$boundary);
+      </pre></blockquote>
+      Initialize the multipart system.  The -boundary argument specifies
+      what MIME boundary string to use to separate parts of the document.
+      If not provided, CGI.pm chooses a reasonable boundary for you.
+      <p>
+  <dt>multipart_start()
+  <dd><blockquote><pre>
+multipart_start(-type=&gt;$type)
+      </pre></blockquote>
+      Start a new part of the multipart document using the specified MIME
+      type.  If not specified, text/html is assumed.
+      <p>
+  <dt>multipart_end()
+  <dd><blockquote><pre>
+  multipart_end()
+      </pre></blockquote>
+      End a part.  You must remember to call multipart_end() once for each
+      multipart_start().
+</dl>
+
+Users interested in server push applications should also have a look
+at the CGI::Push module.
+
+<p>
+<A HREF="#contents">Table of contents</A>
+
+<HR>
+
 <H2><a name="dos">Avoiding Denial of Service Attacks</a></H2>
 
 A potential problem with CGI.pm is that, by default, it attempts to
@@ -3929,8 +4134,8 @@ excellent LWP modules.  Stay tuned.
 
 
 <P>The current version of CGI.pm can be found at:
-<PRE>  <A HREF="http://www-genome.wi.mit.edu/ftp/pub/software/WWW">
-http://www-genome.wi.mit.edu/ftp/pub/software/WWW/</A>
+<PRE>  <A HREF="http://www.genome.wi.mit.edu/ftp/pub/software/WWW">
+http://www.genome.wi.mit.edu/ftp/pub/software/WWW/</A>
 </PRE>
 <P>
 You are encouraged to look at these other Web-related modules:
@@ -3939,7 +4144,7 @@ You are encouraged to look at these other Web-related modules:
   <DD> A module that simplifies the creation of HTML documents
        programatically.
 
-  <DT> <A HREF="http://www-genome.wi.mit.edu/ftp/pub/software/WWW/CGIperl/">
+  <DT> <A HREF="http://www.genome.wi.mit.edu/ftp/pub/software/WWW/CGIperl/">
        CGI::Base,CGI::Form,CGI::MiniSrv,CGI::Request and CGI::URI::URL</A>
   <DD> Modules for parsing script input, manipulating URLs, creating
        forms and even launching a miniature Web server.
@@ -3966,29 +4171,107 @@ see the companion pages for my book
 Maintain a World Wide Web Site</A>
 
 <HR> <A NAME="distribution"> <H2>Distribution Information:</H2> </A>
-This code is copyright 1995-1997 by Lincoln Stein.  It may be used and
+This code is copyright 1995-1998 by Lincoln Stein.  It may be used and
 modified freely, but I do request that this copyright notice remain
 attached to the file.  You may modify this module as you wish, but if
 you redistribute a modified version, please attach a note listing the
 modifications you have made.
 
 <HR>
+
+<A NAME="book">
+<H2>The CGI.pm Book</H2>
+</A>
+
+<cite>The Official Guide to CGI.pm</cite>, by Lincoln Stein, is packed
+with tips and techniques for using the module, along with information
+about the module's internals that can't be found anywhere else.  It is
+available on bookshelves now, or can be ordered from <a
+href="http://www.amazon.com">amazon.com</a>.  Also check the book's
+companion Web site at:
+
+<blockquote>
+<a href="http://www.wiley.com/compbooks/stein/">http://www.wiley.com/compbooks/stein/</a>
+</blockquote>
+
+<HR>
+
+
+<A NAME="y2000">
+<H2>CGI.pm and the Year 2000 Problem</H2>
+</A>
+
+Versions of CGI.pm prior to 2.36 suffered a year 2000 problem in the
+handling of cookies.  Cookie expiration dates were expressed using two
+digits as dictated by the then-current Netscape cookie protocol.  The
+cookie protocol has since been cleaned up.  My belief is that versions
+of CGI.pm 2.36 and higher are year 2000 compliant.
+
+<HR>
+
 <A NAME="mailingList">
 <H2>The CGI-perl mailing list</H2>
 </A>
 
 The CGI Perl mailing list is defunct and is unlikely to be
-resurrected.  Please address your questions to comp.lang.perl.modules
-and to comp.lang.perl.misc.
+resurrected.  Please address your questions to <a
+href="news:comp.infosystems.www.authoring.cgi">comp.infosystems.www.authoring.cgi</a>
+if they relate to the CGI protocol or the usage of CGI.pm <i>per
+se</i>, or to <a href="comp.lang.perl.misc">comp.lang.perl.misc</a>
+for Perl <STRONG>language</STRONG> issues.  Please read this
+documentation thoroughly, read the FAQs for these newsgroups and scan
+through previous messages before you make a posting.  Respondents are
+not always friendly to people who neglect to do so!
 
 <H3>Bug Reports</H3>
 Address bug reports and comments to:<BR>
-<A HREF="mailto:lstein@genome.wi.mit.edu">lstein@genome.wi.mit.edu</A>
+<A HREF="mailto:lstein@cshl.org">lstein@cshl.org</A>
 <P><A HREF="#contents">Up to table of contents</A>
+
+Please send the following information:
+
+<ol>
+  <li>The version of CGI.pm, obtained by running the command:
+      <blockquote><pre>
+perl -MCGI -e 'print $CGI::VERSION'
+      </pre></blockquote>
+      <p>
+  <li>The version of Perl, obtained by running the command:
+      <blockquote><pre>
+perl -V
+      </pre></blockquote>
+      <p>
+  <li>The name and version of the operating system you are using.
+      <p>
+  <li>The name and version of the Web server you are using.
+</ol>
 
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+
+<h3>Version 2.40</h3>
+<ol>
+  <li>CGI::Carp patched to work better with mod_perl (thanks to Chris
+      Dean).
+  <li>Uploads of files whose names begin with numbers or the Windows
+      \\UNC\shared\file nomenclature should no longer fail.
+  <li>The &lt;STYLE&gt; tag (for cascading style sheets) now generates the required TYPE attribute.
+  <li>Server push primitives added, thanks to Ed Jordan.
+  <li>Table and other HTML3 functions are now part of the :standard set.
+  <li>Small documentation fixes.
+</ol>
+
+<em>TO DO:</em>
+
+<ol>
+  <li>Do something about the DTD mess.  The module should generate correct DTDs, or at
+      least offer the programmer a way to specify the correct one.
+  <li>Split CGI.pm into CGI processing and HTML-generating modules.
+  <li>More robust file upload (?still not working on the Macintosh?).
+  <li>Bring in all the HTML4 functionality, particular the
+      accessibility features.
+</ol>
 
 <h3>Version 2.39</h3>
 <ol>
@@ -4533,10 +4816,10 @@ v  <LI> Added string interpolation of the CGI object.
 </OL>
 <A HREF="#contents">Table of Contents</A>
 <HR>
-<ADDRESS>Lincoln D. Stein, lstein@genome.wi.mit.edu<br>
-<a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
+<ADDRESS>Lincoln D. Stein, lstein@cshl.org<br>
+<a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Tue Mar 24 17:08:36 EST 1998
+Last modified: Wed May 20 12:16:39 EDT 1998
 <!-- hhmts end -->
 </BODY> </HTML>

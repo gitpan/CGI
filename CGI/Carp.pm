@@ -152,6 +152,9 @@ set_message() from within a BEGIN{} block.
      exported by default.  Thanks to Gunther Birznieks for the
      patches.
 
+1.10 Patch from Chris Dean (ctdean@cogit.com) to allow 
+     module to run correctly under mod_perl.
+
 =head1 AUTHORS
 
 Lincoln D. Stein <lstein@genome.wi.mit.edu>.  Feel free to redistribute
@@ -175,7 +178,7 @@ use Carp;
 
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
 $main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.09';
+$CGI::Carp::VERSION = '1.10';
 $CGI::Carp::CUSTOM_MSG = undef;
 
 # fancy import routine detects and handles 'errorWrap' specially.
@@ -222,12 +225,22 @@ sub warn {
     realwarn $message;
 }
 
+# The mod_perl package Apache::Registry loads CGI programs by calling
+# eval.  These evals don't count when looking at the stack backtrace.
+sub _longmess {
+    my $message = Carp::longmess();
+    my $mod_perl = ($ENV{'GATEWAY_INTERFACE'} 
+                    && $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl\//);
+    $message =~ s,eval[^\n]+Apache/Registry\.pm.*,,s if $mod_perl;
+    return( $message );    
+}
+
 sub die {
     my $message = shift;
     my $time = scalar(localtime);
     my($file,$line,$id) = id(1);
     $message .= " at $file line $line.\n" unless $message=~/\n$/;
-    &fatalsToBrowser($message) if $WRAP && Carp::longmess() !~ /eval [{']/m;
+    &fatalsToBrowser($message) if $WRAP && _longmess() !~ /eval [{\']/m;
     my $stamp = stamp;
     $message=~s/^/$stamp/gm;
     realdie $message;

@@ -1,8 +1,27 @@
-CGI.pm version 2.38 is now available to play with.  This supersedes
-all the 2.37 betas that have been hanging around for the past three
-months.  There are no known bugs in this version (famous last words).
+CGI.pm version 2.40 is now available for your fun and edification.
+This version includes the following bug fixes and features:
+
+1. CGI::Carp patched to work better with mod_perl (thanks to Chris
+Dean).
+
+2. Uploads of files whose names begin with numbers or the Windows
+\\UNC\shared\file nomenclature should no longer fail.
+
+3. The <STYLE> tag(for cascading style sheets) now generates the
+required TYPE attribute.
+
+4. New server push primitives added, thanks to Ed Jordan.
+
+5. Table and other HTML3 functions are now part of the ":standard" set.
+
+6. Small documentation fixes.
+
+The master copy can be found at
+http://www.genome.wi.mit.edu/ftp/pub/software/WWW/.  Mirror copies
+should be appearing on CPAN within hours.
 
 Lincoln Stein
+May 20, 1998
 
 ========================================================================
 Lincoln D. Stein

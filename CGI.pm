@@ -1,5 +1,5 @@
 package CGI;
-require 5.00307;
+require 5.004;
 
 # See the bottom of this file for the POD documentation.  Search for the
 # string '=head'.
@@ -19,7 +19,7 @@ require 5.00307;
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
 $CGI::revision = '$Id: CGI.pm,v 1.29 1998/03/24 22:11:50 lstein Exp lstein $';
-$CGI::VERSION='2.39';
+$CGI::VERSION='2.40';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -150,8 +150,8 @@ if ($needs_binmode) {
 			   base body Link nextid title meta kbd start_html end_html
 			   input Select option comment/],
 		':html3'=>[qw/div table caption th td TR Tr sup sub strike applet Param 
-			   embed basefont style span layer ilayer font/],
-		':netscape'=>[qw/blink frameset frame script fontsize center small big/],
+			   embed basefont style span layer ilayer font frameset frame script small big/],
+		':netscape'=>[qw/blink fontsize center/],
 		':form'=>[qw/textfield textarea filefield password_field hidden checkbox checkbox_group 
 			  submit reset defaults radio_group popup_menu button autoEscape
 			  scrolling_list image_button start_form end_form startform endform
@@ -165,7 +165,8 @@ if ($needs_binmode) {
 		':ssl' => [qw/https/],
 		':cgi-lib' => [qw/ReadParse PrintHeader HtmlTop HtmlBot SplitParam/],
 		':html' => [qw/:html2 :html3 :netscape/],
-		':standard' => [qw/:html2 :form :cgi/],
+		':standard' => [qw/:html2 :html3 :form :cgi/],
+		':push' => [qw/multipart_init multipart_start multipart_end/],
 		':all' => [qw/:html2 :html3 :netscape :form :cgi :internal/]
 		);
 
@@ -272,7 +273,7 @@ sub param {
 }
 
 sub self_or_default {
-    return @_ if defined($_[0]) && !ref($_[0]) && ($_[0] eq 'CGI');
+    return @_ if defined($_[0]) && (!ref($_[0])) &&($_[0] eq 'CGI');
     unless (defined($_[0]) && 
 	    (ref($_[0]) eq 'CGI' || UNIVERSAL::isa($_[0],'CGI')) # slightly optimized for common case
 	    ) {
@@ -329,17 +330,15 @@ sub init {
 
   METHOD: {
 
-      # Special convoluted logic for multipart postings.
-      # Allow the first upload to succeed.  Second ones are
-      # read from the filehandle.
+      # Process multipart postings, but only if the initializer is
+      # not defined.
       if ($meth eq 'POST'
 	  && defined($ENV{'CONTENT_TYPE'})
 	  && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|
-	  && ( !defined($initializer) || ($fh && $BEEN_THERE) )
+	  && !defined($initializer)
 	  ) {
-	  $BEEN_THERE++;
 	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary=\"?([^\";]+)\"?/;
-	  $self->read_multipart($boundary,$content_length,to_filehandle($initializer));
+	  $self->read_multipart($boundary,$content_length);
 	  last METHOD;
       } 
 
@@ -497,7 +496,7 @@ sub parse_params {
     my(@pairs) = split('&',$tosplit);
     my($param,$value);
     foreach (@pairs) {
-	($param,$value) = split('=');
+	($param,$value) = split('=',$_,2);
 	$param = unescape($param);
 	$value = unescape($value);
 	$self->add_parameter($param);
@@ -682,6 +681,10 @@ END_OF_FUNC
 
 'MULTIPART' => <<'END_OF_FUNC',
 sub MULTIPART {  'multipart/form-data'; }
+END_OF_FUNC
+
+'SERVER_PUSH' => <<'END_OF_FUNC',
+sub SERVER_PUSH { 'multipart/x-mixed-replace; boundary="' . shift . '"'; }
 END_OF_FUNC
 
 'use_named_parameters' => <<'END_OF_FUNC',
@@ -975,7 +978,7 @@ sub url_param {
 	    my(@pairs) = split('&',$ENV{QUERY_STRING});
 	    my($param,$value);
 	    foreach (@pairs) {
-		($param,$value) = split('=');
+		($param,$value) = split('=',$_,2);
 		$param = unescape($param);
 		$value = unescape($value);
 		push(@{$self->{'.url_param'}->{$param}},$value);
@@ -1071,6 +1074,62 @@ sub restore_parameters {
 }
 END_OF_FUNC
 
+#### Method: multipart_init
+# Return a Content-Type: style header for server-push
+# This has to be NPH, and it is advisable to set $| = 1
+#
+# Many thanks to Ed Jordan <ed@fidalgo.net> for this
+# contribution
+####
+'multipart_init' => <<'END_OF_FUNC',
+sub multipart_init {
+    my($self,@p) = self_or_default(@_);
+    my($boundary,@other) = $self->rearrange([BOUNDARY],@p);
+    $boundary = $boundary || '------- =_aaaaaaaaaa0';
+    $self->{'separator'} = "\n--$boundary\n";
+    $type = SERVER_PUSH($boundary);
+    return $self->header(
+	-nph => 1,
+	-type => $type,
+	(map { split "=", $_, 2 } @other),
+    ) . $self->multipart_end;
+}
+END_OF_FUNC
+
+
+#### Method: multipart_start
+# Return a Content-Type: style header for server-push, start of section
+#
+# Many thanks to Ed Jordan <ed@fidalgo.net> for this
+# contribution
+####
+'multipart_start' => <<'END_OF_FUNC',
+sub multipart_start {
+    my($self,@p) = self_or_default(@_);
+    my($type,@other) = $self->rearrange([TYPE],@p);
+    $type = $type || 'text/html';
+    return $self->header(
+	-type => $type,
+	(map { split "=", $_, 2 } @other),
+    );
+}
+END_OF_FUNC
+
+
+#### Method: multipart_end
+# Return a Content-Type: style header for server-push, end of section
+#
+# Many thanks to Ed Jordan <ed@fidalgo.net> for this
+# contribution
+####
+'multipart_end' => <<'END_OF_FUNC',
+sub multipart_end {
+    my($self,@p) = self_or_default(@_);
+    return $self->{'separator'};
+}
+END_OF_FUNC
+
+
 #### Method: header
 # Return a Content-Type: style header
 #
@@ -1153,7 +1212,7 @@ sub redirect {
     my($url,$target,$cookie,$nph,@other) = $self->rearrange([[LOCATION,URI,URL],TARGET,COOKIE,NPH],@p);
     $url = $url || $self->self_url;
     my(@o);
-    foreach (@other) { tr/\"//d; push(@o,split("=")); }
+    foreach (@other) { tr/\"//d; push(@o,split("=",$_,2)); }
     unshift(@o,
 	 '-Status'=>'302 Moved',
 	 '-Location'=>$url,
@@ -1236,15 +1295,17 @@ END_OF_FUNC
 sub _style {
     my ($self,$style) = @_;
     my (@result);
+    my $type = 'text/css';
     if (ref($style)) {
-	my($src,$code,@other) =
-	    $self->rearrange([SRC,CODE],
+	my($src,$code,$stype,@other) =
+	    $self->rearrange([SRC,CODE,TYPE],
 			     '-foo'=>'bar',	# a trick to allow the '-' to be omitted
 			     ref($style) eq 'ARRAY' ? @$style : %$style);
+	$type = $stype if $stype;
 	push(@result,qq/<LINK REL="stylesheet" HREF="$src">/) if $src;
-	push(@result,style("<!--\n$code\n-->")) if $code;
+	push(@result,style({'type'=>$type},"<!--\n$code\n-->")) if $code;
     } else {
-	push(@result,style("<!--\n$style\n-->"));
+	push(@result,style({'type'=>$type},"<!--\n$style\n-->"));
     }
     @result;
 }
@@ -2011,20 +2072,8 @@ END_OF_FUNC
 'self_url' => <<'END_OF_FUNC',
 sub self_url {
     my($self) = self_or_default(@_);
+    my $name = $self->url();
     my($query_string) = $self->query_string;
-    my $protocol = $self->protocol();
-    my $name = "$protocol://";
-    if (my $vh = http('host')) {
-	$name .= $vh;
-    } else {
-	$name .= server_name();
-	my $port = $self->server_port;
-	$name .= ":" . $port
-	    unless (lc($protocol) eq 'http' && $port == 80)
-		|| (lc($protocol) eq 'https' && $port == 443);
-    }
-    $name .= $self->script_name;
-    $name .= $self->path_info if $self->path_info;
     return $name if $query_string eq '';
     return "$name?$query_string";
 }
@@ -2048,10 +2097,19 @@ END_OF_FUNC
 sub url {
     my($self) = self_or_default(@_);
     my $protocol = $self->protocol();
-    my $name = "$protocol://" . $self->virtual_host;
-    $name .= ":" . $self->server_port
-	unless $self->server_port == 80;
+    my $name = "$protocol://";
+    my $vh = http('host');
+    if ($vh) {
+	$name .= $vh;
+    } else {
+	$name .= server_name();
+	my $port = $self->server_port;
+	$name .= ":" . $port
+	    unless (lc($protocol) eq 'http' && $port == 80)
+		|| (lc($protocol) eq 'https' && $port == 443);
+    }
     $name .= $self->script_name;
+    $name .= $self->path_info if $self->path_info;
     return $name;
 }
 
@@ -2769,7 +2827,7 @@ $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 sub asString {
     my $self = shift;
     my ($i);
-    ($i = $$self) =~ s/\*Fh:://;
+    ($i = $$self) =~ s/\*(\w+::)+//;
     return $i;
 }
 END_OF_FUNC
@@ -3052,7 +3110,7 @@ unless ($TMPDIRECTORY) {
 }
 
 $TMPDIRECTORY  = "." unless $TMPDIRECTORY;
-$SEQUENCE="CGItemp${$}0000";
+$SEQUENCE=0;
 $MAXTRIES = 5000;
 
 # cute feature, but overload implementation broke it
@@ -3072,8 +3130,7 @@ sub new {
     my $directory;
     my $i;
     for ($i = 0; $i < $MAXTRIES; $i++) {
-	$SEQUENCE++;
-	$directory = "${TMPDIRECTORY}${SL}${SEQUENCE}";
+	$directory = sprintf("${TMPDIRECTORY}${SL}CGItemp%d%04d",${$},++$SEQUENCE);
 	last if ! -f $directory;
     }
     return bless \$directory;
@@ -3619,7 +3676,7 @@ Import all HTML-generating shortcuts (i.e. 'html2' + 'html3' +
 
 =item B<:standard>
 
-Import "standard" features, 'html2', 'form' and 'cgi'.
+Import "standard" features, 'html2', 'html3', 'form' and 'cgi'.
 
 =item B<:all>
 
@@ -3842,7 +3899,7 @@ indicated expiration date.  The following forms are all valid for the
 	now                               immediately
 	+3M                               in three months
 	+10y                              in ten years time
-	Thursday, 25-Apr-96 00:40:33 GMT  at the indicated time & date
+	Thursday, 25-Apr-1999 00:40:33 GMT  at the indicated time & date
 
 The B<-cookie> parameter generates a header that tells the browser to provide
 a "magic cookie" during all subsequent transactions with your script.
@@ -4216,6 +4273,7 @@ This is extremely useful for creating tables.  For example:
               td(['Broccoli' , 'no', 'no',  'yes']),
               td(['Onions'   , 'yes','yes', 'yes'])
            ]
+           )
         );
 
 =head2 HTML SHORTCUTS AND LIST INTERPOLATION
@@ -5324,6 +5382,10 @@ stylesheet can be found.  B<-code> points to a scalar value to be
 incorporated into a <STYLE> section.  Style definitions in B<-code>
 override similarly-named ones in B<-src>, hence the name "cascading."
 
+You may also specify the type of the stylesheet by adding the optional
+B<-type> parameter to the hash pointed to by B<-style>.  If not
+specified, the style defaults to 'text/css'.
+
 To refer to a style within the body of your document, add the
 B<-class> parameter to any HTML element:
 
@@ -5609,6 +5671,63 @@ Call B<nph()> with a non-zero parameter at any point after using CGI.pm in your 
       print $q->header(-nph=>1);
 
 =back
+
+=head1 Server Push
+
+CGI.pm provides three simple functions for producing multipart
+documents of the type needed to implement server push.  These
+functions were graciously provided by Ed Jordan <ed@fidalgo.net>.  To
+import these into your namespace, you must import the ":push" set.
+You are also advised to put the script into NPH mode and to set $| to
+1 to avoid buffering problems.
+
+Here is a simple script that demonstrates server push:
+
+  #!/usr/local/bin/perl
+  use CGI qw/:push -nph/;
+  $| = 1;
+  print multipart_init(-boundary=>'----------------here we go!');
+  while (1) {
+      print multipart_start(-type=>'text/plain'),
+            "The current time is ",scalar(localtime),"\n",
+            multipart_end;
+      sleep 1;
+  }
+
+This script initializes server push by calling B<multipart_init()>.
+It then enters an infinite loop in which it begins a new multipart
+section by calling B<multipart_start()>, prints the current local time,
+and ends a multipart section with B<multipart_end()>.  It then sleeps
+a second, and begins again.
+
+=over 4
+
+=item multipart_init()
+     
+  multipart_init(-boundary=>$boundary);
+
+Initialize the multipart system.  The -boundary argument specifies
+what MIME boundary string to use to separate parts of the document.
+If not provided, CGI.pm chooses a reasonable boundary for you.
+
+=item multipart_start()
+
+  multipart_start(-type=>$type)
+
+Start a new part of the multipart document using the specified MIME
+type.  If not specified, text/html is assumed.
+
+=item multipart_end()
+
+  multipart_end()
+
+End a part.  You must remember to call multipart_end() once for each
+multipart_start().
+
+=back
+
+Users interested in server push applications should also have a look
+at the CGI::Push module.
 
 =head1 Avoiding Denial of Service Attacks
 
