@@ -18,8 +18,8 @@ use Carp 'croak';
 # The most recent version and complete docs are available at:
 #   http://stein.cshl.org/WWW/software/CGI/
 
-$CGI::revision = '$Id: CGI.pm,v 1.85 2002/12/14 14:03:42 lstein Exp $';
-$CGI::VERSION='2.90';
+$CGI::revision = '$Id: CGI.pm,v 1.88 2003/02/11 14:13:18 lstein Exp $';
+$CGI::VERSION='2.91';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -611,15 +611,14 @@ sub _make_tag_func {
     my ($self,$tagname) = @_;
     my $func = qq(
 	sub $tagname {
-            shift if \$_[0] && 
-                    (ref(\$_[0]) &&
-                     (substr(ref(\$_[0]),0,3) eq 'CGI' ||
-                    UNIVERSAL::isa(\$_[0],'CGI')));
-	    my(\$attr) = '';
-	    if (ref(\$_[0]) && ref(\$_[0]) eq 'HASH') {
-		my(\@attr) = make_attributes(shift()||undef,1);
-		\$attr = " \@attr" if \@attr;
-	    }
+         my (\$q,\$a,\@rest) = self_or_default(\@_);
+         my(\$attr) = '';
+	 if (ref(\$a) && ref(\$a) eq 'HASH') {
+	    my(\@attr) = make_attributes(\$a,\$q->{'escape'});
+	    \$attr = " \@attr" if \@attr;
+	  } else {
+	    unshift \@rest,\$a;
+	  }
 	);
     if ($tagname=~/start_(\w+)/i) {
 	$func .= qq! return "<\L$1\E\$attr>";} !;
@@ -630,7 +629,7 @@ sub _make_tag_func {
 	    return \$XHTML ? "\L<$tagname\E\$attr />" : "\L<$tagname\E\$attr>" unless \@_;
 	    my(\$tag,\$untag) = ("\L<$tagname\E\$attr>","\L</$tagname>\E");
 	    my \@result = map { "\$tag\$_\$untag" } 
-                              (ref(\$_[0]) eq 'ARRAY') ? \@{\$_[0]} : "\@_";
+                              (ref(\$rest[0]) eq 'ARRAY') ? \@{\$rest[0]} : "\@rest";
 	    return "\@result";
             }#;
     }
@@ -1629,7 +1628,7 @@ sub endform {
     if ( $NOSTICKY ) {
     return wantarray ? ("</form>") : "\n</form>";
     } else {
-    return wantarray ? (("<div>",$self->get_fields,"</div>","</form>") : 
+    return wantarray ? ("<div>",$self->get_fields,"</div>","</form>") : 
                         "<div>".$self->get_fields ."</div>\n</form>";
     }
 }
