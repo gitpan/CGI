@@ -76,11 +76,12 @@ if ($Config{d_fork}) {
   }
   # at this point, we're in a new (child) process
   test(23,param('weather') eq 'nice',"CGI::param() from POST");
-  test(24,url_param('big_balls') eq 'basketball',"CGI::url_param()");
+  test(24,(url_param('big_balls') eq 'basketball'),"CGI::url_param()");
 } else {
   print "ok 23 # Skip\n";
   print "ok 24 # Skip\n";
 }
 test(25,redirect('http://somewhere.else') eq "Status: 302 Moved${CRLF}location: http://somewhere.else${CRLF}${CRLF}","CGI::redirect() 1");
-test(26,redirect(-Location=>'http://somewhere.else',-Type=>'text/html') eq "Status: 302 Moved${CRLF}location: http://somewhere.else${CRLF}Content-Type: text/html; charset=ISO-8859-1${CRLF}${CRLF}","CGI::redirect() 2");
+my $h = redirect(-Location=>'http://somewhere.else',-Type=>'text/html');
+test(26,$h eq "Status: 302 Moved${CRLF}location: http://somewhere.else${CRLF}Content-Type: text/html; charset=ISO-8859-1${CRLF}${CRLF}","CGI::redirect() 2");
 test(27,redirect(-Location=>'http://somewhere.else/bin/foo&bar',-Type=>'text/html') eq "Status: 302 Moved${CRLF}location: http://somewhere.else/bin/foo&bar${CRLF}Content-Type: text/html; charset=ISO-8859-1${CRLF}${CRLF}","CGI::redirect() 2");

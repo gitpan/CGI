@@ -18,7 +18,7 @@ require 5.004;
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.39 2000/07/28 03:00:03 lstein Exp $';
-$CGI::VERSION='2.69';
+$CGI::VERSION='2.70';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -1228,7 +1228,7 @@ END_OF_FUNC
 sub redirect {
     my($self,@p) = self_or_default(@_);
     my($url,$target,$cookie,$nph,@other) = rearrange([[LOCATION,URI,URL],TARGET,COOKIE,NPH],@p);
-    $url = $url || $self->self_url;
+    $url ||= $self->self_url;
     my(@o);
     foreach (@other) { tr/\"//d; push(@o,split("=",$_,2)); }
     unshift(@o,
@@ -1275,7 +1275,7 @@ sub start_html {
     $lang ||= 'en-US';
     my(@result);
     if ($dtd) {
-        if (ref $dtd && $ref eq 'ARRAY') {
+        if (defined(ref($dtd)) and (ref($dtd) eq 'ARRAY')) {
             $dtd = $DEFAULT_DTD unless $dtd->[0] =~ m|^-//|;
         } else {
             $dtd = $DEFAULT_DTD unless $dtd =~ m|^-//|;
@@ -1869,8 +1869,7 @@ END_OF_FUNC
 sub unescapeHTML {
     my ($self,$string) = CGI::self_or_default(@_);
     return undef unless defined($string);
-    my $latin = uc $self->{'.charset'} eq 'ISO-8859-1' or
-                uc $self->{'.charset'} eq 'WINDOWS-1252';
+    my $latin = $self->{'.charset'} =~ /^(ISO-8859-1|WINDOWS-1252)$/i;
     # thanks to Randal Schwartz for the correct solution to this one
     $string=~ s[&(.*?);]{
 	local $_ = $1;
@@ -2075,8 +2074,8 @@ sub scrolling_list {
     $size = $size || scalar(@values);
 
     my(%selected) = $self->previous_or_default($name,$defaults,$override);
-    my($is_multiple) = $multiple ? qq/multiple="yes"/ : '';
-    my($has_size) = $size ? " size=$size" : '';
+    my($is_multiple) = $multiple ? qq/ multiple="yes"/ : '';
+    my($has_size) = $size ? qq/ size="$size"/: '';
     my($other) = @other ? " @other" : '';
 
     $name=$self->escapeHTML($name);
@@ -2811,7 +2810,7 @@ sub read_multipart {
 	my($param)= $header{'Content-Disposition'}=~/ name="?([^\";]*)"?/;
 
 	# Bug:  Netscape doesn't escape quotation marks in file names!!!
-	my($filename) = $header{'Content-Disposition'}=~/ filename="?([^\";]*)"?/;
+	my($filename) = $header{'Content-Disposition'}=~/ filename="?([^\"]*)"?/;
 
 	# add this parameter to our list
 	$self->add_parameter($param);
