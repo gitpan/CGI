@@ -9,6 +9,8 @@ $query = new CGI;
 print $query->header;
 print $query->start_html("Internal Links Example");
 print "<H1>Internal Links Example</H1>\n";
+print "Click <cite>Submit Query</cite> to create a state.  Then scroll down and",
+    " click on any of the <cite>Jump to top</cite> links.  This is not very exciting.";
 
 print "<A NAME=\"start\"></A>\n"; # an anchor point at the top
 
@@ -23,7 +25,7 @@ print $query->submit,$query->endform;
 $myself = $query->self_url;
 print "<OL>\n";
 for (1..100) {
-    print qq{<LI>List item #$_<A HREF="$myself#start">Jump to top</A>\n};
+    print qq{<LI>List item #$_ <A HREF="$myself#start">Jump to top</A>\n};
 }
 print "</OL>\n";
 

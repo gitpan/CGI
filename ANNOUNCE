@@ -1,0 +1,40 @@
+CGI.pm version 2.20 is now available.  This is the "everything but the
+kitchen sink" module for CGI programming in Perl 5.  New in this
+version:
+
+* Lots of methods are now importable:
+
+	use CGI qw(:standard);
+	print param('field_no_1');
+
+* HTML shortcut methods:
+
+	print h1("Hi mom!"),"I'm on ",strong("TV");
+
+* Initialize CGI objects from strings and hashes:
+
+     $query = new CGI({'dinosaur'=>'barney',
+		      'song'=>'I love you',
+		      'friends'=>[qw/Jessica George Nancy/]});
+
+* No longer requires SelfLoader module.  
+
+* Performance enhancements.  Loading time is now down to <0.2 seconds
+(Linux/Pentium90).
+
+* New cgi-lib compatability mode to ease migrating scripts from Steve
+Brenner's cgi-lib.pl to CGI.pm.
+
+* Many bug fixes, including fixes for binary file uploads under
+  Windows/NT.
+
+CGI.pm 2.20 can be found at:
+
+   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
+
+Lincoln
+
+========================================================================
+Lincoln D. Stein                Whitehead Institute/MIT Genome Center
+lstein@genome.wi.mit.edu	Cambridge, MA 02142
+========================================================================

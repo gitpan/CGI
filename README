@@ -1,4 +1,4 @@
-This is CGI.pm 2.00, an easy-to-use Perl5 library for writing World
+This is CGI.pm 2.19, an easy-to-use Perl5 library for writing World
 Wide Web CGI scripts.
 
 To install this module, cd to the directory that contains this README
@@ -8,9 +8,17 @@ file and type the following:
 	make
 	make install
 
+If this doesn't work for you, try:
+
+	cp CGI.pm /usr/local/lib/perl5
+
 If you have trouble installing CGI.pm because you have insufficient
 access privileges to add to the perl library directory, you can still
-use CGI.pm.  See the documentation for details.
+use CGI.pm.  See the docs for details.
+
+This module works with NT, Windows, Macintosh and VMS servers, although
+it hasn't been tested as extensively as it should be.  See the docs
+for notes on your particular platform.
 
 The documentation for these modules is part of the CGI.pm itself.  It
 can be read using the pod2man and pod2html programs that come with
@@ -35,9 +43,6 @@ Many examples of CGI scripts of various degrees of complexity can be
 found at:
 
 	http://www-genome.wi.mit.edu/WWW/examples/Ch9/
-
-You can safely ignore the stuff in the CVS directories.  These contain
-various source code control files.
 
 Have fun, and let me know how it turns out!
 
