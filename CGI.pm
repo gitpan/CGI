@@ -17,8 +17,8 @@ require 5.004;
 # The most recent version and complete docs are available at:
 #   http://stein.cshl.org/WWW/software/CGI/
 
-$CGI::revision = '$Id: CGI.pm,v 1.9 1999/02/19 14:07:22 lstein Exp $';
-$CGI::VERSION='2.49';
+$CGI::revision = '$Id: CGI.pm,v 1.17 1999/06/08 15:06:22 lstein Exp $';
+$CGI::VERSION='2.52';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -58,6 +58,9 @@ sub initialize_globals {
     # Change this to 1 to disable uploads entirely:
     $DISABLE_UPLOADS = 0;
 
+    # Automatically determined -- don't change
+    $EBCDIC = 0;
+
     # Change this to 1 to suppress redundant HTTP headers
     $HEADERS_ONCE = 0;
 
@@ -89,9 +92,11 @@ unless ($OS) {
     }
 }
 if ($OS=~/Win/i) {
-    $OS = 'WINDOWS';
+  $OS = 'WINDOWS';
 } elsif ($OS=~/vms/i) {
-    $OS = 'VMS';
+  $OS = 'VMS';
+} elsif ($OS=~/dos/i) {
+  $OS = 'DOS';
 } elsif ($OS=~/^MacOS$/i) {
     $OS = 'MACINTOSH';
 } elsif ($OS=~/os2/i) {
@@ -101,7 +106,7 @@ if ($OS=~/Win/i) {
 }
 
 # Some OS logic.  Binary mode enabled on DOS, NT and VMS
-$needs_binmode = $OS=~/^(WINDOWS|VMS|OS2)/;
+$needs_binmode = $OS=~/^(WINDOWS|DOS|OS2|MSWin)/;
 
 # This is the default class for the CGI object to use when all else fails.
 $DefaultClass = 'CGI' unless defined $CGI::DefaultClass;
@@ -112,7 +117,7 @@ $AutoloadClass = $DefaultClass unless defined $CGI::AutoloadClass;
 # The path separator is a slash, backslash or semicolon, depending
 # on the paltform.
 $SL = {
-    UNIX=>'/', OS2=>'\\', WINDOWS=>'\\', MACINTOSH=>':', VMS=>'/'
+    UNIX=>'/', OS2=>'\\', WINDOWS=>'\\', DOS=>'\\', MACINTOSH=>':', VMS=>'/'
     }->{$OS};
 
 # This no longer seems to be necessary
@@ -139,11 +144,32 @@ $PERLEX++ if defined($ENV{'GATEWAY_INTERFACE'}) && $ENV{'GATEWAY_INTERFACE'} =~ 
 # really annoying.
 $EBCDIC = "\t" ne "\011";
 if ($OS eq 'VMS') {
-    $CRLF = "\n";
+  $CRLF = "\n";
 } elsif ($EBCDIC) {
-    $CRLF= "\r\n";
+  $CRLF= "\r\n";
 } else {
-    $CRLF = "\015\012";
+  $CRLF = "\015\012";
+}
+
+if ($EBCDIC) {
+@A2E = (
+  0,  1,  2,  3, 55, 45, 46, 47, 22,  5, 21, 11, 12, 13, 14, 15,
+ 16, 17, 18, 19, 60, 61, 50, 38, 24, 25, 63, 39, 28, 29, 30, 31,
+ 64, 90,127,123, 91,108, 80,125, 77, 93, 92, 78,107, 96, 75, 97,
+240,241,242,243,244,245,246,247,248,249,122, 94, 76,126,110,111,
+124,193,194,195,196,197,198,199,200,201,209,210,211,212,213,214,
+215,216,217,226,227,228,229,230,231,232,233,173,224,189, 95,109,
+121,129,130,131,132,133,134,135,136,137,145,146,147,148,149,150,
+151,152,153,162,163,164,165,166,167,168,169,192, 79,208,161,  7,
+ 32, 33, 34, 35, 36, 37,  6, 23, 40, 41, 42, 43, 44,  9, 10, 27,
+ 48, 49, 26, 51, 52, 53, 54,  8, 56, 57, 58, 59,  4, 20, 62,255,
+ 65,170, 74,177,159,178,106,181,187,180,154,138,176,202,175,188,
+144,143,234,250,190,160,182,179,157,218,155,139,183,184,185,171,
+100,101, 98,102, 99,103,158,104,116,113,114,115,120,117,118,119,
+172,105,237,238,235,239,236,191,128,253,254,251,252,186,174, 89,
+ 68, 69, 66, 70, 67, 71,156, 72, 84, 81, 82, 83, 88, 85, 86, 87,
+140, 73,205,206,203,207,204,225,112,221,222,219,220,141,142,223
+      );
 }
 
 if ($needs_binmode) {
@@ -165,7 +191,7 @@ if ($needs_binmode) {
 			  scrolling_list image_button start_form end_form startform endform
 			  start_multipart_form end_multipart_form isindex tmpFileName uploadInfo URL_ENCODED MULTIPART/],
 		':cgi'=>[qw/param upload path_info path_translated url self_url script_name cookie Dump
-			 raw_cookie request_method query_string Accept user_agent remote_host 
+			 raw_cookie request_method query_string Accept user_agent remote_host content_type
 			 remote_addr referer server_name server_software server_port server_protocol
 			 virtual_host remote_ident auth_type http use_named_parameters 
 			 save_parameters restore_parameters param_fetch
@@ -173,7 +199,7 @@ if ($needs_binmode) {
 			 Delete Delete_all url_param cgi_error/],
 		':ssl' => [qw/https/],
 		':imagemap' => [qw/Area Map/],
-		':cgi-lib' => [qw/ReadParse PrintHeader HtmlTop HtmlBot SplitParam/],
+		':cgi-lib' => [qw/ReadParse PrintHeader HtmlTop HtmlBot SplitParam Vars/],
 		':html' => [qw/:html2 :html3 :netscape/],
 		':standard' => [qw/:html2 :html3 :form :cgi/],
 		':push' => [qw/multipart_init multipart_start multipart_end/],
@@ -400,7 +426,11 @@ sub init {
       # If method is GET or HEAD, fetch the query from
       # the environment.
       if ($meth=~/^(GET|HEAD)$/) {
-	  $query_string = $ENV{'QUERY_STRING'} if defined $ENV{'QUERY_STRING'};
+	  if ($MOD_PERL) {
+	      $query_string = Apache->request->args;
+	  } else {
+	      $query_string = $ENV{'QUERY_STRING'} if defined $ENV{'QUERY_STRING'};
+	  }
 	  last METHOD;
       }
 
@@ -488,12 +518,16 @@ sub cgi_error {
 
 # unescape URL-encoded data
 sub unescape {
-    shift() if ref($_[0]);
-    my $todecode = shift;
-    return undef unless defined($todecode);
-    $todecode =~ tr/+/ /;       # pluses become spaces
-    $todecode =~ s/%([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
-    return $todecode;
+  shift() if ref($_[0]) || $_[0] eq $DefaultClass;
+  my $todecode = shift;
+  return undef unless defined($todecode);
+  $todecode =~ tr/+/ /;       # pluses become spaces
+    if ($EBCDIC) {
+      $todecode =~ s/%([0-9a-fA-F]{2})/pack("c",$A2E[hex($1)])/ge;
+    } else {
+      $todecode =~ s/%([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
+    }
+  return $todecode;
 }
 
 # URL-encode data
@@ -501,7 +535,8 @@ sub escape {
     shift() if ref($_[0]) || $_[0] eq $DefaultClass;
     my $toencode = shift;
     return undef unless defined($toencode);
-    $toencode=~s/([^a-zA-Z0-9_.-])/uc sprintf("%%%02x",ord($1))/eg;
+    $toencode=~s/ /+/g;
+    $toencode=~s/([^a-zA-Z0-9_.+-])/uc sprintf("%%%02x",ord($1))/eg;
     return $toencode;
 }
 
@@ -663,7 +698,7 @@ sub _compile {
 	   die $@;
        }
     }       
-    delete($sub->{$func_name});  #free storage
+    CORE::delete($sub->{$func_name});  #free storage
     return "$pack\:\:$func_name";
 }
 
@@ -759,8 +794,8 @@ END_OF_FUNC
 ####
 sub delete {
     my($self,$name) = self_or_default(@_);
-    delete $self->{$name};
-    delete $self->{'.fieldnames'}->{$name};
+    CORE::delete $self->{$name};
+    CORE::delete $self->{'.fieldnames'}->{$name};
     @{$self->{'.parameters'}}=grep($_ ne $name,$self->param());
     return wantarray ? () : undef;
 }
@@ -809,6 +844,17 @@ sub keywords {
     $self->{'keywords'}=[@values] if defined(@values);
     my(@result) = defined($self->{'keywords'}) ? @{$self->{'keywords'}} : ();
     @result;
+}
+END_OF_FUNC
+
+# These are some tie() interfaces for compatibility
+# with Steve Brenner's cgi-lib.pl routines
+'Vars' => <<'END_OF_FUNC',
+sub Vars {
+    my %in;
+    tie(%in,CGI);
+    return %in if wantarray;
+    return \%in;
 }
 END_OF_FUNC
 
@@ -1044,6 +1090,7 @@ sub dump {
 	push(@result,"<UL>");
 	foreach $value ($self->param($param)) {
 	    $value = $self->escapeHTML($value);
+            $value =~ s/\n/<BR>\n/g;
 	    push(@result,"<LI>$value");
 	}
 	push(@result,"</UL>");
@@ -1078,7 +1125,7 @@ sub save {
 	my($escaped_param) = escape($param);
 	my($value);
 	foreach $value ($self->param($param)) {
-	    print $filehandle "$escaped_param=",escape($value),"\n";
+	    print $filehandle "$escaped_param=",escape("$value"),"\n";
 	}
     }
     print $filehandle "=\n";    # end of record
@@ -1340,7 +1387,7 @@ sub _style {
 			     '-foo'=>'bar',	# a trick to allow the '-' to be omitted
 			     ref($style) eq 'ARRAY' ? @$style : %$style);
 	$type = $stype if $stype;
-	push(@result,qq/<LINK REL="stylesheet" HREF="$src">/) if $src;
+	push(@result,qq/<LINK REL="stylesheet" TYPE="$type" HREF="$src">/) if $src;
 	push(@result,style({'type'=>$type},"<!--\n$code\n-->")) if $code;
     } else {
 	push(@result,style({'type'=>$type},"<!--\n$style\n-->"));
@@ -1361,7 +1408,7 @@ sub _script {
 	    ($src,$code,$language) =
 		$self->rearrange([SRC,CODE,LANGUAGE],
 				 '-foo'=>'bar',	# a trick to allow the '-' to be omitted
-				 ref($style) eq 'ARRAY' ? @$script : %$script);
+				 ref($script) eq 'ARRAY' ? @$script : %$script);
 	    
 	} else {
 	    ($src,$code,$language) = ('',$script,'JavaScript');
@@ -1373,7 +1420,7 @@ sub _script {
 	    if $code && $language=~/javascript/i;
 	$code = "<!-- Hide script\n$code\n\# End script hiding -->"
 	    if $code && $language=~/perl/i;
-	push(@result,script({@satts},$code));
+	push(@result,script({@satts},$code || ''));
     }
     @result;
 }
@@ -1740,9 +1787,7 @@ sub checkbox {
     $the_label = $self->escapeHTML($the_label);
     my($other) = @other ? " @other" : '';
     $self->register_parameter($name);
-    return <<END;
-<INPUT TYPE="checkbox" NAME="$name" VALUE="$value"$checked$other>$the_label
-END
+    return qq{<INPUT TYPE="checkbox" NAME="$name" VALUE="$value"$checked$other>$the_label};
 }
 END_OF_FUNC
 
@@ -2152,10 +2197,10 @@ sub url {
     if (exists($ENV{REQUEST_URI})) {
         my $index;
 	$script_name = $ENV{REQUEST_URI};
-        # strip path
-        substr($script_name,$index) = '' if $path and ($index = index($script_name,$path)) >= 0;
-        # and query string
+        # strip query string
         substr($script_name,$index) = '' if ($index = index($script_name,'?')) >= 0;
+        # and path
+        substr($script_name,$index) = '' if $path and ($index = rindex($script_name,$path)) >= 0;
     } else {
 	$script_name = $self->script_name;
     }
@@ -2261,6 +2306,8 @@ sub expire_calc {
     my($offset);
     if (!$time || (lc($time) eq 'now')) {
         $offset = 0;
+    } elsif ($time=~/^\d+/) {
+        return $time;
     } elsif ($time=~/^([+-]?(?:\d+|\d*\.\d*))([mhdMy]?)/) {
         $offset = ($mult{$2} || 1)*$1;
     } else {
@@ -2272,7 +2319,7 @@ END_OF_FUNC
 
 # This internal routine creates date strings suitable for use in
 # cookies and HTTP headers.  (They differ, unfortunately.)
-# Thanks to Fisher Mark for this.
+# Thanks to Mark Fisher for this.
 'expires' => <<'END_OF_FUNC',
 sub expires {
     my($time,$format) = @_;
@@ -2355,6 +2402,15 @@ sub request_method {
 }
 END_OF_FUNC
 
+#### Method: content_type
+# Returns the content_type string
+####
+'content_type' => <<'END_OF_FUNC',
+sub content_type {
+    return $ENV{'CONTENT_TYPE'};
+}
+END_OF_FUNC
+
 #### Method: path_translated
 # Return the physical path information provided
 # by the URL (if any)
@@ -2378,6 +2434,7 @@ sub query_string {
 	my($eparam) = escape($param);
 	foreach $value ($self->param($param)) {
 	    $value = escape($value);
+            next unless defined $value;
 	    push(@pairs,"$eparam=$value");
 	}
     }
@@ -2581,6 +2638,7 @@ END_OF_FUNC
 sub http {
     my ($self,$parameter) = self_or_CGI(@_);
     return $ENV{$parameter} if $parameter=~/^HTTP/;
+    $parameter =~ tr/-/_/;
     return $ENV{"HTTP_\U$parameter\E"} if $parameter;
     my(@p);
     foreach (keys %ENV) {
@@ -2599,6 +2657,7 @@ sub https {
     my ($self,$parameter) = self_or_CGI(@_);
     return $ENV{HTTPS} unless $parameter;
     return $ENV{$parameter} if $parameter=~/^HTTPS/;
+    $parameter =~ tr/-/_/;
     return $ENV{"HTTPS_\U$parameter\E"} if $parameter;
     my(@p);
     foreach (keys %ENV) {
@@ -2814,10 +2873,14 @@ sub read_multipart {
 	  }
 
 	  # choose a relatively unpredictable tmpfile sequence number
-	  $tmpfile = new TempFile(unpack("%16C*",join('',localtime,values %ENV)));
-	  $tmp = $tmpfile->as_string;
-	  
-	  $filehandle = Fh->new($filename,$tmp,$PRIVATE_TEMPFILES);
+          my $seqno = unpack("%16C*",join('',localtime,values %ENV));
+          for (my $cnt=10;$cnt>0;$cnt--) {
+	    next unless $tmpfile = new TempFile($seqno);
+	    $tmp = $tmpfile->as_string;
+	    last if $filehandle = Fh->new($filename,$tmp,$PRIVATE_TEMPFILES);
+            $seqno += int rand(100);
+          }
+          die "CGI open of tmpfile: $!\n" unless $filehandle;
 	  $CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
 
 	  my ($data);
@@ -2944,10 +3007,9 @@ sub new {
     require Fcntl unless defined &Fcntl::O_RDWR;
     ++$FH;
     my $ref = \*{'Fh::' . quotemeta($name)}; 
-    sysopen($ref,$file,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL(),0600) 
-	|| die "CGI open of $file: $!\n";
+    sysopen($ref,$file,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL(),0600) || return;
     unlink($file) if $delete;
-    delete $Fh::{$FH};
+    CORE::delete $Fh::{$FH};
     return bless $ref,$pack;
 }
 END_OF_FUNC
@@ -3217,7 +3279,14 @@ unless ($TMPDIRECTORY) {
 	   "${vol}${SL}Temporary Items",
 	   "${SL}WWW_ROOT");
     unshift(@TEMP,$ENV{'TMPDIR'}) if exists $ENV{'TMPDIR'};
-    unshift(@TEMP,(getpwuid($<))[7].'/tmp') if $CGI::OS eq 'UNIX';
+
+    #
+    #    unshift(@TEMP,(getpwuid($<))[7].'/tmp') if $CGI::OS eq 'UNIX';
+    # Rob: getpwuid() is unfortunately UNIX specific. On brain dead OS'es this
+    #    : can generate a 'getpwuid() not implemented' exception, even though
+    #    : it's never called.  Found under DOS/Win with the DJGPP perl port.
+    #    : Refer to getpwuid() only at run-time if we're fortunate and have  UNIX.
+    unshift(@TEMP,(eval {(getpwuid($<))[7]}).'/tmp') if $CGI::OS eq 'UNIX';
 
     foreach (@TEMP) {
 	do {$TMPDIRECTORY = $_; last} if -d $_ && -w _;
@@ -3241,13 +3310,14 @@ $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 'new' => <<'END_OF_FUNC',
 sub new {
     my($package,$sequence) = @_;
-    my $directory;
-    my $i;
-    for ($i = 0; $i < $MAXTRIES; $i++) {
-	$directory = sprintf("${TMPDIRECTORY}${SL}CGItemp%d",$sequence++);
-	last if ! -f $directory;
+    my $filename;
+    for (my $i = 0; $i < $MAXTRIES; $i++) {
+	last if ! -f ($filename = sprintf("${TMPDIRECTORY}${SL}CGItemp%d",$sequence++));
     }
-    return bless \$directory;
+    # untaint the darn thing
+    return unless $filename =~ m!^([a-zA-Z0-9_ '":/\\]+)$!;
+    $filename = $1;
+    return bless \$filename;
 }
 END_OF_FUNC
 
@@ -3680,6 +3750,36 @@ can manipulate in any way you like.
 
 You can also use a named argument style using the B<-name> argument.
 
+=head2 FETCHING THE PARAMETER LIST AS A HASH:
+
+    $params = $q->Vars;
+    print $params->{'address'};
+    @foo = split("\0",$params->{'foo'});
+    %params = $q->Vars;
+
+    use CGI ':cgi-lib';
+    $params = Vars;
+
+Many people want to fetch the entire parameter list as a hash in which
+the keys are the names of the CGI parameters, and the values are the
+parameters' values.  The Vars() method does this.  Called in a scalar
+context, it returns the parameter list as a tied hash reference.
+Changing a key changes the value of the parameter in the underlying
+CGI parameter list.  Called in an array context, it returns the
+parameter list as an ordinary hash.  This allows you to read the
+contents of the parameter list, but not to change it.
+
+When using this, the thing you must watch out for are multivalued CGI
+parameters.  Because a hash cannot distinguish between scalar and
+array context, multivalued parameters will be returned as a packed
+string, separated by the "\0" (null) character.  You must split this
+packed string in order to get at the individual values.  This is the
+convention introduced long ago by Steve Brenner in his cgi-lib.pl
+module for Perl version 4.
+
+If you wish to use Vars() as a function, import the I<:cgi-lib> set of
+function calls (also see the section on CGI-LIB compatibility).
+
 =head2 SAVING THE STATE OF THE SCRIPT TO A FILE:
 
     $query->save(FILEHANDLE)
@@ -3817,7 +3917,7 @@ Import "standard" features, 'html2', 'html3', 'form' and 'cgi'.
 =item B<:all>
 
 Import all the available methods.  For the full list, see the CGI.pm
-code, where the variable %TAGS is defined.
+code, where the variable %EXPORT_TAGS is defined.
 
 =back
 
@@ -4288,8 +4388,8 @@ one or more of -language, -src, or -code:
 			 );
 
     print $q->(-title=>'The Riddle of the Sphinx',
-	       -script=>{-language=>'PERLSCRIPT'},
-			 -code=>'print "hello world!\n;"'
+	       -script=>{-language=>'PERLSCRIPT',
+			 -code=>'print "hello world!\n;"'}
 	       );
 
 
@@ -5951,6 +6051,32 @@ Newer browsers do not report the user name for privacy reasons!
 Returns the method used to access your script, usually
 one of 'POST', 'GET' or 'HEAD'.
 
+=item B<content_type()>
+
+Returns the content_type of data submitted in a POST, generally 
+multipart/form-data or application/x-www-form-urlencoded
+
+=item B<http()>
+
+Called with no arguments returns the list of HTTP environment
+variables, including such things as HTTP_USER_AGENT,
+HTTP_ACCEPT_LANGUAGE, and HTTP_ACCEPT_CHARSET, corresponding to the
+like-named HTTP header fields in the request.  Called with the name of
+an HTTP header field, returns its value.  Capitalization and the use
+of hyphens versus underscores are not significant.
+
+For example, all three of these examples are equivalent:
+
+   $requested_language = $q->http('Accept-language');
+   $requested_language = $q->http('Accept_language');
+   $requested_language = $q->http('HTTP_ACCEPT_LANGUAGE');
+
+=item B<https()>
+
+The same as I<http()>, but operates on the HTTPS environment variables
+present when the SSL protocol is in effect.  Can be used to determine
+whether SSL is turned on.
+
 =back
 
 =head1 USING NPH SCRIPTS
@@ -6150,9 +6276,8 @@ HTML page that warns the user of the problem.
 
 =head1 COMPATIBILITY WITH CGI-LIB.PL
 
-To make it easier to port existing programs that use cgi-lib.pl
-the compatibility routine "ReadParse" is provided.  Porting is
-simple:
+To make it easier to port existing programs that use cgi-lib.pl the
+compatibility routine "ReadParse" is provided.  Porting is simple:
 
 OLD VERSION
     require "cgi-lib.pl";

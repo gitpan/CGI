@@ -1,3 +1,4 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <HTML> <HEAD>
 <TITLE>CGI.pm - a Perl5 CGI Library</TITLE>
 </HEAD>
@@ -5,7 +6,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.49, 2/23/1999, L. Stein
+Version 2.52, 6/8/1999, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -76,11 +77,10 @@ examples from <cite>The Official Guide to CGI.pm</cite></a>
 
 <p>
 
-<A NAME="contents">
-<H2>Contents</H2>
-</A>
+<H2><A NAME="contents">Contents</A></H2>
+
 <MENU>
-  <LI><A HREF="#installation">Downloading & Installation</A>
+  <LI><A HREF="#installation">Downloading &amp; Installation</A>
   <LI><a href="#functionvsoo">Function-Oriented vs Object-Oriented Use</a>
   <LI><A HREF="#query">Creating a new CGI query object</A>
   <LI><A HREF="#saving">Saving the state of the form</A>
@@ -114,9 +114,9 @@ examples from <cite>The Official Guide to CGI.pm</cite></a>
 </MENU>
 
 <HR>
-<A NAME="installation">
-<H2>Downloading & Installation</H2>
-</A>
+
+<H2><A NAME="installation">Downloading &amp; Installation</A></H2>
+
 <ul>
   <li><STRONG><A HREF="CGI.pm.tar.gz">Download gzip tar archive (Unix)</A></STRONG>
   <li><STRONG><A HREF="CGI.pm.zip">Download pkzip archive (Windows)</A></STRONG>
@@ -218,8 +218,7 @@ CGI.pm.
 
 <hr>
 
-<h2><a name="functionvsoo">Function-Oriented vs Object-Oriented
-Use</a></h2>
+<h2><a name="functionvsoo">Function-Oriented vs Object-Oriented Use</a></h2>
 
 CGI.pm can be used in two distinct modes called
 <cite>function-oriented</cite> and <cite>object-oriented</cite>.  In
@@ -231,7 +230,7 @@ function-oriented script looks like this:
 #!/usr/local/bin/perl
 use CGI qw/:standard/;
 print header(),
-      start_html(-title=>'Wow!'),
+      start_html(-title=&gt;'Wow!'),
       h1('Wow!'),
       'Look Ma, no hands!',
       end_html();
@@ -271,11 +270,11 @@ this:
 #!/usr/local/bin/perl
 use CGI;
 $q = new CGI;
-print $q->header(),
-      $q->start_html(-title=>'Wow!'),
-      $q->h1('Wow!'),
+print $q-&gt;header(),
+      $q-&gt;start_html(-title=&gt;'Wow!'),
+      $q-&gt;h1('Wow!'),
       'Look Ma, no hands!',
-      $q->end_html();
+      $q-&gt;end_html();
 </pre></blockquote>
 
 The object-oriented mode also has the advantage of consuming somewhat
@@ -289,9 +288,9 @@ Many of the code examples below show the object-oriented coding
 style.  Mentally translate them into the function-oriented style if
 you prefer.
 
-<A NAME="query">
-<H2>Creating a new CGI object</H2>
-</A>
+
+<H2><A NAME="query">Creating a new CGI object</A></H2>
+
 The most basic use of CGI.pm is to get at the query parameters
 submitted to your script.  To create a new CGI object that 
 contains the parameters passed to your script, put the following
@@ -378,10 +377,10 @@ Or you can clone a CGI object from an existing one.  The parameter
 lists of the clone will be identical, but other fields, such as
 autoescaping, are not:
 
-<pre><blockquote>
+<blockquote><pre>
 $old_query = new CGI;
 $new_query = new CGI($old_query);
-</blockquote></pre>
+</pre></blockquote>
 
 <p>
 
@@ -393,9 +392,9 @@ $empty_query = new CGI('');
 
 See <A HREF="#advanced">advanced techniques</A> for more information.
 
-<A NAME="keywords">
-<H3>Fetching A List Of Keywords From The Query</H3>
-</A>
+
+<H3><A NAME="keywords">Fetching A List Of Keywords From The Query</A></H3>
+
 <PRE>
     @keywords = $query-&gt;keywords
 </PRE>
@@ -403,10 +402,10 @@ If the script was invoked as the result of an &lt;ISINDEX&gt; search, the
 parsed keywords can be obtained with the keywords() method.  This method
 will return the keywords as a perl array.
 
-<A NAME="parameters">
-<H3>Fetching The Names Of All The Parameters Passed To Your
-Script</H3>
-</A>
+
+<H3><A NAME="parameters">Fetching The Names Of All The Parameters Passed To Your
+Script</A></H3>
+
 
 <PRE>
     @names = $query-&gt;param
@@ -418,8 +417,8 @@ compatability, this method will work even if the
 script was invoked as an &lt;ISINDEX&gt; script: in this case there
 will be a single parameter name returned named 'keywords'.
 
-<A NAME="values"><H3>Fetching The Value(s) Of A Named Parameter</H3>
-</A>
+<H3><A NAME="values">Fetching The Value(s) Of A Named Parameter</A></H3>
+
 <PRE>
    @values = $query-&gt;param('foo');
              -or-
@@ -436,9 +435,9 @@ this is not guaranteed to be identical to the order in which the
 parameters were defined in the fill-out form, this is usually the
 case.
 
-<A NAME="setting">
-<H3>Setting The Value(s) Of A Named Parameter</H3>
-</A>
+
+<H3><A NAME="setting">Setting The Value(s) Of A Named Parameter</A></H3>
+
 <PRE>
    $query-&gt;param('foo','an','array','of','values');
                    -or-
@@ -454,9 +453,9 @@ call that is accepted by most of the CGI methods.  See <a href="#named_param">
 Calling CGI functions that Take Multiple Arguments</a> for an explanation of
 this style.
 
-<A NAME="append">
-<H3>Appending a Parameter</H3>
-</A>
+
+<H3><A NAME="append">Appending a Parameter</A></H3>
+
 <PRE>
    $query-&gt;append(-name=&gt;'foo',-values=&gt;['yet','more','values']);
 </PRE>
@@ -464,9 +463,9 @@ This adds a value or list of values to the named parameter.  The
 values are appended to the end of the parameter if it already exists.
 Otherwise the parameter is created.
 
-<A NAME="deleting">
-<H3>Deleting a Named Parameter Entirely</H3>
-</A>
+
+<H3><A NAME="deleting">Deleting a Named Parameter Entirely</A></H3>
+
 <PRE>
    $query-&gt;delete('foo');
 </PRE>
@@ -474,9 +473,9 @@ This deletes a named parameter entirely.  This is useful when you
 want to reset the value of the parameter so that it isn't passed
 down between invocations of the script.
 
-<A NAME="deleting_all">
-<H3>Deleting all Parameters</H3>
-</A>
+
+<H3><A NAME="deleting_all">Deleting all Parameters</A></H3>
+
 <PRE>
    $query-&gt;delete_all();
 </PRE>
@@ -484,9 +483,9 @@ This deletes all the parameters and leaves you with an empty CGI
 object.  This may be useful to restore all the defaults produced by
 the form element generating methods.
 
-<A NAME="importing">
-<H3>Importing parameters into a namespace</H3>
-</A>
+
+<H3><A NAME="importing">Importing parameters into a namespace</A></H3>
+
 <PRE>
    $query-&gt;import_names('R');
    print "Your name is $R::name\n"
@@ -520,12 +519,12 @@ CGI.pm will exit with an error if you try to do this.
 
 <P>
 
-<A NAME="param_fetch"><H3>Direct Access to the Parameter List</H3>
-</A>
+<H3><A NAME="param_fetch">Direct Access to the Parameter List</A></H3>
+
 
 <blockquote><pre>
-$q->param_fetch('address')->[1] = '1313 Mockingbird Lane';
-unshift @{$q->param_fetch(-name=>'address')},'George Munster';
+$q-&gt;param_fetch('address')-&gt;[1] = '1313 Mockingbird Lane';
+unshift @{$q-&gt;param_fetch(-name=&gt;'address')},'George Munster';
 </pre></blockquote>
 
 If you need access to the parameter list in a way that isn't covered
@@ -540,8 +539,51 @@ You may call <b>param_fetch()</b> with the name of the CGI parameter,
 or with the <b>-name</b> argument, which has the same meaning as
 elsewhere.
 
-<A NAME="errors">
-<h3>RETRIEVING CGI ERRORS</h3>
+<h3>Fetching the Parameter List as a Hash</h3>
+
+<blockquote>
+<pre>
+$params = $q-&gt;Vars;
+print $params-&gt;{'address'};
+@foo = split("\0",$params-&gt;{'foo'});
+%params = $q-&gt;Vars;
+
+use CGI ':cgi-lib';
+$params = Vars;
+</pre>
+</blockquote>
+
+
+<p>
+
+Many people want to fetch the entire parameter list as a hash in which
+the keys are the names of the CGI parameters, and the values are the
+parameters' values.  The <B>Vars()</B> method does this.  Called in a
+scalar context, it returns the parameter list as a tied hash
+reference.  Changing a key changes the value of the parameter in the
+underlying CGI parameter list.  Called in an array context, it returns
+the parameter list as an ordinary hash.  This allows you to read the
+contents of the parameter list, but not to change it.
+
+<p>
+
+When using this, the thing you must watch out for are multivalued CGI
+parameters.  Because a hash cannot distinguish between scalar and
+array context, multivalued parameters will be returned as a packed
+string, separated by the "\0" (null) character.  You must split this
+packed string in order to get at the individual values.  This is the
+convention introduced long ago by Steve Brenner in his cgi-lib.pl
+module for Perl version 4.
+
+<p>
+
+If you wish to use <B>Vars()</B> as a function, import the
+<I>:cgi-lib</I> set of function calls (also see the section on <a
+href="#migrating">CGI-LIB compatibility</a>).
+
+
+
+<h3><A NAME="errors">RETRIEVING CGI ERRORS</A></h3>
 
 <p> Errors can occur while processing user input, particularly when
 processing uploaded files.  When these errors occur, CGI will stop
@@ -571,11 +613,11 @@ errors may only occur the first time you call
 <A HREF="#contents">Table of contents</A>
 
 <HR>
-<A NAME="saving">
-<H2>Saving the Current State of a Form</H2>
+
+<H2><A NAME="saving">Saving the Current State of a Form</A></H2>
 
 <H3>Saving the State to a File</H3>
-</A>
+
 <PRE>
    $query-&gt;save(FILEHANDLE)
 </PRE>
@@ -655,7 +697,7 @@ You can modify this format with the following named arguments:
       combined with -full, -absolute or -relative.  -path_info
       is provided as a synonym.
       <p>
-  <dt><strong>-query</strong>> (<strong>-query_string</strong>)
+  <dt><strong>-query</strong> (<strong>-query_string</strong>)
   <dd>Append the query string to the URL.  This can be combined with
       -full, -absolute or -relative.  -query_string is provided
       as a synonym.
@@ -830,7 +872,7 @@ expiration date.  The following forms are all valid for the
 	now                               immediately
 	+3M                               in three months
         +10y                              in ten years time
-	Thu, 25-Apr-1999 00:40:33 GMT     at the indicated time & date
+	Thu, 25-Apr-1999 00:40:33 GMT     at the indicated time &amp; date
 </pre>
 
 When you use <strong>-expires</strong>, the script also generates a
@@ -893,9 +935,9 @@ above creates a field that looks like this:
 You can use this to take advantage of new HTTP header fields without
 waiting for the next release of CGI.pm.
 
-<A NAME="redirect">
-<H3>Creating the Header for a Redirection Request</H3>
-</A>
+
+<H3><A NAME="redirect">Creating the Header for a Redirection Request</A></H3>
+
 <PRE>
    print $query-&gt;redirect('http://somewhere.else/in/the/world');
 </PRE>
@@ -915,8 +957,7 @@ An alternative syntax for <code>redirect()</code> is:
 
 <blockquote><pre>
 print $query-&gt;redirect(-location=&gt;'http://somewhere.else/',
-                          -nph=&gt;1,
-                          -method=&gt;GET);
+                          -nph=&gt;1);
 </pre></blockquote>
 
 The <strong>-location</strong> parameter gives the destination URL.
@@ -944,9 +985,9 @@ also valid in <tt>redirect</tt>.
 <A HREF="#contents">Table of contents</A>
 
 <HR>
-<A NAME="html">
-<H2>HTML Shortcuts</H2>
-</A>
+
+<H2><A NAME="html">HTML Shortcuts</A></H2>
+
 
 <H3>Creating an HTML Header</H3>
 <PRE>
@@ -956,8 +997,8 @@ also valid in <tt>redirect</tt>.
                             -base=&gt;'true',
 			    -meta=&gt;{'keywords'=&gt;'pharoah secret mummy',
                                     'copyright'=&gt;'copyright 1996 King Tut'},
-			    -style=>{'src'=>'/styles/style1.css'},
-                            -dtd=>1,
+			    -style=&gt;{'src'=&gt;'/styles/style1.css'},
+                            -dtd=&gt;1,
                             -BGCOLOR=&gt;'blue');
 
    <EM>old style</EM>
@@ -1000,7 +1041,7 @@ All parameters are optional:
       <a href="#header">header</a> method.  Example:
       <blockquote>
       <pre>
-      print $q-&gt;header(-Refresh=>'10; URL=http://www.capricorn.com');
+      print $q-&gt;header(-Refresh=&gt;'10; URL=http://www.capricorn.com');
       </pre>
       </blockquote>
   <LI>A <strong>-dtd</strong> parameter to make start_html()
@@ -1011,7 +1052,7 @@ All parameters are optional:
       be one of:
       <ol>
 	<li>A valid DTD (see <a
-	    href="http://ugweb.cs.ualberta.ca/~gerald/validate/lib/catalog">http://ugweb.cs.ualberta.ca/~gerald/validate/lib/catalog</a> for a list).  Example: <pre>-dtd=>'-//W3C//DTD HTML 3.2//EN'</pre>
+	    href="http://ugweb.cs.ualberta.ca/%7egerald/validate/lib/catalog">http://ugweb.cs.ualberta.ca/%7egerald/validate/lib/catalog</a> for a list).  Example: <pre>-dtd=&gt;'-//W3C//DTD HTML 3.2//EN'</pre>
 	<li>A true value that does not begin with "-//", in which case
 	    you will get the standard default DTD (valid for HTML 2.0).
       </ol>
@@ -1084,8 +1125,8 @@ All parameters are optional:
 
       <pre>
       print $q-&gt;start_html(-title=&gt;'The Riddle of the Sphinx',
-			   -script=>{-language=&gt;'JavaScript',
-                                   -src=>'/javascript/sphinx.js'}
+			   -script=&gt;{-language=&gt;'JavaScript',
+                                   -src=&gt;'/javascript/sphinx.js'}
                               );
      </pre>
 
@@ -1273,7 +1314,7 @@ attribute argument was the same as providing undef.  However, this has
 changed in order to accomodate those who want to create tags of the form 
 &lt;IMG ALT=""&gt;.  The difference is shown in this table:
 
-<table border>
+<table border="1">
 <tr><th>CODE</th>      <th>RESULT</th></tr>
 <tr><td><tt>img({alt=&gt;undef})</tt></td>  <td>&lt;IMG ALT&gt;</td></tr>
 <tr><td><tt>img({alt=&gt;''})</tt></td>     <td>&lt;IMT ALT=""&gt;</td></tr>
@@ -1288,7 +1329,7 @@ way to make an ordered list:
 
 <blockquote><pre>
 print ul(
-        li({-type=>'disc'},['Sneezy','Doc','Sleepy','Happy']);
+        li({-type=&gt;'disc'},['Sneezy','Doc','Sleepy','Happy']);
       );
 </pre></blockquote>
 
@@ -1321,7 +1362,7 @@ print table({-border=&gt;undef},
 );
 </pre></blockquote>
 
-<TABLE BORDER><CAPTION><STRONG>When Should You Eat Your Vegetables?</STRONG></CAPTION>
+<TABLE border="1"><CAPTION><STRONG>When Should You Eat Your Vegetables?</STRONG></CAPTION>
 <TR ALIGN="CENTER" VALIGN="TOP"><TH></TH> <TH>Breakfast</TH> <TH>Lunch</TH> <TH>Dinner</TH></TR>
 <TR ALIGN="CENTER" VALIGN="TOP"><TH>Tomatoes</TH><TD>no</TD> <TD>yes</TD> <TD>yes</TD></TR>
 <TR ALIGN="CENTER" VALIGN="TOP"><TH>Broccoli</TH><TD>no</TD> <TD>no</TD> <TD>yes</TD></TR>
@@ -1345,13 +1386,13 @@ use CGI qw/:standard :html3 -no_debug/;
 foreach $n (@values) {
    push(@rows,td([$n,$n**2,$n**3]));
 }
-print table({-border=&gt;undef,-width=>'25%'},
+print table({-border=&gt;undef,-width=&gt;'25%'},
             caption(b('Wow.  I can multiply!')),
             Tr(\@rows)
            );
 </pre></blockquote>
 
-<TABLE BORDER WIDTH="25%"><CAPTION><B>Wow.  I can multiply!</B></CAPTION> 
+<TABLE BORDER="1" WIDTH="25%"><CAPTION><B>Wow.  I can multiply!</B></CAPTION> 
 <TR><TH>N</TH> <TH>N<SUP>2</SUP></TH> <TH>N<SUP>3</SUP></TH></TR> 
 <TR><TD>1</TD> <TD>1</TD> <TD>1</TD></TR> 
 <TR><TD>2</TD> <TD>4</TD> <TD>8</TD></TR> 
@@ -1363,9 +1404,9 @@ print table({-border=&gt;undef,-width=>'25%'},
 
 <HR>
 
-<A NAME="forms">
-<H2>Creating Forms</H2>
-</A>
+
+<H2><A NAME="forms">Creating Forms</A></H2>
+
 <EM>General note 1.</EM>
 The various form-creating methods all return
 strings to the caller.  These strings will contain the HTML code
@@ -1441,9 +1482,9 @@ You can turn autoescaping back on at any time with <CODE>$query-&gt;autoEscape('
   <LI><A HREF="#escape">Autoescaping HTML</A>
 </MENU>
 <A HREF="#contents">Up to table of contents</A>
-<A NAME="isindex">
-<H3>Creating An Isindex Tag</H3>
-</A>
+
+<H3><A NAME="isindex">Creating An Isindex Tag</A></H3>
+
 <PRE>
    print $query-&gt;isindex($action);
 </PRE>
@@ -1452,9 +1493,9 @@ You can turn autoescaping back on at any time with <CODE>$query-&gt;autoEscape('
 If you want the browser to call a different URL to handle the search,
 pass isindex() the URL you want to be called.
 
-<A NAME="startform">
-<H3>Starting And Ending A Form</H3>
-</A>
+
+<H3><A NAME="startform">Starting And Ending A Form</A></H3>
+
 <PRE>
    print $query-&gt;startform($method,$action,$encoding);
      <VAR>...various form stuff...</VAR>
@@ -1510,9 +1551,9 @@ form before submitting it.  Your JavaScript code should return a value
 of "true" to let Netscape know that it can go ahead and submit the
 form, and "false" to abort the submission.
 
-<A NAME="multipart">
-<H3>Starting a Form that Uses the "File Upload" Feature</H3>
-</A>
+
+<H3><A NAME="multipart">Starting a Form that Uses the "File Upload" Feature</A></H3>
+
 <PRE>
    print $query-&gt;start_multipart_form($method,$action,$encoding);
      <VAR>...various form stuff...</VAR>
@@ -1522,9 +1563,9 @@ This has exactly the same usage as <CODE>startform()</CODE>, but
 it specifies form encoding type <CODE>multipart/form-data</CODE>
 as the default.
 
-<A NAME="textfield">
-<H3>Creating A Text Field</H3>
-</A>
+
+<H3><A NAME="textfield">Creating A Text Field</A></H3>
+
 <PRE>
   <EM>Named parameter style</EM>
   print $query-&gt;textfield(-name=&gt;'field_name',
@@ -1561,9 +1602,9 @@ retrieved with:
 <strong>-onSelect</strong> parameters to register <a href="#javascripting">
 JavaScript</a> event handlers.
 
-<A NAME="textarea">
-<H3>Creating A Big Text Field</H3>
-</A>
+
+<H3><A NAME="textarea">Creating A Big Text Field</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;textarea(-name=&gt;'foo',
@@ -1585,9 +1626,9 @@ multiple lines.
 -onMouseOut</strong> and <strong>-onSelect</strong> parameters to
 register <a href="#javascripting"> JavaScript</a> event handlers.
 
-<A NAME="password">
-<H3>Creating A Password Field</H3>
-</A>
+
+<H3><A NAME="password">Creating A Password Field</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;password_field(-name=&gt;'secret',
@@ -1601,9 +1642,9 @@ register <a href="#javascripting"> JavaScript</a> event handlers.
 <STRONG>password_field()</STRONG> is identical to textfield(), except that its contents 
 will be starred out on the web page.
 
-<A NAME="upload">
-<H3>Creating a File Upload Field</H3>
-</A>
+
+<H3><A NAME="upload">Creating a File Upload Field</A></H3>
+
 <PRE>
     <EM>Named parameters style</EM>
     print $query-&gt;filefield(-name=&gt;'uploaded_file',
@@ -1691,7 +1732,7 @@ is not a filehandle at all, but a string.
 <p>
 
 To be safe, use the <b>upload()</b> function (new in version 2.47).
-When called with the name of an upload field, I<upload()> returns a
+When called with the name of an upload field, <b>upload()</b> returns a
 filehandle, or undef if the parameter is not a valid filehandle.
 
 <pre>
@@ -1721,7 +1762,7 @@ are finished with the file handle, CGI.pm unlinks (deletes) the
 temporary file.  If you need to you can access the temporary file
 directly.  Its name is stored inside the CGI object's "private" data,
 and you can access it by passing the file name to the
-<a name="tmpfilename">tmpFileName()</a> method:
+<a href="#tmpfilename">tmpFileName()</a> method:
 
 <pre>
        $filename = $query-&gt;param('uploaded_file');
@@ -1778,8 +1819,8 @@ this code fragment retrieves the MIME type of the uploaded file (be
 careful to use the proper capitalization for "Content-Type"!):
 
 <pre>
-       $filename = $query->param('uploaded_file');
-       $type = $query->uploadInfo($filename)->{'Content-Type'};
+       $filename = $query-&gt;param('uploaded_file');
+       $type = $query-&gt;uploadInfo($filename)-&gt;{'Content-Type'};
        unless ($type eq 'text/html') {
 	  die "HTML FILES ONLY!";
        }
@@ -1795,9 +1836,9 @@ register <a href="#javascripting"> JavaScript</a> event handlers.
 <A HREF="#upload_caveats">Caveats and potential problems in
 the file upload feature.</A>
 
-<A NAME="menu">
-<H3>Creating A Popup Menu</H3>
-</A>
+
+<H3><A NAME="menu">Creating A Popup Menu</A></H3>
+
 <PRE>
   <EM>Named parameter style</EM>
   print $query-&gt;popup_menu(-name=&gt;'menu_name',
@@ -1851,9 +1892,9 @@ be retrieved using:
 -onFocus, -onMouseOver, -onMouseOut, and -onBlur</strong> parameters
 to register <a href="#javascripting">JavaScript</a> event handlers.
 
-<A NAME="scrolling_list">
-<H3>Creating A Scrolling List</H3>
-</A>
+
+<H3><A NAME="scrolling_list">Creating A Scrolling List</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;scrolling_list(-name=&gt;'list_name',
@@ -1902,9 +1943,9 @@ selected items can be retrieved with:
 <strong>-onBlur</strong> parameters to register <a
 href="#javascripting">JavaScript</a> event handlers.
 
-<A NAME="checkbox_group">
-<H3>Creating A Group Of Related Checkboxes</H3>
-</A>
+
+<H3><A NAME="checkbox_group">Creating A Group Of Related Checkboxes</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;checkbox_group(-name=&gt;'group_name',
@@ -2001,9 +2042,9 @@ parameter to register some <a href="#javascripting">JavaScript</a>
 code to be performed every time the user clicks on any of the buttons
 in the group.
 
-<A NAME="checkbox">
-<H3>Creating A Standalone Checkbox</H3>
-</A>
+
+<H3><A NAME="checkbox">Creating A Standalone Checkbox</A></H3>
+
 <PRE>
    <EM>Named parameter list</EM>
    print $query-&gt;checkbox(-name=&gt;'checkbox_name',
@@ -2040,9 +2081,9 @@ The value of the checkbox can be retrieved using:
 parameter to register some <a href="#javascripting">JavaScript</a>
 code to be performed every time the user clicks on the button.
 
-<A NAME="radio">
-<H3>Creating A Radio Button Group</H3>
-</A>
+
+<H3><A NAME="radio">Creating A Radio Button Group</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;radio_group(-name=&gt;'group_name',
@@ -2085,7 +2126,7 @@ code to be performed every time the user clicks on the button.
        line breaks between the buttons, creating a vertical list.
   <LI>The optional fifth parameter (<STRONG>-labels</STRONG> specifies
        an associative array containing labels to be printed next to
-       each the button.  If not provided the button value will be
+       each button.  If not provided the button value will be
        used instead.  This example assumes that the associative array
        <CODE>%labels</CODE> has already been defined.  This is
       equivalent to passing a hash reference to -values.
@@ -2140,9 +2181,8 @@ parameter to register some <a href="#javascripting">JavaScript</a>
 code to be performed every time the user clicks on any of the buttons
 in the group.
 
-<A NAME="submit"><H3>
-Creating A Submit Button</H3>
-</A>
+<H3><A NAME="submit">Creating A Submit Button</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;submit(-name=&gt;'button_name',
@@ -2182,9 +2222,9 @@ You can't prevent a form from being submitted, however.  You must
 provide an <strong>-onSubmit</strong> handler to the <a href="#">form
 itself</a> to do that.
 
-<A NAME="reset">
-<H3>Creating A Reset Button</H3>
-</A>
+
+<H3><A NAME="reset">Creating A Reset Button</A></H3>
+
 <PRE>
   print $query-&gt;reset
 </PRE>
@@ -2197,9 +2237,9 @@ changes the user has recently made to the form, but does <STRONG>not</STRONG>
 parameter to register some <a href="#javascripting">JavaScript</a>
 code to be performed every time the user clicks on the button.
 
-<A NAME="defaults">
-<H3>Creating A Defaults Button</H3>
-</A>
+
+<H3><A NAME="defaults">Creating A Defaults Button</A></H3>
+
 <PRE>
   print $query-&gt;defaults('button_label')
 </PRE>
@@ -2209,9 +2249,9 @@ When the user presses this button, the form will automagically
 be cleared entirely and set to the defaults you specify in your
 script, just as it was the first time it was called.
 
-<A NAME="hidden">
-<H3>Creating A Hidden Field</H3>
-</A>
+
+<H3><A NAME="hidden">Creating A Hidden Field</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;hidden(-name=&gt;'hidden_name',
@@ -2258,9 +2298,9 @@ Fetch the value of a hidden field this way:
     @hidden_values = $query-&gt;param('hidden_name');
 </PRE>
 
-<A NAME="image">
-<H3>Creating a Clickable Image Button</H3>
-</A>
+
+<H3><A NAME="image">Creating a Clickable Image Button</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;image_button(-name=&gt;'button_name',
@@ -2298,9 +2338,9 @@ is the name of the image button.
 <strong>JavaScripting:</strong> Current versions of JavaScript do not
 honor the <code>-onClick</code> handler, unlike other buttons.
 
-<A NAME="button">
-<H3>Creating a JavaScript Button</H3>
-</A>
+
+<H3><A NAME="button">Creating a JavaScript Button</A></H3>
+
 <PRE>
    <EM>Named parameter style</EM>
    print $query-&gt;button(-name=&gt;'button1',
@@ -2350,9 +2390,9 @@ to turn automatic HTML escaping off, and
 to turn it back on.
 
 <HR>
-<A NAME="import">
-<H2>Importing CGI Methods</H2>
-</A>
+
+<H2><A NAME="import">Importing CGI Methods</A></H2>
+
 
 A large number of scripts allocate only a single query object, use it
 to read parameters or to create a fill-out form, and then discard it.
@@ -2627,7 +2667,7 @@ By default, all the HTML produced by these functions comes out as one
 long line without carriage returns or indentation. This is yuck, but
 it does reduce the size of the documents by 10-20%.  To get
 pretty-printed output, please use <cite>CGI::Pretty</cite>, a subclass
-contributed by <a href="bpaulsen@lehman.com">Brian Paulsen</a>.
+contributed by <a href="mailto:bpaulsen@lehman.com">Brian Paulsen</a>.
 
 <H3>Optional Utility Functions</H3>
 
@@ -2671,16 +2711,16 @@ package function <b>compile()</b> like this:
 
 <blockquote><pre>
 use CGI ();
-CGI->compile(':all');
+CGI-&gt;compile(':all');
 </pre></blockquote>
 
 The arguments to <b>compile()</b> are a list of method names or sets,
 and are identical to those accepted by the use operator.
 
 <HR>
-<A NAME="debugging">
-<H2>Debugging</H2>
-</A>
+
+<H2><A NAME="debugging">Debugging</A></H2>
+
 If you are running the script
 from the command line or in the perl debugger, you can pass the script
 a list of keywords or parameter=value pairs on the command line or 
@@ -2760,9 +2800,9 @@ You can suppress this behavior in any of the following ways:
 
 <A HREF="#contents">Table of contents</A>
 
-<A NAME="dumping">
-<H3>Dumping Out All The Name/Value Pairs</H3>
-</A>
+
+<H3><A NAME="dumping">Dumping Out All The Name/Value Pairs</A></H3>
+
 The <STRONG>dump()</STRONG> method produces a string consisting of all the query's
 name/value pairs formatted nicely as a nested list.  This is useful
 for debugging purposes:
@@ -2790,9 +2830,9 @@ into a string, as in:
 </PRE>
 
 <HR>
-<A NAME="environment">
-<H2>HTTP Session Variables</H2>
-</A>
+
+<H2><A NAME="environment">HTTP Session Variables</A></H2>
+
 Some of the more useful environment variables can be fetched
 through this interface.  The methods are as follows:
 <DL>
@@ -2877,13 +2917,33 @@ through this interface.  The methods are as follows:
        of environment variables.  This only works with older browsers
        such as Mosaic.  Netscape does not reliably report the user
        name!
+  <DT>http()
+  <DD>Called with no arguments returns the list of HTTP environment
+      variables, including such things as HTTP_USER_AGENT,
+      HTTP_ACCEPT_LANGUAGE, and HTTP_ACCEPT_CHARSET, corresponding to the
+      like-named HTTP header fields in the request.  Called with the name of
+      an HTTP header field, returns its value.  Capitalization and the use
+      of hyphens versus underscores are not significant.
+<p>
+      For example, all three of these examples are equivalent:
+<pre>
+   $requested_language = $q-&gt;http('Accept-language');
+   $requested_language = $q-&gt;http('Accept_language');
+   $requested_language = $q-&gt;http('HTTP_ACCEPT_LANGUAGE');
+</pre>
+
+  <DT>https()
+  <DD>The same as http(), but operates on the HTTPS environment variables
+      present when the SSL protocol is in effect.  Can be used to determine
+      whether SSL is turned on.
 </DL>
+
 <A HREF="#contents">Table of contents</A>
 
 <HR>
-<A NAME="cookies">
-<H2>HTTP Cookies</H2>
-</A>
+
+<H2><A NAME="cookies">HTTP Cookies</A></H2>
+
 
 Netscape browsers versions 1.1 and higher, and all versions of
 Internet Explorer support a so-called "cookie" designed to help
@@ -3080,7 +3140,7 @@ file/database saved on the server's side of the connection.
 
 <HR>
 
-<A NAME="frames"> <H2>Support for Frames</H2> </A>
+<H2><A NAME="frames">Support for Frames</A></H2>
 
 CGI.pm contains support for <a
 href="http://home.netscape.com/assist/net_sites/frames.html">HTML
@@ -3119,9 +3179,9 @@ popup window.  <a href="examples/frameset.cgi">frameset.cgi</a> provides
 a skeleton script for creating side-by-side query/result frame sets.
 <HR>
 
-<A NAME="javascripting">
-<H2>Support for JavaScript</H2>
-</A>
+
+<H2><A NAME="javascripting">Support for JavaScript</A></H2>
+
 
 Netscape versions 2.0 and higher incorporate an interpreted language
 called JavaScript.  Internet Explorer, 3.0 and higher, supports a
@@ -3278,15 +3338,15 @@ attribute they will produce syntactically correct HTML.  For instance,
 if Microsoft invents a new event handler called
 <strong>onInterplanetaryDisaster</strong>, you can install a handler for it with:
 <blockquote><pre>
-print button(-name=>'bail out',-onInterPlaneteryDisaster=>"alert('uh oh')");
+print button(-name=&gt;'bail out',-onInterPlaneteryDisaster=&gt;"alert('uh oh')");
 </pre></blockquote>
 
 <a href="#contents">Table of contents</a>
 
 <hr>
-<a name="stylesheets">
-<h2>Limited Support for Cascading Style Sheets</h2>
-</a>
+
+<h2><a name="stylesheets">Limited Support for Cascading Style Sheets</a></h2>
+
 
 CGI.pm has limited support for HTML3's cascading style sheets (css).
 To incorporate a stylesheet into your document, pass the
@@ -3351,7 +3411,7 @@ use CGI qw/:standard :html3/;
 
 #here's a stylesheet incorporated directly into the page
 $newStyle=&lt;&lt;END;
-&gt;!-- 
+&lt;!-- 
     P.Tip {
 	margin-right: 50pt;
 	margin-left: 50pt;
@@ -3365,15 +3425,15 @@ $newStyle=&lt;&lt;END;
 --&gt;
 END
 print header();
-print start_html( -title=>'CGI with Style',
-                  -style=>{-src=>'http://www.capricorn.com/style/st1.css',
-                  -code=>$newStyle}
+print start_html( -title=&gt;'CGI with Style',
+                  -style=&gt;{-src=&gt;'http://www.capricorn.com/style/st1.css',
+                  -code=&gt;$newStyle}
 	         );
 print h1('CGI with Style'),
-      p({-class=>'Tip'},
+      p({-class=&gt;'Tip'},
         "Better read the cascading style sheet spec before playing with this!"
         ),
-      span({-style=>'color: magenta'},"Look Mom, no hands!",
+      span({-style=&gt;'color: magenta'},"Look Mom, no hands!",
         p(),
         "Whooo wee!"
       );
@@ -3384,9 +3444,9 @@ print end_html;
 <a href="#contents">Table of contents</a>
 
 <hr>
-<A NAME="nph">
-<H2>Using NPH Scripts</H2>
-</A>
+
+<H2><A NAME="nph">Using NPH Scripts</A></H2>
+
 
 NPH, or "no-parsed-header", scripts bypass the server completely by
 sending the complete HTTP header directly to the browser.  This has
@@ -3432,23 +3492,23 @@ There are a number of ways to put CGI.pm into NPH mode:
   <dd>Call <strong>nph()</strong> with a non-zero parameter at any
       point after using CGI.pm in your program.
       <blockquote><pre>
-      CGI->nph(1)
+      CGI-&gt;nph(1)
       </pre>
       </blockquote>
       <p>
   <dt>By using <strong>-nph</strong> parameters in the
       <strong>header()</strong> and <strong>redirect()</strong>
       statements:
-      <blockquote><pre>
-      print $q->header(-nph=&gt;1);
-      </pre></blockquote>
   <dd>
+      <blockquote><pre>
+      print $q-&gt;header(-nph=&gt;1);
+      </pre></blockquote>
 </dl>
 
 <hr>
-<A NAME="advanced">
-<H2>Advanced Techniques</H2>
-</A>
+
+<H2><A NAME="advanced">Advanced Techniques</A></H2>
+
 <H3>A Script that Saves Some Information to a File and Restores It</H3>
 This script will save its state to a file of the user's choosing when the
 "save" button is pressed, and will restore its state when the "restore" button
@@ -3707,7 +3767,7 @@ print header,
       h1("CGI Script"),
       "Not much to see here",
       hr,
-      address(a({href=>'/'},"home page"),  
+      address(a({href=&gt;'/'},"home page"),  
       end_html;
 </pre></blockquote>
 
@@ -3723,7 +3783,7 @@ while (new CGI::Fast) {
       h1("CGI Script"),
       "Not much to see here",
       hr,
-      address(a({href=>'/'},"home page"),  
+      address(a({href=&gt;'/'},"home page"),  
       end_html;
 }
 </pre></blockquote>
@@ -3763,7 +3823,7 @@ print header,
       h1("CGI Script"),
       "Not much to see here",
       hr,
-      address(a({href=>'/'},"home page"),  
+      address(a({href=&gt;'/'},"home page"),  
       end_html;
 </pre></blockquote>
 
@@ -3777,7 +3837,7 @@ print header,
     h1("CGI Script"),
     "Not much to see here",
     hr,
-    address(a({href=>'/'},"home page"),  
+    address(a({href=&gt;'/'},"home page"),  
     end_html;
 }
 </pre></blockquote>
@@ -3816,7 +3876,7 @@ methods.
 #!/usr/local/bin/perl
 
 use CGI ();
-CGI->compile(':all');
+CGI-&gt;compile(':all');
 </pre></blockquote>
 
 Change the path to the startup script according to your preferences.
@@ -3901,7 +3961,7 @@ details on porting cgi-lib.pl scripts to CGI.pm.
 <HR>
 
 <H2>
-<A NAME=upload_caveats>
+<A NAME="upload_caveats">
 Using the File Upload Feature
 </A>
 </H2>
@@ -4031,7 +4091,7 @@ file uploads.  Open up CGI.pm, and find the line:
 <PRE>
       package TempFile;
       foreach ('/usr/tmp','/tmp') {
-         do {$TMPDIRECTORY = $_; last} if -d $_ && -w _;
+         do {$TMPDIRECTORY = $_; last} if -d $_ &amp;&amp; -w _;
       }
 </PRE>
 
@@ -4092,12 +4152,10 @@ want it to be automatically deleted when CGI.pm exits.
 <h2><a name="push">Server Push</a></h2>
 
 <p> CGI.pm provides three simple functions for producing multipart
-documents of the type needed to implement server push.  These
-functions were graciously provided by Ed Jordan (<a
-href="mailto:ed@fidalgo.net">ed@fidalgo.net</a>).  To import these
-into your namespace, you must import the ":push" set.  You are also
-advised to put the script into NPH mode and to set $| to 1 to avoid
-buffering problems.  </p>
+documents of the type needed to implement server push.  To import
+these into your namespace, you must import the ":push" set.  You are
+also advised to put the script into NPH mode and to set $| to 1 to
+avoid buffering problems.  </p>
 
 <p>Here is a simple script that demonstrates server push:</p>
 
@@ -4244,7 +4302,7 @@ code.  For example:
 
 <pre>
 $uploaded_file = param('upload');
-   if (!$uploaded_file && cgi_error()) {
+   if (!$uploaded_file &amp;&amp; cgi_error()) {
       print header(-status=&gt;cgi_error());
       exit 0;
    }
@@ -4377,9 +4435,9 @@ Known incompatibilities between CGI.pm and MacPerl include:
 
 <HR>
 
-<A NAME="future">
-<H2>The Relation of this Library to the CGI Modules</H2>
-</A>
+
+<H2><A NAME="future">The Relation of this Library to the CGI Modules</A></H2>
+
 
 This library is maintained in parallel with the full featured CGI,
 URL, and HTML modules.  I use this library to test out new ideas
@@ -4430,7 +4488,7 @@ see the companion pages for my book
 <A HREF="http://www.genome.wi.mit.edu/WWW/">How to Set Up and
 Maintain a World Wide Web Site</A>
 
-<HR> <A NAME="distribution"> <H2>Distribution Information:</H2> </A>
+<HR>  <H2><A NAME="distribution">Distribution Information:</A></H2> 
 This code is copyright 1995-1998 by Lincoln Stein.  It may be used and
 modified freely, but I do request that this copyright notice remain
 attached to the file.  You may modify this module as you wish, but if
@@ -4439,9 +4497,9 @@ modifications you have made.
 
 <HR>
 
-<A NAME="book">
-<H2>The CGI.pm Book</H2>
-</A>
+
+<H2><A NAME="book">The CGI.pm Book</A></H2>
+
 
 <cite>The Official Guide to CGI.pm</cite>, by Lincoln Stein, is packed
 with tips and techniques for using the module, along with information
@@ -4457,9 +4515,9 @@ companion Web site at:
 <HR>
 
 
-<A NAME="y2000">
-<H2>CGI.pm and the Year 2000 Problem</H2>
-</A>
+
+<H2><A NAME="y2000">CGI.pm and the Year 2000 Problem</A></H2>
+
 
 Versions of CGI.pm prior to 2.36 suffered a year 2000 problem in the
 handling of cookies.  Cookie expiration dates were expressed using two
@@ -4469,9 +4527,9 @@ of CGI.pm 2.36 and higher are year 2000 compliant.
 
 <HR>
 
-<A NAME="mailingList">
-<H2>The CGI-perl mailing list</H2>
-</A>
+
+<H2><A NAME="mailingList">The CGI-perl mailing list</A></H2>
+
 
 The CGI Perl mailing list is defunct and is unlikely to be
 resurrected.  Please address your questions to <a
@@ -4490,7 +4548,7 @@ HREF="mailto:lstein@cshl.org">lstein@cshl.org</A>.  When sending bug
 reports, please provide the following information:
 
 <ul>
-  <li>the version of CGI.pm (<code>perl -MCGI 'print $CGI::VERSION'</code>)
+  <li>the version of CGI.pm (<code>perl -MCGI -e 'print '$CGI::VERSION'</code>)
   <li>the version of Perl (<code>perl -v</code>)
   <li>the name and version of your Web server
   <li>the name and version of the operating system you are using
@@ -4508,7 +4566,30 @@ you.
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.52</h3>
+<ol>
+  <li>Spurious newline in checkbox() routine removed. (courtesy John Essen)
+  <li>TEXTAREA linebreaks now respected in dump() routine. (courtesy John Essen)
+  <li>Patches for DOS ports (courtesy Robert Davies)
+  <li>Patches for VMS
+  <li>More fixes for cookie problems
+  <li>Fix CGI::Carp so that it doesn't affect eval{} blocks (courtesy Byron Brummer)
+</ol>
 
+<h3>Version 2.51</h3>
+<ol>
+  <li>Fixed problems with cookies not being remembered when sent to IE 5.0 (and Netscape 5.0 too?)
+  <li>Numerous HTML compliance problems in cgi_docs.html; fixed
+      thanks to Michael Leahy
+</ol>
+
+<h3>Version 2.50</h3>
+<ol>
+  <li>Added a new Vars() method to retrieve all parameters as a tied hash.
+  <li>Untainted tainted tempfile name so that script doesn't fail on terminal unlink.
+  <li>Made picking of upload tempfile name more intelligent so that doesn't fail in case of name collision.
+  <li>Fixed handling of expire times when passed an absolute timestamp.
+</ol>
 <h3>Version 2.49</h3>
 <ol>
   <li>Fixes for FastCGI (globals not getting reset)
@@ -4526,7 +4607,7 @@ you.
   <li>Replaced use of $ENV{SCRIPT_NAME} with $ENV{REQUEST_URI} when running
       under Apache, to fix self-referencing URIs.
   <li>Fixed bug in escapeHTML() which caused certain constructs, such as
-      CGI->image_button(), to fail.
+      CGI-&gt;image_button(), to fail.
   <li>Fixed bug which caused strong('CGI') to fail.  Be careful to use
       CGI::strong('CGI') and not CGI-&gt;strong('CGI').  The latter will
       produce confusing results.
@@ -4660,7 +4741,7 @@ all VMS Web servers.
   <li>Added documentation on escape(), unescape(), unescapeHTML() and
       unescapeHTML() subroutines.
   <li>Added documentation on creating subclasses.
-  <li>Fixed problem when calling $self->SUPER::foo() from inheriting
+  <li>Fixed problem when calling $self-&gt;SUPER::foo() from inheriting
       subclasses.
   <li>Fixed problem using filehandles from within subroutines.
   <li>Fixed inability to use the string "CGI" as a parameter.
@@ -5176,6 +5257,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Tue Feb 23 15:59:32 EST 1999
+Last modified: Tue Jun  8 11:06:02 EDT 1999
 <!-- hhmts end -->
 </BODY> </HTML>
