@@ -18,7 +18,7 @@ require 5.004;
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.9 1999/02/19 14:07:22 lstein Exp $';
-$CGI::VERSION='2.48';
+$CGI::VERSION='2.49';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -775,7 +775,7 @@ sub import_names {
     my($self,$namespace,$delete) = self_or_default(@_);
     $namespace = 'Q' unless defined($namespace);
     die "Can't import names into \"main\"\n" if \%{"${namespace}::"} == \%::;
-    if ($delete || $MOD_PERL) {
+    if ($delete || $MOD_PERL || exists $ENV{'FCGI_ROLE'}) {
 	# can anyone find an easier way to do this?
 	foreach (keys %{"${namespace}::"}) {
 	    local *symbol = "${namespace}::${_}";
@@ -2150,9 +2150,12 @@ sub url {
     my $path = $self->path_info;
     my $script_name;
     if (exists($ENV{REQUEST_URI})) {
+        my $index;
 	$script_name = $ENV{REQUEST_URI};
-	# is this how to strip off path information?
-	$script_name =~ s/$path.*$// if defined $path;
+        # strip path
+        substr($script_name,$index) = '' if $path and ($index = index($script_name,$path)) >= 0;
+        # and query string
+        substr($script_name,$index) = '' if ($index = index($script_name,'?')) >= 0;
     } else {
 	$script_name = $self->script_name;
     }
