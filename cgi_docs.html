@@ -7,7 +7,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.91, 2/11/2002, L. Stein
+Version 2.92, 4/27/2003, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -406,6 +406,21 @@ This form also allows you to create a CGI object that is initially empty:
 $empty_query = new CGI('');
 </pre></blockquote>
 
+<p>
+
+If you are using mod_perl, you can initialize a CGI object at any
+stage of the request by passing the request object to CGI->new:
+
+<blockquote><pre>
+$q = CGI->new($r);
+</pre></blockquote>
+
+<p>
+
+To do this with the function-oriented interface, set
+Apache-&gt;request($r) before calling the first CGI function.
+<p>
+
 See <A HREF="#advanced">advanced techniques</A> for more information.
 
 
@@ -474,7 +489,6 @@ call that is accepted by most of the CGI methods.  See <a href="#named_param">
 Calling CGI functions that Take Multiple Arguments</a> for an explanation of
 this style.
 
-
 <H3><A NAME="append">Appending a Parameter</A></H3>
 
 <PRE>
@@ -503,6 +517,24 @@ down between invocations of the script.
 This deletes all the parameters and leaves you with an empty CGI
 object.  This may be useful to restore all the defaults produced by
 the form element generating methods.
+
+
+<H3><A NAME="postdata">Handling non-URLencoded Arguments</A></H3>
+
+<p>
+
+If POSTed data is not of type application/x-www-form-urlencoded or
+multipart/form-data, then the POSTed data will not be processed, but
+instead be returned as-is in a parameter named POSTDATA.  To retrieve
+it, use code like this:
+
+<PRE>
+   my $data = $query-&gt;param('FORMDATA');
+</PRE>
+
+(If you don't know what the preceding means, don't worry about it.  It
+only affects people trying to use CGI for XML processing and other
+specialized tasks.)
 
 
 <H3><A NAME="importing">Importing parameters into a namespace</A></H3>
@@ -4014,9 +4046,9 @@ print header,
 </pre></blockquote>
 
 <strong>Configuration note:</strong> When using CGI.pm with mod_perl
-it is <strong>not</strong> necessary to enable either the
-<tt>PerlSendHeader</tt> or <tt>PerlSetupEnv</tt> directives.  This is
-handled automatically by CGI.pm and by Apache::Registry.
+it is <strong>not</strong> necessary to enable the
+<tt>PerlSendHeader</tt> directive.  This is handled automatically by
+CGI.pm and by Apache::Registry.
 
 <p>
 
@@ -4743,6 +4775,23 @@ you.
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.92</h3>
+<ol>
+  <li>Fix to be P3P compliant submitted from MPREWITT.
+  <li>Added CGI->r() API for mod_perl1/mod_perl2.
+  <li>Fixed bug in redirect() that was corrupting cookies. 
+  <li>Minor fix to behavior of reset() button to make it consistent with submit() button
+      (first time this has been changed in 9 years).
+  <li>Patch from Dan Kogai to handle UTF-8 correctly in 5.8 and higher.
+  <li>Patch from Steve Hay to make CGI::Carp's error messages appear on MSIE browsers.
+  <li>Added Yair Lenga's patch for non-urlencoded postings.
+  <li>Added Stas Bekman's patches for mod_perl 2 compatibility.
+  <li>Fixed uninitialized escape behavior submitted by William Campbell.
+  <li>Fixed tied behavior so that you can pass arguments to tie()
+  <li>Fixed incorrect generation of URLs when the path_info contains + and other odd characters.
+  <li>Fixed redirect(-cookies=&gt;$cookie) problem.
+  <li>Fixed tag generation bug that affects -javascript passed to start_html().
+</ol>
 <h3>Version 2.91</h3>
 <ol>
   <li>Attribute generation now correctly respects the value of autoEscape().
@@ -5775,6 +5824,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Tue Feb 11 09:11:05 EST 2003
+Last modified: Sun Apr 27 20:42:54 EDT 2003
 <!-- hhmts end -->
 </BODY> </HTML>

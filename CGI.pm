@@ -18,8 +18,8 @@ use Carp 'croak';
 # The most recent version and complete docs are available at:
 #   http://stein.cshl.org/WWW/software/CGI/
 
-$CGI::revision = '$Id: CGI.pm,v 1.88 2003/02/11 14:13:18 lstein Exp $';
-$CGI::VERSION='2.91';
+$CGI::revision = '$Id: CGI.pm,v 1.111 2003/04/27 16:26:24 lstein Exp $';
+$CGI::VERSION='2.92';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -32,9 +32,14 @@ use CGI::Util qw(rearrange make_attributes unescape escape expires);
 use constant XHTML_DTD => ['-//W3C//DTD XHTML 1.0 Transitional//EN',
                            'http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd'];
 
-$TAINTED = substr("$0$^X",0,0);
+{
+  local $^W = 0;
+  $TAINTED = substr("$0$^X",0,0);
+}
 
 my @SAVED_SYMBOLS;
+
+$MOD_PERL = 0; # no mod_perl by default
 
 # >>>>> Here are some globals that you might want to adjust <<<<<<
 sub initialize_globals {
@@ -159,9 +164,8 @@ $AutoloadClass = $DefaultClass unless defined $CGI::AutoloadClass;
 # The path separator is a slash, backslash or semicolon, depending
 # on the paltform.
 $SL = {
-       UNIX=>'/', OS2=>'\\', EPOC=>'/',
-       WINDOWS=>'\\', DOS=>'\\', MACINTOSH=>':', VMS=>'/',
-       CYGWIN=>'/',
+     UNIX    => '/',  OS2 => '\\', EPOC      => '/', CYGWIN => '/',
+     WINDOWS => '\\', DOS => '\\', MACINTOSH => ':', VMS    => '/'
     }->{$OS};
 
 # This no longer seems to be necessary
@@ -170,18 +174,22 @@ $SL = {
 $IIS++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 
 # Turn on special checking for Doug MacEachern's modperl
-if (exists $ENV{'GATEWAY_INTERFACE'}
-    &&
-    ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl\//))
-  {
-    $| = 1;
-    require mod_perl;
+if (exists $ENV{MOD_PERL}) {
+  eval "require mod_perl";
+  # mod_perl handlers may run system() on scripts using CGI.pm;
+  # Make sure so we don't get fooled by inherited $ENV{MOD_PERL}
+  if (defined $mod_perl::VERSION) {
     if ($mod_perl::VERSION >= 1.99) {
-      eval "require Apache::compat";
+      $MOD_PERL = 2;
+      require Apache::RequestRec;
+      require Apache::RequestUtil;
+      require APR::Pool;
     } else {
-      eval "require Apache";
+      $MOD_PERL = 1;
+      require Apache;
     }
   }
+}
 
 # Turn on special checking for ActiveState's PerlEx
 $PERLEX++ if defined($ENV{'GATEWAY_INTERFACE'}) && $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-PerlEx/;
@@ -286,21 +294,45 @@ sub expand_tags {
 # for an existing query string, and initialize itself, if so.
 ####
 sub new {
-    my($class,$initializer) = @_;
-    my $self = {};
-    bless $self,ref $class || $class || $DefaultClass;
-    if ($MOD_PERL && defined Apache->request) {
-      Apache->request->register_cleanup(\&CGI::_reset_globals);
-      undef $NPH;
+  my($class,@initializer) = @_;
+  my $self = {};
+  bless $self,ref $class || $class || $DefaultClass;
+  if (ref($initializer[0])
+      && (UNIVERSAL::isa($initializer[0],'Apache')
+	  ||
+	  UNIVERSAL::isa($initializer[0],'Apache::RequestRec')
+	 )) {
+    $self->r(shift @initializer);
+  }
+  if ($MOD_PERL) {
+    $self->r(Apache->request) unless $self->r;
+    my $r = $self->r;
+    if ($MOD_PERL == 1) {
+      $r->register_cleanup(\&CGI::_reset_globals);
     }
-    $self->_reset_globals if $PERLEX;
-    $self->init($initializer);
-    return $self;
+    else {
+      # XXX: once we have the new API
+      # will do a real PerlOptions -SetupEnv check
+      $r->subprocess_env unless exists $ENV{REQUEST_METHOD};
+      $r->pool->cleanup_register(\&CGI::_reset_globals);
+    }
+    undef $NPH;
+  }
+  $self->_reset_globals if $PERLEX;
+  $self->init(@initializer);
+  return $self;
 }
 
 # We provide a DESTROY method so that the autoloader
 # doesn't bother trying to find it.
 sub DESTROY { }
+
+sub r {
+  my $self = shift;
+  my $r = $self->{'.r'};
+  $self->{'.r'} = shift if @ARGV;
+  $r;
+}
 
 #### Method: param
 # Returns the value(s)of a named parameter.
@@ -380,9 +412,14 @@ sub self_or_CGI {
 # parameter list with the single parameter 'keywords'.
 
 sub init {
-    my($self,$initializer) = @_;
-    my($query_string,$meth,$content_length,$fh,@lines) = ('','','','');
-    local($/) = "\n";
+  my $self = shift;
+  my($query_string,$meth,$content_length,$fh,@lines) = ('','','','');
+
+  my $initializer = shift;  # for backward compatibility
+  local($/) = "\n";
+
+    # set autoescaping on by default
+    $self->{'escape'} = 1;
 
     # if we get called more than once, we want to initialize
     # ourselves from the original query (which may be gone
@@ -403,9 +440,6 @@ sub init {
 
     # set charset to the safe ISO-8859-1
     $self->charset('ISO-8859-1');
-
-    # set autoescaping to on
-    $self->{'escape'} = 1;
 
   METHOD: {
 
@@ -467,7 +501,7 @@ sub init {
       # the environment.
       if ($meth=~/^(GET|HEAD)$/) {
 	  if ($MOD_PERL) {
-	      $query_string = Apache->request->args;
+	    $query_string = $self->r->args;
 	  } else {
 	      $query_string = $ENV{'QUERY_STRING'} if defined $ENV{'QUERY_STRING'};
 	      $query_string ||= $ENV{'REDIRECT_QUERY_STRING'} if defined $ENV{'REDIRECT_QUERY_STRING'};
@@ -491,6 +525,17 @@ sub init {
       # UN*X programmers expect.
       $query_string = read_from_cmdline() if $DEBUG;
   }
+
+# YL: Begin Change for XML handler 10/19/2001
+    if ($meth eq 'POST'
+        && defined($ENV{'CONTENT_TYPE'})
+        && $ENV{'CONTENT_TYPE'} !~ m|^application/x-www-form-urlencoded| ) {
+        my($param) = 'POSTDATA' ;
+        $self->add_parameter($param) ;
+      push (@{$self->{$param}},$query_string);
+      undef $query_string ;
+    }
+# YL: End Change for XML handler 10/19/2001
 
     # We now have the query string in hand.  We do slightly
     # different things for keyword lists and parameter lists.
@@ -519,7 +564,7 @@ sub init {
     $self->delete('.submit');
     $self->delete('.cgifields');
 
-    $self->save_request unless $initializer;
+    $self->save_request unless defined $initializer;
 }
 
 # FUNCTIONS TO OVERRIDE:
@@ -626,7 +671,8 @@ sub _make_tag_func {
 	$func .= qq! return "<\L/$1\E>"; } !;
     } else {
 	$func .= qq#
-	    return \$XHTML ? "\L<$tagname\E\$attr />" : "\L<$tagname\E\$attr>" unless \@_;
+\#	    return \$XHTML ? "\L<$tagname\E\$attr />" : "\L<$tagname\E\$attr>" unless \@_;
+	    return \$XHTML ? "\L<$tagname\E\$attr />" : "\L<$tagname\E\$attr>" unless \@rest && defined(\$rest[0]);
 	    my(\$tag,\$untag) = ("\L<$tagname\E\$attr>","\L</$tagname>\E");
 	    my \@result = map { "\$tag\$_\$untag" } 
                               (ref(\$rest[0]) eq 'ARRAY') ? \@{\$rest[0]} : "\@rest";
@@ -923,9 +969,13 @@ sub MethPost {
 END_OF_FUNC
 
 'TIEHASH' => <<'END_OF_FUNC',
-sub TIEHASH { 
-    return $_[1] if defined $_[1];
-    return $Q ||= new shift;
+sub TIEHASH {
+    my $class = shift;
+    my $arg   = $_[0];
+    if (ref($arg) && UNIVERSAL::isa($arg,'CGI')) {
+       return $arg;
+    }
+    return $Q ||= $class->new(@_);
 }
 END_OF_FUNC
 
@@ -1001,7 +1051,8 @@ EOF
 'delete_all' => <<'EOF',
 sub delete_all {
     my($self) = self_or_default(@_);
-    undef %{$self};
+    my @param = $self->param;
+    $self->delete(@param);
 }
 EOF
 
@@ -1197,7 +1248,8 @@ sub multipart_start {
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
-        next unless my($header,$value) = /([^\s=]+)=\"?(.+?)\"?$/;
+        # Don't use \s because of perl bug 21951
+        next unless my($header,$value) = /([^ \r\n\t=]+)=\"?(.+?)\"?$/;
 	($_ = $header) =~ s/^(\w)(.*)/$1 . lc ($2) . ': '.$self->unescapeHTML($value)/e;
     }
     push(@header,@other);
@@ -1261,7 +1313,8 @@ sub header {
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
-        next unless my($header,$value) = /([^\s=]+)=\"?(.+?)\"?$/;
+        # Don't use \s because of perl bug 21951
+        next unless my($header,$value) = /([^ \r\n\t=]+)=\"?(.+?)\"?$/;
         ($_ = $header) =~ s/^(\w)(.*)/"\u$1\L$2" . ': '.$self->unescapeHTML($value)/e;
     }
 
@@ -1277,7 +1330,7 @@ sub header {
     push(@header,"Window-Target: $target") if $target;
     if ($p3p) {
        $p3p = join ' ',@$p3p if ref($p3p) eq 'ARRAY';
-       push(@header,qq(P3P: policyref="/w3c/p3p.xml" CP="$p3p"));
+       push(@header,qq(P3P: policyref="/w3c/p3p.xml", CP="$p3p"));
     }
     # push all the cookies -- there may be several
     if ($cookie) {
@@ -1297,12 +1350,10 @@ sub header {
     push(@header,"Content-Disposition: attachment; filename=\"$attachment\"") if $attachment;
     push(@header,map {ucfirst $_} @other);
     push(@header,"Content-Type: $type") if $type ne '';
-
     my $header = join($CRLF,@header)."${CRLF}${CRLF}";
     if ($MOD_PERL and not $nph) {
-	my $r = Apache->request;
-	$r->send_cgi_header($header);
-	return '';
+        $self->r->send_cgi_header($header);
+        return '';
     }
     return $header;
 }
@@ -1332,18 +1383,19 @@ END_OF_FUNC
 'redirect' => <<'END_OF_FUNC',
 sub redirect {
     my($self,@p) = self_or_default(@_);
-    my($url,$target,$cookie,$nph,@other) = rearrange([[LOCATION,URI,URL],TARGET,COOKIE,NPH],@p);
+    my($url,$target,$cookie,$nph,@other) = rearrange([[LOCATION,URI,URL],TARGET,['COOKIE','COOKIES'],NPH],@p);
     $url ||= $self->self_url;
     my(@o);
     foreach (@other) { tr/\"//d; push(@o,split("=",$_,2)); }
     unshift(@o,
-	 '-Status'=>'302 Moved',
-	 '-Location'=>$url,
-	 '-nph'=>$nph);
+	 '-Status'  => '302 Moved',
+	 '-Location'=> $url,
+	 '-nph'     => $nph);
     unshift(@o,'-Target'=>$target) if $target;
-    unshift(@o,'-Cookie'=>$cookie) if $cookie;
     unshift(@o,'-Type'=>'');
-    return $self->header(map {$self->unescapeHTML($_)} @o);
+    my @unescaped;
+    unshift(@unescaped,'-Cookie'=>$cookie) if $cookie;
+    return $self->header((map {$self->unescapeHTML($_)} @o),@unescaped);
 }
 END_OF_FUNC
 
@@ -1518,7 +1570,7 @@ sub _script {
 
 	my(@satts);
 	push(@satts,'src'=>$src) if $src;
-	push(@satts,'language'=>$language);
+	push(@satts,'language'=>$language) unless defined $type;
         push(@satts,'type'=>$type);
 	$code = "$cdata_start$code$cdata_end" if defined $code;
 	push(@result,script({@satts},$code || ''));
@@ -1648,7 +1700,7 @@ END_OF_FUNC
 sub _textfield {
     my($self,$tag,@p) = self_or_default(@_);
     my($name,$default,$size,$maxlength,$override,@other) = 
-	rearrange([NAME,[DEFAULT,VALUE],SIZE,MAXLENGTH,[OVERRIDE,FORCE]],@p);
+	rearrange([NAME,[DEFAULT,VALUE,VALUES],SIZE,MAXLENGTH,[OVERRIDE,FORCE]],@p);
 
     my $current = $override ? $default : 
 	(defined($self->param($name)) ? $self->param($name) : $default);
@@ -1803,7 +1855,7 @@ sub submit {
     my($name) = ' name=".submit"' unless $NOSTICKY;
     $name = qq/ name="$label"/ if defined($label);
     $value = defined($value) ? $value : $label;
-    my($val) = '';
+    my $val = '';
     $val = qq/ value="$value"/ if defined($value);
     my($other) = @other ? " @other" : '';
     return $XHTML ? qq(<input type="submit"$name$val$other />)
@@ -1822,12 +1874,18 @@ END_OF_FUNC
 'reset' => <<'END_OF_FUNC',
 sub reset {
     my($self,@p) = self_or_default(@_);
-    my($label,@other) = rearrange([NAME],@p);
+    my($label,$value,@other) = rearrange(['NAME',['VALUE','LABEL']],@p);
+    warn "label = $label, value = $value";
     $label=$self->escapeHTML($label);
-    my($value) = defined($label) ? qq/ value="$label"/ : '';
+    $value=$self->escapeHTML($value,1);
+    my ($name) = ' name=".reset"';
+    $name = qq/ name="$label"/ if defined($label);
+    $value = defined($value) ? $value : $label;
+    my($val) = '';
+    $val = qq/ value="$value"/ if defined($value);
     my($other) = @other ? " @other" : '';
-    return $XHTML ? qq(<input type="reset"$value$other />)
-                  : qq(<input type="reset"$value$other>);
+    return $XHTML ? qq(<input type="reset"$name$val$other />)
+                  : qq(<input type="reset"$name$val$other>);
 }
 END_OF_FUNC
 
@@ -2421,11 +2479,11 @@ sub url {
     # for compatibility with Apache's MultiViews
     if (exists($ENV{REQUEST_URI})) {
         my $index;
-	$script_name = $ENV{REQUEST_URI};
+	$script_name = unescape($ENV{REQUEST_URI});
         $script_name =~ s/\?.+$//;   # strip query string
         # and path
         if (exists($ENV{PATH_INFO})) {
-           (my $encoded_path = $ENV{PATH_INFO}) =~ s/([^a-zA-Z0-9_.%;&?\/\\:+=~-])/sprintf("%%%02X",ord($1))/eg;
+           my $encoded_path = quotemeta($ENV{PATH_INFO});
            $script_name      =~ s/$encoded_path$//i;
          }
     }
