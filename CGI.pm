@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.9 1998/01/16 18:19:20 lstein Exp $';
-$CGI::VERSION='2.37017';
+$CGI::revision = '$Id: CGI.pm,v 1.10 1998/01/16 21:05:21 lstein Exp $';
+$CGI::VERSION='2.37018';
 use UNIVERSAL qw(isa);
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
@@ -436,9 +436,10 @@ sub init {
 # Turn a string into a filehandle
 sub to_filehandle {
     my $thingy = shift;
+    return undef unless $thingy;
     return $thingy if isa($thingy,'GLOB');
     return $thingy if isa($thingy,'FileHandle');
-    if ($thingy && !ref($thingy)) {
+    if (!ref($thingy)) {
 	my $caller = 1;
 	while (my $package = caller($caller++)) {
 	    my($tmp) = $thingy=~/[\':]/ ? $thingy : "$package\:\:$thingy"; 
@@ -590,7 +591,7 @@ sub _compile {
 	   my($auto) = \${"$pack\:\:AUTOLOADED_ROUTINES"};
 	   eval "package $pack; $$auto";
 	   die $@ if $@;
-	   undef $$auto; # free storage
+           $$auto = '';  # Free the unneeded storage (but don't undef it!!!)
        }
        my($code) = $sub->{$func_name};
 
@@ -612,7 +613,7 @@ sub _compile {
 	   die $@;
        }
     }       
-    delete($sub->{$func_name});
+    delete($sub->{$func_name});  #free storage
     return "$pack\:\:$func_name";
 }
 
@@ -2103,12 +2104,12 @@ sub cookie {
     return undef unless $name;	# this is an error
 
     my @param;
-    push(@param,-name=>$name);
-    push(@param,-value=>$value);
-    push(@param,-domain=>$domain) if $domain;
-    push(@param,-path=>$path) if $path;
-    push(@param,-expires=>$expires) if $expires;
-    push(@param,-secure=>$secure) if $secure;
+    push(@param,'-name'=>$name);
+    push(@param,'-value'=>$value);
+    push(@param,'-domain'=>$domain) if $domain;
+    push(@param,'-path'=>$path) if $path;
+    push(@param,'-expires'=>$expires) if $expires;
+    push(@param,'-secure'=>$secure) if $secure;
 
     return new CGI::Cookie(@param);
 }

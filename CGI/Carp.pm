@@ -87,6 +87,8 @@ accepted as well:
 
     ... and so on
 
+FileHandle and other objects work as well.
+
 Use of carpout() is not great for performance, so it is recommended
 for debugging purposes or for moderate-use applications.  A future
 version of this module may delay redirecting STDERR until one of the
@@ -106,6 +108,17 @@ occur in the early compile phase will be seen.
 Nonfatal errors will still be directed to the log file only (unless redirected
 with carpout).
 
+=head2 Changing the default message
+
+By default, the software error message is followed by a note to
+contact the Webmaster by e-mail with the time and date of the error.
+If this message is not to your liking, you can change it using the
+set_message() routine.  This is not imported by default; you should
+import it on the use() line:
+
+    use CGI::Carp qw(fatalsToBrowser set_message);
+    set_message("It's not a bug, it's a feature!");
+
 =head1 CHANGE LOG
 
 1.05 carpout() added and minor corrections by Marc Hedlund
@@ -113,6 +126,9 @@ with carpout).
 
 1.06 fatalsToBrowser() no longer aborts for fatal errors within
      eval() statements.
+
+1.08 set_message() added and carpout() expanded to allow for FileHandle
+     objects.
 
 =head1 AUTHORS
 
@@ -133,11 +149,12 @@ use Carp;
 
 @ISA = qw(Exporter);
 @EXPORT = qw(confess croak carp);
-@EXPORT_OK = qw(carpout fatalsToBrowser wrap);
+@EXPORT_OK = qw(carpout fatalsToBrowser wrap set_message);
 
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
 $main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.07';
+$CGI::Carp::VERSION = '1.08';
+$CGI::Carp::CUSTOM_MSG = undef;
 
 # fancy import routine detects and handles 'errorWrap' specially.
 sub import {
@@ -195,6 +212,11 @@ sub die {
     realdie $message;
 }
 
+sub set_message {
+    $CGI::Carp::CUSTOM_MSG = shift;
+    return $CGI::Carp::CUSTOM_MSG;
+}
+
 # Avoid generating "subroutine redefined" warnings with the following
 # hack:
 {
@@ -211,14 +233,8 @@ EOF
 # or a string.
 sub carpout {
     my($in) = @_;
-    $in = $$in if ref($in); # compatability with Marc's method;
-    my($no) = fileno($in);
-    unless (defined($no)) {
-	my($package) = caller;
-	my($handle) = $in=~/[':]/ ? $in : "$package\:\:$in"; 
-	$no = fileno($handle);
-    }
-    die "Invalid filehandle $in\n" unless $no;
+    my($no) = fileno(to_filehandle($in));
+    die "Invalid filehandle $in\n" unless defined $no;
     
     open(SAVEERR, ">&STDERR");
     open(STDERR, ">&$no") or 
@@ -235,14 +251,35 @@ sub fatalsToBrowser {
     my($wm) = $ENV{SERVER_ADMIN} ? 
 	qq[the webmaster (<a href="mailto:$ENV{SERVER_ADMIN}">$ENV{SERVER_ADMIN}</a>)] :
 	"this site's webmaster";
+    my ($MSG) = $CUSTOM_MSG || <<END;
+For help, please send mail to $wm, giving this error message 
+and the time and date of the error.
+END
+    ;
     print STDOUT "Content-type: text/html\n\n";
     print STDOUT <<END;
 <H1>Software error:</H1>
 <CODE>$msg</CODE>
 <P>
-For help, please send mail to $wm, giving this error message 
-and the time and date of the error.
+$MSG
 END
+}
+
+# Cut and paste from CGI.pm so that we don't have the overhead of
+# always loading the entire CGI module.
+sub to_filehandle {
+    my $thingy = shift;
+    return undef unless $thingy;
+    return $thingy if UNIVERSAL::isa($thingy,'GLOB');
+    return $thingy if UNIVERSAL::isa($thingy,'FileHandle');
+    if (!ref($thingy)) {
+	my $caller = 1;
+	while (my $package = caller($caller++)) {
+	    my($tmp) = $thingy=~/[\':]/ ? $thingy : "$package\:\:$thingy"; 
+	    return $tmp if defined(fileno($tmp));
+	}
+    }
+    return undef;
 }
 
 1;
