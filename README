@@ -1,6 +1,6 @@
 WHAT IS THIS?
 
-This is CGI.pm 2.40, an easy-to-use Perl5 library for writing World
+This is CGI.pm 2.42, an easy-to-use Perl5 library for writing World
 Wide Web CGI scripts.
 
 HOW DO I INSTALL IT?
@@ -10,6 +10,7 @@ file and type the following:
 
    perl Makefile.PL
    make
+   make test
    make install
 
 If this doesn't work for you, try:

@@ -34,3 +34,7 @@ examples/popup.cgi
 examples/save_state.cgi
 examples/tryit.cgi
 examples/wilogo.gif
+t/form.t
+t/function.t
+t/html.t
+t/request.t

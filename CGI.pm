@@ -18,8 +18,8 @@ require 5.004;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.32 1998/05/28 21:55:43 lstein Exp $';
-$CGI::VERSION='2.41';
+$CGI::revision = '$Id: CGI.pm,v 1.32 1998/05/28 21:55:43 lstein Exp lstein $';
+$CGI::VERSION='2.42';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -123,7 +123,7 @@ if (defined($ENV{'GATEWAY_INTERFACE'}) &&
     require Apache;
 }
 # Turn on special checking for ActiveState's PerlEx
-$PERLEX = defined($ENV{'GATEWAY_INTERFACE'}) and $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-PerlEx/;
+$PERLEX++ if defined($ENV{'GATEWAY_INTERFACE'}) && $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-PerlEx/;
 
 # Define the CRLF sequence.  I can't use a simple "\r\n" because the meaning
 # of "\n" is different on different OS's (sometimes it generates CRLF, sometimes LF
@@ -320,7 +320,6 @@ sub init {
     # ourselves from the original query (which may be gone
     # if it was read from STDIN originally.)
     if (defined(@QUERY_PARAM) && !defined($initializer)) {
-
 	foreach (@QUERY_PARAM) {
 	    $self->param('-name'=>$_,'-value'=>$QUERY_PARAM{$_});
 	}
@@ -434,7 +433,6 @@ sub init {
     $self->delete('.submit');
     $self->delete('.cgifields');
     $self->save_request unless $initializer;
-
 }
 
 # FUNCTIONS TO OVERRIDE:
@@ -468,7 +466,7 @@ sub print {
 
 # unescape URL-encoded data
 sub unescape {
-    shift if ref($_[0]);
+    shift() if ref($_[0]);
     my $todecode = shift;
     return undef unless defined($todecode);
     $todecode =~ tr/+/ /;       # pluses become spaces
@@ -478,7 +476,7 @@ sub unescape {
 
 # URL-encode data
 sub escape {
-    shift if ref($_[0]) || $_[0] eq $DefaultClass;
+    shift() if ref($_[0]) || $_[0] eq $DefaultClass;
     my $toencode = shift;
     return undef unless defined($toencode);
     $toencode=~s/([^a-zA-Z0-9_.-])/uc sprintf("%%%02x",ord($1))/eg;
@@ -541,7 +539,7 @@ sub _make_tag_func {
 	    
 	    my(\$attr) = '';
 	    if (ref(\$_[0]) && ref(\$_[0]) eq 'HASH') {
-		my(\@attr) = make_attributes('',shift);
+		my(\@attr) = make_attributes( '',shift() );
 		\$attr = " \@attr" if \@attr;
 	    }
 	    my(\$tag,\$untag) = ("\U<$tagname\E\$attr>","\U</$tagname>\E");
@@ -689,7 +687,7 @@ sub MULTIPART {  'multipart/form-data'; }
 END_OF_FUNC
 
 'SERVER_PUSH' => <<'END_OF_FUNC',
-sub SERVER_PUSH { 'multipart/x-mixed-replace; boundary="' . shift . '"'; }
+sub SERVER_PUSH { 'multipart/x-mixed-replace; boundary="' . shift() . '"'; }
 END_OF_FUNC
 
 'use_named_parameters' => <<'END_OF_FUNC',
@@ -843,7 +841,7 @@ END_OF_FUNC
 
 'TIEHASH' => <<'END_OF_FUNC',
 sub TIEHASH { 
-    return new CGI;
+    return $Q || new CGI;
 }
 END_OF_FUNC
 
@@ -975,7 +973,7 @@ END_OF_FUNC
 'url_param' => <<'END_OF_FUNC',
 sub url_param {
     my ($self,@p) = self_or_default(@_);
-    my $name = shift @p;
+    my $name = shift(@p);
     return undef unless exists($ENV{QUERY_STRING});
     unless (exists($self->{'.url_param'})) {
 	$self->{'.url_param'}={}; # empty hash
@@ -1074,8 +1072,7 @@ END_OF_FUNC
 ####
 'restore_parameters' => <<'END_OF_FUNC',
 sub restore_parameters {
-    my $fh = shift;
-    $Q = $CGI::DefaultClass->new(to_filehandle($fh));
+    $Q = $CGI::DefaultClass->new(@_);
 }
 END_OF_FUNC
 
@@ -1265,7 +1262,7 @@ sub start_html {
     push(@result,"<LINK REV=MADE HREF=\"mailto:$author\">") if defined $author;
 
     if ($base || $xbase || $target) {
-	my $href = $xbase || $self->url();
+	my $href = $xbase || $self->url('-path'=>1);
 	my $t = $target ? qq/ TARGET="$target"/ : '';
 	push(@result,qq/<BASE HREF="$href"$t>/);
     }
@@ -2076,11 +2073,8 @@ END_OF_FUNC
 ####
 'self_url' => <<'END_OF_FUNC',
 sub self_url {
-    my($self) = self_or_default(@_);
-    my $name = $self->url();
-    my($query_string) = $self->query_string;
-    return $name if $query_string eq '';
-    return "$name?$query_string";
+    my($self,@p) = self_or_default(@_);
+    return $self->url('-path_info'=>1,'-query'=>1,'-full'=>1,@p);
 }
 END_OF_FUNC
 
@@ -2100,22 +2094,34 @@ END_OF_FUNC
 ####
 'url' => <<'END_OF_FUNC',
 sub url {
-    my($self) = self_or_default(@_);
-    my $protocol = $self->protocol();
-    my $name = "$protocol://";
-    my $vh = http('host');
-    if ($vh) {
-	$name .= $vh;
-    } else {
-	$name .= server_name();
-	my $port = $self->server_port;
-	$name .= ":" . $port
-	    unless (lc($protocol) eq 'http' && $port == 80)
-		|| (lc($protocol) eq 'https' && $port == 443);
+    my($self,@p) = self_or_default(@_);
+    my ($relative,$absolute,$full,$path_info,$query) = 
+	$self->rearrange(['RELATIVE','ABSOLUTE','FULL',['PATH','PATH_INFO'],['QUERY','QUERY_STRING']],@p);
+    my $url;
+    $full++ if !($relative || $absolute);
+
+    if ($full) {
+	my $protocol = $self->protocol();
+	$url = "$protocol://";
+	my $vh = http('host');
+	if ($vh) {
+	    $url .= $vh;
+	} else {
+	    $url .= server_name();
+	    my $port = $self->server_port;
+	    $url .= ":" . $port
+		unless (lc($protocol) eq 'http' && $port == 80)
+		    || (lc($protocol) eq 'https' && $port == 443);
+	}
+	$url .= $self->script_name;
+    } elsif ($relative) {
+	($url) = $self->script_name =~ m!([^/]+)$!;
+    } elsif ($absolute) {
+	$url = $self->script_name;
     }
-    $name .= $self->script_name;
-    $name .= $self->path_info if $self->path_info;
-    return $name;
+    $url .= $self->path_info if $path_info and $self->path_info;
+    $url .= "?" . $self->query_string if $query and $self->query_string;
+    return $url;
 }
 
 END_OF_FUNC
@@ -3119,16 +3125,18 @@ END_OF_AUTOLOAD
 package TempFile;
 
 $SL = $CGI::SL;
+$MAC = $CGI::OS eq 'MACINTOSH';
+my ($vol) = $MAC ? MacPerl::Volumes() =~ /:(.*)/ : "";
 unless ($TMPDIRECTORY) {
     @TEMP=("${SL}usr${SL}tmp","${SL}var${SL}tmp",
-	   "${SL}tmp","${SL}temp","${SL}Temporary Items",
+	   "${SL}tmp","${SL}temp","${vol}${SL}Temporary Items",
 	   "${SL}WWW_ROOT");
     foreach (@TEMP) {
 	do {$TMPDIRECTORY = $_; last} if -d $_ && -w _;
     }
 }
 
-$TMPDIRECTORY  = "." unless $TMPDIRECTORY;
+$TMPDIRECTORY  = $MAC ? "" : "." unless $TMPDIRECTORY;
 $SEQUENCE=0;
 $MAXTRIES = 5000;
 
@@ -3825,13 +3833,19 @@ to the top of your script.
 
 =item -no_debug
 
-This turns off the command-line processing features.  If you
-want to run a CGI.pm script from the command line to produce
-HTML, and you don't want it pausing to request CGI parameters
-from standard input, then use this pragma:
+This turns off the command-line processing features.  If you want to
+run a CGI.pm script from the command line to produce HTML, and you
+don't want it pausing to request CGI parameters from standard input or
+the command line, then use this pragma:
 
    use CGI qw(-no_debug :standard);
 
+If you'd like to process the command-line parameters but not standard
+input, this should work:
+
+   use CGI qw(-no_debug :standard);
+   restore_parameters(join('&',@ARGV));
+  
 See the section on debugging for more details.
 
 =item -private_tempfiles
@@ -4034,17 +4048,18 @@ array reference:
 			     ]
 		     );
 
-JAVASCRIPTING: The B<-script>, B<-noScript>, B<-onLoad> and B<-onUnload> parameters
-are used to add Netscape JavaScript calls to your pages.  B<-script>
-should point to a block of text containing JavaScript function
-definitions.  This block will be placed within a <SCRIPT> block inside
-the HTML (not HTTP) header.  The block is placed in the header in
-order to give your page a fighting chance of having all its JavaScript
-functions in place even if the user presses the stop button before the
-page has loaded completely.  CGI.pm attempts to format the script in
-such a way that JavaScript-naive browsers will not choke on the code:
-unfortunately there are some browsers, such as Chimera for Unix, that
-get confused by it nevertheless.
+JAVASCRIPTING: The B<-script>, B<-noScript>, B<-onLoad>,
+B<-onMouseOver>, B<-onMouseOut> and B<-onUnload> parameters are used
+to add Netscape JavaScript calls to your pages.  B<-script> should
+point to a block of text containing JavaScript function definitions.
+This block will be placed within a <SCRIPT> block inside the HTML (not
+HTTP) header.  The block is placed in the header in order to give your
+page a fighting chance of having all its JavaScript functions in place
+even if the user presses the stop button before the page has loaded
+completely.  CGI.pm attempts to format the script in such a way that
+JavaScript-naive browsers will not choke on the code: unfortunately
+there are some browsers, such as Chimera for Unix, that get confused
+by it nevertheless.
 
 The B<-onLoad> and B<-onUnload> parameters point to fragments of JavaScript
 code to execute when the page is respectively opened and closed by the
@@ -4174,15 +4189,63 @@ of the form(s).  Something like this will do the trick.
      print "<A HREF=$myself#table2>See table 2</A>";
      print "<A HREF=$myself#yourself>See for yourself</A>";
 
-If you don't want to get the whole query string, call
-the method url() to return just the URL for the script:
-
-    $myself = $query->url;
-    print "<A HREF=$myself>No query string in this baby!</A>\n";
+If you want more control over what's returned, using the B<url()>
+method instead.
 
 You can also retrieve the unprocessed query string with query_string():
 
     $the_string = $query->query_string;
+
+=head2 OBTAINING THE SCRIPT'S URL
+
+    $full_url      = $query->url();
+    $full_url      = $query->url(-full=>1);  #alternative syntax
+    $relative_url  = $query->url(-relative=>1);
+    $absolute_url  = $query->url(-absolute=>1);
+    $url_with_path = $query->url(-path_info=>1);
+    $url_with_path_and_query = $query->url(-path_info=>1,-query=>1);
+
+B<url()> returns the script's URL in a variety of formats.  Called
+without any arguments, it returns the full form of the URL, including
+host name and port number
+
+    http://your.host.com/path/to/script.cgi
+
+You can modify this format with the following named arguments:
+
+=over 4
+
+=item B<-absolute>
+
+If true, produce an absolute URL, e.g.
+
+    /path/to/script.cgi
+
+=item B<-relative>
+
+Produce a relative URL.  This is useful if you want to reinvoke your
+script with different parameters. For example:
+
+    script.cgi
+
+=item B<-full>
+
+Produce the full URL, exactly as if called without any arguments.
+This overrides the -relative and -absolute arguments.
+
+=item B<-path> (B<-path_info>)
+
+Append the additional path information to the URL.  This can be
+combined with B<-full>, B<-absolute> or B<-relative>.  B<-path_info>
+is provided as a synonym.
+
+=item B<-query> (B<-query_string>)
+
+Append the query string to the URL.  This can be combined with
+B<-full>, B<-absolute> or B<-relative>.  B<-query_string> is provided
+as a synonym.
+
+=back
 
 =head1 CREATING STANDARD HTML ELEMENTS:
 
@@ -4532,13 +4595,14 @@ parameter:
 			    -size=>50,
 			    -maxlength=>80);
 
-JAVASCRIPTING: You can also provide B<-onChange>, B<-onFocus>, B<-onBlur>
-and B<-onSelect> parameters to register JavaScript event handlers.
-The onChange handler will be called whenever the user changes the
-contents of the text field.  You can do text validation if you like.
-onFocus and onBlur are called respectively when the insertion point
-moves into and out of the text field.  onSelect is called when the
-user changes the portion of the text that is selected.
+JAVASCRIPTING: You can also provide B<-onChange>, B<-onFocus>,
+B<-onBlur>, B<-onMouseOver>, B<-onMouseOut> and B<-onSelect>
+parameters to register JavaScript event handlers.  The onChange
+handler will be called whenever the user changes the contents of the
+text field.  You can do text validation if you like.  onFocus and
+onBlur are called respectively when the insertion point moves into and
+out of the text field.  onSelect is called when the user changes the
+portion of the text that is selected.
 
 =head2 CREATING A BIG TEXT FIELD
 
@@ -4556,8 +4620,9 @@ rows and columns for a multiline text entry box.  You can provide
 a starting value for the field, which can be long and contain
 multiple lines.
 
-JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur>
-and B<-onSelect> parameters are recognized.  See textfield().
+JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur> ,
+B<-onMouseOver>, B<-onMouseOut>, and B<-onSelect> parameters are
+recognized.  See textfield().
 
 =head2 CREATING A PASSWORD FIELD
 
@@ -4572,8 +4637,9 @@ and B<-onSelect> parameters are recognized.  See textfield().
 password_field() is identical to textfield(), except that its contents 
 will be starred out on the web page.
 
-JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur>
-and B<-onSelect> parameters are recognized.  See textfield().
+JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur>,
+B<-onMouseOver>, B<-onMouseOut> and B<-onSelect> parameters are
+recognized.  See textfield().
 
 =head2 CREATING A FILE UPLOAD FIELD
 
@@ -4674,9 +4740,9 @@ If you are using a machine that recognizes "text" and "binary" data
 modes, be sure to understand when and how to use them (see the Camel book).  
 Otherwise you may find that binary files are corrupted during file uploads.
 
-JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur>
-and B<-onSelect> parameters are recognized.  See textfield()
-for details. 
+JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur>,
+B<-onMouseOver>, B<-onMouseOut> and B<-onSelect> parameters are
+recognized.  See textfield() for details.
 
 =head2 CREATING A POPUP MENU
 
@@ -4738,8 +4804,9 @@ be retrieved using:
       $popup_menu_value = $query->param('menu_name');
 
 JAVASCRIPTING: popup_menu() recognizes the following event handlers:
-B<-onChange>, B<-onFocus>, and B<-onBlur>.  See the textfield()
-section for details on when these handlers are called.
+B<-onChange>, B<-onFocus>, B<-onMouseOver>, B<-onMouseOut>, and
+B<-onBlur>.  See the textfield() section for details on when these
+handlers are called.
 
 =head2 CREATING A SCROLLING LIST
 
@@ -4807,9 +4874,10 @@ selected items can be retrieved with:
 
 =back
 
-JAVASCRIPTING: scrolling_list() recognizes the following event handlers:
-B<-onChange>, B<-onFocus>, and B<-onBlur>.  See textfield() for
-the description of when these handlers are called.
+JAVASCRIPTING: scrolling_list() recognizes the following event
+handlers: B<-onChange>, B<-onFocus>, B<-onMouseOver>, B<-onMouseOut>
+and B<-onBlur>.  See textfield() for the description of when these
+handlers are called.
 
 =head2 CREATING A GROUP OF RELATED CHECKBOXES
 
@@ -4875,7 +4943,7 @@ columns.  You can provide just the -columns parameter if you wish;
 checkbox_group will calculate the correct number of rows for you.
 
 To include row and column headings in the returned table, you
-can use the B<-rowheader> and B<-colheader> parameters.  Both
+can use the B<-rowheaders> and B<-colheaders> parameters.  Both
 of these accept a pointer to an array of headings to use.
 The headings are just decorative.  They don't reorganize the
 interpretation of the checkboxes -- they're still a single named

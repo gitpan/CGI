@@ -17,10 +17,12 @@ package CGI::Cookie;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::Cookie::VERSION='1.05';
+$CGI::Cookie::VERSION='1.06';
 
 use CGI;
-use overload '""' => \&as_string;
+use overload '""' => \&as_string,
+    'cmp' => \&compare,
+    'fallback'=>1;
 
 # fetch a list of cookies from the environment and
 # return as a hash.  the cookies are parsed as normal
@@ -120,6 +122,12 @@ sub as_string {
     my($key) = CGI::escape($self->name);
     my($cookie) = join("=",$key,join("&",map CGI::escape($_),$self->value));
     return join("; ",$cookie,@constant_values);
+}
+
+sub compare {
+    my $self = shift;
+    my $value = shift;
+    return "$self" cmp $value;
 }
 
 # accessors

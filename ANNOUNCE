@@ -1,27 +1,22 @@
-CGI.pm version 2.40 is now available for your fun and edification.
+CGI.pm version 2.42 is now available for your fun and edification.
 This version includes the following bug fixes and features:
 
-1. CGI::Carp patched to work better with mod_perl (thanks to Chris
-Dean).
+1. Fixed nasty bug in url() method
 
-2. Uploads of files whose names begin with numbers or the Windows
-\\UNC\shared\file nomenclature should no longer fail.
+2. Added new features to url() method.
 
-3. The <STYLE> tag(for cascading style sheets) now generates the
-required TYPE attribute.
+3. Added regression tests ("make test" works)
 
-4. New server push primitives added, thanks to Ed Jordan.
+4. Remove warnings about ambiguous use of shift() when running on
+   windows platforms
 
-5. Table and other HTML3 functions are now part of the ":standard" set.
-
-6. Small documentation fixes.
+5. Small documentation fixes.
 
 The master copy can be found at
 http://www.genome.wi.mit.edu/ftp/pub/software/WWW/.  Mirror copies
-should be appearing on CPAN within hours.
+are available on a CPAN near you.
 
 Lincoln Stein
-May 20, 1998
 
 ========================================================================
 Lincoln D. Stein
