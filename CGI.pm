@@ -28,8 +28,8 @@ $AUTOLOAD_DEBUG=0;
 #    3) print header(-nph=>1)
 $NPH=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.34 1997/4/7 7:23 lstein Exp $';
-$CGI::VERSION='2.34';
+$CGI::revision = '$Id: CGI.pm,v 2.35 1997/4/20 20:19 lstein Exp $';
+$CGI::VERSION='2.35';
 
 # OVERRIDE THE OS HERE IF CGI.pm GUESSES WRONG
 # $OS = 'UNIX';
@@ -174,6 +174,7 @@ sub new {
     my($class,$initializer) = @_;
     my $self = {};
     bless $self,ref $class || $class || $DefaultClass;
+    $CGI::DefaultClass->_reset_globals() if $MOD_PERL;
     $initializer = to_filehandle($initializer) if $initializer;
     $self->init($initializer);
     return $self;
@@ -544,8 +545,6 @@ sub all_parameters {
     return () unless @{$self->{'.parameters'}};
     return @{$self->{'.parameters'}};
 }
-
-
 
 #### Method as_string
 #
@@ -994,14 +993,11 @@ sub redirect {
 	$r->status(302);
 	return;
     }
-    else {
-	push(@o,
-	     '-Status'=>'302 Found',
-	     '-Location'=>$url,
-	     '-nph'=>($nph||$NPH),
-	     );
-    }
-    push(@o, '-URI'=>$url);
+    push(@o,
+	 '-Status'=>'302 Found',
+	 '-Location'=>$url,
+	 '-URI'=>$url,
+	 '-nph'=>($nph||$NPH));
     push(@o,'-Target'=>$target) if $target;
     push(@o,'-Cookie'=>$cookie) if $cookie;
     return $self->header(@o);
@@ -1020,6 +1016,7 @@ END_OF_FUNC
 # $xbase -> (optional) alternative base at some remote location (-xbase)
 # $target -> (optional) target window to load all links into (-target)
 # $script -> (option) Javascript code (-script)
+# $no_script -> (option) Javascript <noscript> tag (-noscript)
 # $meta -> (optional) Meta information tags
 # @other -> (optional) any other named parameters you'd like to incorporate into
 #           the <BODY> tag.
@@ -1027,8 +1024,8 @@ END_OF_FUNC
 'start_html' => <<'END_OF_FUNC',
 sub start_html {
     my($self,@p) = &self_or_default(@_);
-    my($title,$author,$base,$xbase,$script,$target,$meta,@other) = 
-	$self->rearrange([TITLE,AUTHOR,BASE,XBASE,SCRIPT,TARGET,META],@p);
+    my($title,$author,$base,$xbase,$script,$noscript,$target,$meta,@other) = 
+	$self->rearrange([TITLE,AUTHOR,BASE,XBASE,SCRIPT,NOSCRIPT,TARGET,META],@p);
 
     # strangely enough, the title needs to be escaped as HTML
     # while the author needs to be escaped as a URL
@@ -1054,6 +1051,12 @@ sub start_html {
 $script
 // End script hiding. -->
 </SCRIPT>
+END
+    ;
+    push(@result,<<END) if $noscript;
+<NOSCRIPT>
+$noscript
+</NOSCRIPT>
 END
     ;
     my($other) = @other ? " @other" : '';
@@ -2329,6 +2332,7 @@ sub read_multipart {
     my(%header,$body);
     while (!$buffer->eof) {
 	%header = $buffer->readHeader;
+	die "Malformed multipart POST\n" unless %header;
 
 	# In beta1 it was "Content-disposition".  In beta2 it's "Content-Disposition"
 	# Sheesh.
@@ -2467,7 +2471,6 @@ sub new {
 	# Read the topmost (boundary) line plus the CRLF
 	my($null) = '';
 	$length -= $interface->read_from_client($IN,\$null,length($boundary)+2,0);
-
     } else { # otherwise we find it ourselves
 	my($old);
 	($old,$/) = ($/,$CRLF); # read a CRLF-delimited line
@@ -2496,12 +2499,15 @@ sub readHeader {
     my($self) = @_;
     my($end);
     my($ok) = 0;
+    my($bad) = 0;
     do {
 	$self->fillBuffer($FILLUNIT);
 	$ok++ if ($end = index($self->{BUFFER},"${CRLF}${CRLF}")) >= 0;
 	$ok++ if $self->{BUFFER} eq '';
+	$bad++ if !$ok && $self->{LENGTH} <= 0;
 	$FILLUNIT *= 2 if length($self->{BUFFER}) >= $FILLUNIT; 
-    } until $ok;
+    } until $ok || $bad;
+    return () if $bad;
 
     my($header) = substr($self->{BUFFER},0,$end+2);
     substr($self->{BUFFER},0,$end+4) = '';
@@ -2542,6 +2548,8 @@ sub read {
 
     # Find the boundary in the buffer (it may not be there).
     my $start = index($self->{BUFFER},$self->{BOUNDARY});
+    # protect against malformed multipart POST operations
+    die "Malformed multipart POST\n" unless ($start >= 0) || ($self->{LENGTH} > 0);
 
     # If the boundary begins the data, then skip past it
     # and return undef.  The +2 here is a fiendish plot to
@@ -2597,7 +2605,7 @@ sub fillBuffer {
 							 $bytesToRead,
 							 $bufferLength);
 
-    # An apparent bug in the Netscape Commerce server causes the read()
+    # An apparent bug in the Apache server causes the read()
     # to return zero bytes repeatedly without blocking if the
     # remote user aborts during a file transfer.  I don't know how
     # they manage this, but the workaround is to abort if we get
@@ -2705,6 +2713,11 @@ __END__
 =head1 NAME
 
 CGI - Simple Common Gateway Interface Class
+
+=head1 SYNOPSIS
+
+  use CGI;
+  # the rest is too complicated for a synopsis; keep reading
 
 =head1 ABSTRACT
 
@@ -3137,7 +3150,7 @@ produce both the unofficial Location: header and the official URI:
 header.  This should satisfy most servers and browsers.
 
 One hint I can offer is that relative links may not work correctly
-when when you generate a redirection to another document on your site.
+when you generate a redirection to another document on your site.
 This is due to a well-intentioned optimization that some servers use.
 The solution to this is to use the full URL (including the http: part)
 of the document you are redirecting to.
@@ -3201,7 +3214,7 @@ There is no support for the HTTP-EQUIV type of <META> tag.  This is
 because you can modify the HTTP header directly with the B<header()>
 method.
 
-JAVASCRIPTING: The B<-script>, B<-onLoad> and B<-onUnload> parameters
+JAVASCRIPTING: The B<-script>, B<-noScript>, B<-onLoad> and B<-onUnload> parameters
 are used to add Netscape JavaScript calls to your pages.  B<-script>
 should point to a block of text containing JavaScript function
 definitions.  This block will be placed within a <SCRIPT> block inside
@@ -3238,6 +3251,10 @@ B<-script> field:
       END
       print $query->start_html(-title=>'The Riddle of the Sphinx',
 			       -script=>$JSCRIPT);
+
+Use the B<-noScript> parameter to pass some HTML text that will be displayed on 
+browsers that do not have JavaScript (or browsers where JavaScript is turned
+off).
 
 See
 
@@ -3787,7 +3804,7 @@ list.  Otherwise, they will be strung together on a horizontal line.
 =item 4.
 
 The optional fifth argument is a pointer to an associative array
-relating the checkbox values to the user-visible labels that will will
+relating the checkbox values to the user-visible labels that will
 be printed next to them (-labels).  If not provided, the values will
 be used as the default.
 
@@ -4384,9 +4401,9 @@ You can pass a value of 'true' to dump() in order to get it to
 print the results out as plain text, suitable for incorporating
 into a <PRE> section.
 
-As a shortcut, as of version 1.56 you can interpolate the entire 
-CGI object into a string and it will be replaced with the
-the a nice HTML dump shown above:
+As a shortcut, as of version 1.56 you can interpolate the entire CGI
+object into a string and it will be replaced with the a nice HTML dump
+shown above:
 
     $query=new CGI;
     print "<H2>Current Values</H2> $query\n";

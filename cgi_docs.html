@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.34, 4/7/97, L. Stein
+Version 2.35, 4/20/97, L. Stein
 <p>
 
 <strong>WARNING:</strong> The overloaded double-quote ("") operator
@@ -103,7 +103,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.34?</A>
+  <LI><A HREF="#new">What's new in version 2.35?</A>
 </MENU>
 
 <HR>
@@ -724,6 +724,8 @@ All parameters are optional:
       print $query-&gt;start_html(-title=&gt;'The Riddle of the Sphinx',
                                -script=&gt;$JSCRIPT);
       </pre>
+  <LI>A <strong>-noScript</strong> parameter to pass some HTML that will be displayed
+      in browsers that do not have JavaScript (or have JavaScript turned off).
   <LI>A <strong>-meta</strong> parameter to define one or more &lt;META&gt; tags.  Pass
       this parameter a reference to an associative array containing key/value pairs.  Each
       pair becomes a &lt;META&gt; tag in a format similar to this one.
@@ -3173,6 +3175,14 @@ Address bug reports and comments to:<BR>
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.35</h3>
+<ol>
+  <li>Robustified multipart file upload against incorrect syntax in POST.
+  <li>Fixed more problems with mod_perl.
+  <li>Added -noScript parameter to start_html().
+  <li>Documentation fixes.
+</ol>
+
 <h3>Version 2.34</h3>
 <ol>
   <li>Stupid typo fix
@@ -3614,6 +3624,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Tue Apr  8 03:20:21 MET DST 1997
+Last modified: Sun Apr 20 19:26:43 EDT 1997
 <!-- hhmts end -->
 </BODY> </HTML>
