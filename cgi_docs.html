@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.26, 10/16/96, L. Stein
+Version 2.27, 10/22/96, L. Stein
 <p>
 
 <strong>WARNING:</strong> As threatened, the <code>import()</code>
@@ -110,7 +110,7 @@ href="#import">importing CGI methods</a> for an explanation.)
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.26?</A>
+  <LI><A HREF="#new">What's new in version 2.27?</A>
 </MENU>
 
 <HR>
@@ -2914,6 +2914,13 @@ Address bug reports and comments to:<BR>
 
 <HR>
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.27</h3>
+<ol>
+  <li>Small but important bug fix: the automatic capitalization of
+      tag attributes was accidentally capitalizing the VALUES as
+      well as the ATTRIBUTE names (oops).
+</ol>
+
 <h3>Version 2.26</h3>
 <ol>
   <li>Changed behavior of scrolling_list(), checkbox() and checkbox_group()
@@ -3274,6 +3281,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Thu Oct 17 09:23:29 EDT 1996
+Last modified: Wed Oct 23 12:43:05 EDT 1996
 <!-- hhmts end -->
 </BODY> </HTML>

@@ -21,8 +21,8 @@ require 5.001;
 # Set this to 1 to enable copious autoloader debugging messages
 $AUTOLOAD_DEBUG=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.26 1996/10/15 15:45 lstein Exp $';
-$CGI::VERSION='2.26';
+$CGI::revision = '$Id: CGI.pm,v 2.27 1996/10/22 12:08 lstein Exp $';
+$CGI::VERSION='2.27';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -263,7 +263,7 @@ sub init {
     if (defined(@QUERY_PARAM) && !$initializer) {
 
 	foreach (@QUERY_PARAM) {
-	    $self->param(-name=>$_,-value=>$QUERY_PARAM{$_});
+	    $self->param('-name'=>$_,'-value'=>$QUERY_PARAM{$_});
 	}
 	return;
     }
@@ -277,7 +277,7 @@ sub init {
 
 	  if (ref($initializer) eq 'HASH') {
 	      foreach (keys %$initializer) {
-		  $self->param(-name=>$_,-value=>$initializer->{$_});
+		  $self->param('-name'=>$_,'-value'=>$initializer->{$_});
 	      }
 	      last METHOD;
 	  }
@@ -537,7 +537,7 @@ sub func_name {
 	my(@attr) = CGI::make_attributes('',shift);
 	$attr = " @attr" if @attr;
     }
-    my($tag,$untag) = ("\U<func_name$attr>\E","\U</func_name>\E");
+    my($tag,$untag) = ("\U<func_name\E$attr>","\U</func_name>\E");
     return $tag unless @_;
     if (ref($_[0]) eq 'ARRAY') {
 	my(@r);
@@ -2122,9 +2122,9 @@ END_OF_FUNC
 'get_fields' => <<'END_OF_FUNC',
 sub get_fields {
     my($self) = @_;
-    return $self->hidden(-name=>'.cgifields',
-			 -values=>[keys %{$self->{'.parametersToAdd'}}],
-			 -override=>1);
+    return $self->hidden('-name'=>'.cgifields',
+			 '-values'=>[keys %{$self->{'.parametersToAdd'}}],
+			 '-override'=>1);
 }
 END_OF_FUNC
 
