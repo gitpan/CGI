@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.17 1998/02/02 19:33:27 lstein Exp lstein $';
-$CGI::VERSION='2.37024';
+$CGI::revision = '$Id: CGI.pm,v 1.19 1998/02/09 18:56:04 lstein Exp $';
+$CGI::VERSION='2.37025';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -475,7 +475,7 @@ sub escape {
     shift if ref($_[0]) || $_[0] eq $DefaultClass;
     my $toencode = shift;
     return undef unless defined($toencode);
-    $toencode=~s/([\x00-\x20"#%;<>?{}|\\\\^~`\[\]\x7F-\xFF])/uc sprintf("%%%02x",ord($1))/eg; #"
+    $toencode=~s/([^a-zA-Z0-9_\-.])/uc sprintf("%%%02x",ord($1))/eg;
     return $toencode;
 }
 
@@ -2544,7 +2544,7 @@ END_OF_FUNC
 'private_tempfiles' => <<'END_OF_FUNC',
 sub private_tempfiles {
     my ($self,$param) = self_or_CGI(@_);
-    $CGI::$PRIVATE_TEMPFILES = $param if defined($param);
+    $CGI::PRIVATE_TEMPFILES = $param if defined($param);
     return $CGI::PRIVATE_TEMPFILES;
 }
 END_OF_FUNC
