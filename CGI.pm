@@ -18,7 +18,7 @@ require 5.004;
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.30 2000/03/28 21:31:40 lstein Exp $';
-$CGI::VERSION='2.62';
+$CGI::VERSION='2.63';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -444,7 +444,7 @@ sub init {
     # We now have the query string in hand.  We do slightly
     # different things for keyword lists and parameter lists.
     if (defined $query_string && $query_string) {
-	if ($query_string =~ /=/) {
+	if ($query_string =~ /&/) {
 	    $self->parse_params($query_string);
 	} else {
 	    $self->add_parameter('keywords');
@@ -527,10 +527,11 @@ sub parse_params {
     my($param,$value);
     foreach (@pairs) {
 	($param,$value) = split('=',$_,2);
+	$value = '' unless defined $value;
 	$param = unescape($param);
 	$value = unescape($value);
 	$self->add_parameter($param);
-	push (@{$self->{$param}},$value) if defined $value;
+	push (@{$self->{$param}},$value);
     }
 }
 
@@ -1153,7 +1154,7 @@ sub header {
     }
 
     $type ||= 'text/html' unless defined($type);
-    $type .= "; charset=$charset" unless $type=~/\bcharset\b/;
+    $type .= "; charset=$charset" if $type ne '' and $type !~ /\bcharset\b/;
 
     # Maybe future compatibility.  Maybe not.
     my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
@@ -3557,10 +3558,11 @@ parsed keywords can be obtained as an array using the keywords() method.
      @names = $query->param
 
 If the script was invoked with a parameter list
-(e.g. "name1=value1&name2=value2&name3=value3"), the param()
-method will return the parameter names as a list.  If the
-script was invoked as an <ISINDEX> script, there will be a
-single parameter named 'keywords'.
+(e.g. "name1=value1&name2=value2&name3=value3"), the param() method
+will return the parameter names as a list.  If the script was invoked
+as an <ISINDEX> script and contains a string without ampersands
+(e.g. "value1+value2+value3") , there will be a single parameter named
+"keywords" containing the "+"-delimited keywords.
 
 NOTE: As of version 1.5, the array of parameter names returned will
 be in the same order as they were submitted by the browser.
@@ -3580,6 +3582,10 @@ Pass the param() method a single argument to fetch the value of the
 named parameter. If the parameter is multivalued (e.g. from multiple
 selections in a scrolling list), you can ask to receive an array.  Otherwise
 the method will return a single value.
+
+If a value is not given in the query string, as in the queries
+"name1=&name2=" or "name1&name2", it will be returned as an empty
+string.  This feature is new in 2.63.
 
 =head2 SETTING THE VALUE(S) OF A NAMED PARAMETER:
 

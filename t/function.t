@@ -4,7 +4,7 @@
 ######################### We start with some black magic to print on failure.
 use lib '../blib/lib','../blib/arch';
 
-BEGIN {$| = 1; print "1..24\n"; }
+BEGIN {$| = 1; print "1..26\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use CGI (':standard','keywords');
 $loaded = 1;
@@ -18,6 +18,8 @@ sub test {
     my($num, $true,$msg) = @_;
     print($true ? "ok $num\n" : "not ok $num $msg\n");
 }
+
+my $CRLF = "\015\012";
 
 # Set up a CGI environment
 $ENV{REQUEST_METHOD}='GET';
@@ -73,3 +75,5 @@ if (open(CHILD,"|-")) {  # cparent
 # at this point, we're in a new (child) process
 test(23,param('weather') eq 'nice',"CGI::param() from POST");
 test(24,url_param('big_balls') eq 'basketball',"CGI::url_param()");
+test(25,redirect('http://somewhere.else') eq "Status: 302 Moved${CRLF}Location: http://somewhere.else${CRLF}${CRLF}","CGI::redirect() 1");
+test(26,redirect(-Location=>'http://somewhere.else',-Type=>'text/html') eq "Status: 302 Moved${CRLF}Location: http://somewhere.else${CRLF}Content-Type: text/html; charset=ISO-8859-1${CRLF}${CRLF}","CGI::redirect() 2");

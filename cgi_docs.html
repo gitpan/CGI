@@ -6,7 +6,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.62, 3/28/2000, L. Stein
+Version 2.63, 4/10/2000, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -408,14 +408,14 @@ Script</A></H3>
 
 
 <PRE>
-    @names = $query-&gt;param
-</PRE>
-If the script was invoked with a parameter list
+    @names = $query-&gt;param </PRE> If the script was invoked with a
+parameter list
 (e.g. "name1=value1&amp;name2=value2&amp;name3=value3"), the param()
 method will return the parameter names as a list.  For backwards
-compatability, this method will work even if the
-script was invoked as an &lt;ISINDEX&gt; script: in this case there
-will be a single parameter name returned named 'keywords'.
+compatibility if the script was invoked as an &lt;ISINDEX&gt; script
+and contains a string without ampersands (e.g. "value1+value2+value3")
+, there will be a single parameter named "keywords" containing the
+"+"-delimited keywords.
 
 <H3><A NAME="values">Fetching The Value(s) Of A Named Parameter</A></H3>
 
@@ -429,12 +429,12 @@ named parameter. If the parameter is multivalued (e.g. from multiple
 selections in a scrolling list), you can ask to receive an array.  Otherwise
 the method will return a single value.
 <P>
-As of version 1.50 of this library, the array of parameter names returned
-will be in the same order in which the browser sent them.  Although
-this is not guaranteed to be identical to the order in which the
-parameters were defined in the fill-out form, this is usually the
-case.
 
+If a value is not given in the query string, as in the queries
+"name1=&amp;name2=" or "name1&amp;name2", it will be returned as an
+empty string (not undef).  This feature is new in 2.63, and was
+introduced to avoid multiple "undefined value" warnings when running
+with the -w switch.
 
 <H3><A NAME="setting">Setting The Value(s) Of A Named Parameter</A></H3>
 
@@ -4516,10 +4516,6 @@ http://www.genome.wi.mit.edu/ftp/pub/software/WWW/</A>
 <P>
 You are encouraged to look at these other Web-related modules:
 <DL>
-  <DT> <A HREF="ftp://ftp.acoates.com/acoates/perl/">HTML.pm</A>
-  <DD> A module that simplifies the creation of HTML documents
-       programatically.
-
   <DT> <A HREF="http://www.genome.wi.mit.edu/ftp/pub/software/WWW/CGIperl/">
        CGI::Base,CGI::Form,CGI::MiniSrv,CGI::Request and CGI::URI::URL</A>
   <DD> Modules for parsing script input, manipulating URLs, creating
@@ -4624,6 +4620,14 @@ you.
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+
+<h3>Version 2.63</h3>
+<ol>
+  <li>Fixed CGI::Push to pull out parameters correctly.
+  <li>Fixed redirect() so that it works with default character set
+  <li>Changed param() so as to returned empty string '' when referring
+      to variables passed in query strings like 'name1=&amp;name2'
+</ol>
 
 <h3>Version 2.62</h3>
 <ol>
@@ -5395,6 +5399,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Tue Mar 28 16:20:29 EST 2000
+Last modified: Mon Apr 10 10:59:43 EDT 2000
 <!-- hhmts end -->
 </BODY> </HTML>
