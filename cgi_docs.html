@@ -7,8 +7,11 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 3.05, 04/12/2004, L. Stein
 <p>
+
+<h1>AS OF 10 FEBRUARY 2005 (CGI.pm VERSION 3.06) THIS DOCUMENT IS NO
+LONGER BEING MAINTAINED.  PLEASE CONSULT THE CGI POD DOCUMENTATION
+USING "perldoc CGI"</h1>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
 fill-out forms on the fly and to parse their contents.  It provides a
@@ -687,7 +690,7 @@ errors may only occur the first time you call
 <H3>Saving the State to a File</H3>
 
 <PRE>
-   $query-&gt;save(FILEHANDLE)
+   $query-&gt;save(\*FILEHANDLE)
 </PRE>
 This writes the current query out to the file handle of your choice.
 The file handle must already be open and be writable, but other than
@@ -1145,6 +1148,12 @@ All parameters are optional:
       To create an HTTP-EQUIV tag, use the <B>-head</B> argument as described below.
   <li>The <b>-encoding</b> argument can be used to specify the character set for
        XHTML.  It defaults to iso-8859-1 if not specified.
+  <li>The <b>-declare_xml</b> argument, when used in conjunction with XHTML,
+      will put a &lt;?xml&gt; declaration at the top of the HTML header. The sole
+      purpose of this declaration is to declare the character set
+      encoding. In the absence of -declare_xml, the output HTML will contain
+      a <meta> tag that specifies the encoding, allowing the HTML to pass
+      most validators.  The default for -declare_xml is false.
   <li>A <strong>-lang</strong>> argument is used to incorporate a language attribute into
       the &lt;HTM&gt;> tag.  The default if not specified is "en-US" for US English.  For example:
 <blockquote><pre>
@@ -1808,7 +1817,7 @@ by calling <A HREF="#startform">startform()</A>
 and specify an encoding type of <CODE>$CGI::MULTIPART</CODE>
 or by using the new <A HREF="#multipart">start_multipart_form()</A>
 method.  If you don't use multipart encoding, then you'll be
-able to retreive the name of the file selected by the remote
+able to retrieve the name of the file selected by the remote
 user, but you won't be able to access its contents.
 
 <P>
@@ -1985,24 +1994,6 @@ careful to use the proper capitalization for "Content-Type"!):
        unless ($type eq 'text/html') {
 	  die "HTML FILES ONLY!";
        }
-</pre>
-
-<p>
-
-You can set up a callback that will be called whenever a file upload
-is being read during the form processing. This is much like the
-UPLOAD_HOOK facility available in Apache::Request, with the exception
-that the first argument to the callback is an Apache::Upload object,
-here it's the remote filename.
-
-<pre>
- $q = CGI->new(undef, \&hook, $data);
-
- sub hook
- {
-        my ($filename, $buffer, $bytes_read, $data) = @_;
-        print  "Read $bytes_read bytes of $filename\n";         
- }
 </pre>
 
 
@@ -3873,7 +3864,7 @@ sub save_parameters {
     local($query) = @_;
     local($filename) = &amp;clean_name($query-&gt;param('savefile'));
     if (open(FILE,"&gt;$filename")) {
-	$query-&gt;save(FILE);
+	$query-&gt;save(\*FILE);
 	close FILE;
 	print "&lt;STRONG&gt;State has been saved to file $filename&lt;/STRONG&gt;\n";
     } else {
@@ -3885,7 +3876,7 @@ sub restore_parameters {
     local($query) = @_;
     local($filename) = &amp;clean_name($query-&gt;param('savefile'));
     if (open(FILE,$filename)) {
-	$query = new CGI(FILE);  # Throw out the old query, replace it with a new one
+	$query = new CGI(\*FILE);  # Throw out the old query, replace it with a new one
 	close FILE;
 	print "&lt;STRONG&gt;State has been restored from file $filename&lt;/STRONG&gt;\n";
     } else {
@@ -4897,6 +4888,18 @@ you.
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 3.06</h3>
+<ol>
+  <li>Fixed bare call to script() in start_html
+  <li>Moved Fh::DESTROY out of autoloaded functions so as to avoid clobbering
+      $@ when CGI functions are executed in an eval{} context.
+  <li>mod_perl 2.0 version detection patch in CGI::Cookie provided by
+      Allen Day.
+  <li>autoEscape() flag is now respected when generating extra attributes.
+  <li>Tests for *tag start/end generation from Shlomi Fish.
+  <li>Support for can() method provided by Ron Savage.
+  <li>Fix for lang='' when outputting XHTML.
+</ol>
 <h3>Version 3.05</h3>
 <ol>
   <li>Fixed uninitialized variable warning on start_form() when running from command line.
@@ -4910,7 +4913,7 @@ you.
   <li>Patches from Dan Harkless to make CGI.pm validatable against HTML 3.2.
   <li>Fixed an extraneous "foo=bar" appearing when extra style parameters passed to
       start_html;
-  <li>Fixed potential cross-site scripting bug in startform().
+  <li>Fixed cross-site scripting bug in startform() pointed out by Dan Harkless.
   <li>Fixed documentation to discuss list context behavior of form-element generators
       explicitly.
   <li>Fixed incorrect results from end_form() when called in OO manner.
@@ -6059,6 +6062,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Mon Apr 12 16:36:49 EDT 2004
+Last modified: Wed Feb  9 17:41:35 EST 2005
 <!-- hhmts end -->
 </BODY> </HTML>
