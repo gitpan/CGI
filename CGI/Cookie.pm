@@ -17,9 +17,10 @@ package CGI::Cookie;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::Cookie::VERSION='1.03';
+$CGI::Cookie::VERSION='1.04';
 
 use CGI qw/unescape escape/;
+use overload '""' => \&as_string;
 
 # fetch a list of cookies from the environment and
 # return as a hash.  the cookies are parsed as normal
@@ -28,17 +29,7 @@ sub fetch {
     my $class = shift;
     my $raw_cookie = $ENV{HTTP_COOKIE} || $ENV{COOKIE};
     return () unless $raw_cookie;
-    my %results;
-
-    my(@pairs) = split("; ",$raw_cookie);
-    foreach (@pairs) {
-	my($key,$value) = split("=");
-	my(@values) = map unescape($_),split('&',$value);
-	$key = unescape($key);
-	$results{$key} = $class->new(-name=>$key,-value=>\@values);
-    }
-    return \%results unless wantarray;
-    return %results;
+    return $class->parse($raw_cookie);
 }
 
 # fetch a list of cookies from the environment and
@@ -67,8 +58,24 @@ sub raw_fetch {
     return %results;
 }
 
+sub parse {
+    my ($self,$raw_cookie) = @_;
+    my %results;
+
+    my(@pairs) = split("; ",$raw_cookie);
+    foreach (@pairs) {
+	my($key,$value) = split("=");
+	my(@values) = map unescape($_),split('&',$value);
+	$key = unescape($key);
+	$results{$key} = $self->new(-name=>$key,-value=>\@values);
+    }
+    return \%results unless wantarray;
+    return %results;
+}
+
 sub new {
     my $class = shift;
+    $class = ref($class) if ref($class);
     my($name,$value,$path,$domain,$secure,$expires) =
 	CGI->rearrange([NAME,[VALUE,VALUES],PATH,DOMAIN,SECURE,EXPIRES],@_);
 
@@ -180,6 +187,9 @@ CGI::Cookie - Interface to Netscape Cookies
     %cookies = fetch CGI::Cookie;
     $id = $cookies{'ID'}->value;
 
+    # create cookies returned from an external source
+    %cookies = parse CGI::Cookie($ENV{COOKIE});
+
 =head1 DESCRIPTION
 
 CGI::Cookie is an interface to Netscape (HTTP/1.1) cookies, an
@@ -274,6 +284,40 @@ pages at your site.
 B<-secure> if set to a true value instructs the browser to return the
 cookie only when a cryptographic protocol is in use.
 
+=head2 Sending the Cookie to the Browser
+
+Within a CGI script you can send a cookie to the browser by creating
+one or more Set-Cookie: fields in the HTTP header.  Here is a typical
+sequence:
+
+  my $c = new CGI::Cookie(-name    =>  'foo',
+                          -value   =>  ['bar','baz'],
+                          -expires =>  '+3M');
+
+  print "Set-Cookie: $c\n";
+  print "Content-Type: text/html\n\n";
+
+To send more than one cookie, create several Set-Cookie: fields.
+Alternatively, you may concatenate the cookies together with "; " and
+send them in one field.
+
+If you are using CGI.pm, you send cookies by providing a -cookie
+argument to the header() method:
+
+  print header(-cookie=>$c);
+
+Mod_perl users can set cookies using the request object's header_out()
+method:
+ 
+  $r->header_out('Set-Cookie',$c);
+
+Internally, Cookie overloads the "" operator to call its as_string()
+method when incorporated into the HTTP header.  as_string() turns the
+Cookie's internal representation into an RFC-compliant text
+representation.  You may call as_string() yourself if you prefer:
+
+  print "Set-Cookie: ",$c->as_string,"\n";
+
 =head2 Recovering Previous Cookies
 
 	%cookies = fetch CGI::Cookie;
@@ -294,6 +338,12 @@ CGI.pm uses the URL escaping methods to save and restore reserved characters
 in its cookies.  If you are trying to retrieve a cookie set by a foreign server,
 this escaping method may trip you up.  Use raw_fetch() instead, which has the
 same semantics as fetch(), but performs no unescaping.
+
+You may also retrieve cookies that were stored in some external
+form using the parse() class method:
+
+       $COOKIES = `cat /usr/tmp/Cookie_stash`;
+       %cookies = parse CGI::Cookie($COOKIES);
 
 =head2 Manipulating Cookies
 
@@ -337,9 +387,6 @@ Get or set the cookie's expiration time.
 
 =back
 
-=head1 CAVEATS
-
-This is a new module.  It hasn't been extensively tested.
 
 =head1 AUTHOR INFORMATION
 

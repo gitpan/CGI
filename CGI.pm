@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.19 1998/02/09 18:56:04 lstein Exp $';
-$CGI::VERSION='2.37025';
+$CGI::revision = '$Id: CGI.pm,v 1.19 1998/02/09 18:56:04 lstein Exp lstein $';
+$CGI::VERSION='2.37026';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -475,7 +475,7 @@ sub escape {
     shift if ref($_[0]) || $_[0] eq $DefaultClass;
     my $toencode = shift;
     return undef unless defined($toencode);
-    $toencode=~s/([^a-zA-Z0-9_\-.])/uc sprintf("%%%02x",ord($1))/eg;
+    $toencode=~s/([^a-zA-Z0-9_.-])/uc sprintf("%%%02x",ord($1))/eg;
     return $toencode;
 }
 
@@ -736,7 +736,7 @@ END_OF_FUNC
 sub import_names {
     my($self,$namespace,$delete) = self_or_default(@_);
     $namespace = 'Q' unless defined($namespace);
-    die "Can't import names into \"main\"\n" if $namespace eq 'main';
+    die "Can't import names into \"main\"\n" if \%{"${namespace}::"} == \%::;
     if ($delete || $MOD_PERL) {
 	# can anyone find an easier way to do this?
 	foreach (keys %{"${namespace}::"}) {
@@ -749,6 +749,7 @@ sub import_names {
     foreach $param ($self->param) {
 	# protect against silly names
 	($var = $param)=~tr/a-zA-Z0-9_/_/c;
+	$var =~ s/^(?=\d)/_/;
 	local *symbol = "${namespace}::$var";
 	@value = $self->param($param);
 	@symbol = @value;
@@ -1032,6 +1033,7 @@ sub save {
     my($self,$filehandle) = self_or_default(@_);
     $filehandle = to_filehandle($filehandle);
     my($param);
+    local($,) = '';  # set print field separator back to a sane value
     foreach $param ($self->param) {
 	my($escaped_param) = escape($param);
 	my($value);
@@ -5741,6 +5743,10 @@ Thanks very much to:
 =item Ed Jordan (ed@fidalgo.net)
 
 =item David Alan Pisoni (david@cnation.com)
+
+=item Doug MacEachern (dougm@opengroup.org)
+
+=item Robin Houston (robin@oneworld.org)
 
 =item ...and many many more...
 
