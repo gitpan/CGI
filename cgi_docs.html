@@ -5,11 +5,11 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.37b5, 10/11/97, L. Stein
+Version 2.37b6, 10/8/97, L. Stein
 <p>
 
 <strong>This is a beta release.</strong> 2.36 is the official release.
-If there are no bugs reported in this beta release by October 7, the
+If there are no bugs reported in this beta release by October 18, the
 final will be released.
 
 <p>
@@ -105,6 +105,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#mod_perl">Using CGI.pm with mod_perl and FastCGI</A>
   <LI><A HREF="#migrating">Migrating from cgi-lib.pl</A>
   <LI><a href="#upload_caveats">Using the File Upload Feature</a>
+  <LI><A HREF="#dos">Avoiding Denial of Service Attacks</A>
   <LI><A HREF="#non_unix">Using CGI.pm on non-Unix Platforms</A>
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
@@ -676,13 +677,32 @@ correctly.
 An alternative syntax for <code>redirect()</code> is:
 
 <blockquote><pre>
-print $query-&gt;redirect(-uri=&gt;'http://somewhere.else/',
-                          -nph=&gt;1);
+print $query-&gt;redirect(-location=&gt;'http://somewhere.else/',
+                          -nph=&gt;1,
+                          -method=&gt;GET);
 </pre></blockquote>
+
+The <strong>-location</strong> parameter gives the destination URL.
+You may also use <strong>-uri</strong> or <strong>-url</strong> if you
+prefer.
+
+<p>
 
 The <strong>-nph</strong> parameter, if non-zero tells CGI.pm that
 this script is running as a no-parsed-header script.  See <a
 href="#nph">Using NPH Scripts</a> for more information.
+
+<p>
+
+The <strong>-method</strong> parameter tells the browser what method
+to use for redirection.  This is handy if, for example, your script
+was called from a fill-out form POST operation, but you want to
+redirect the browser to a static page that requires a GET.
+
+<p>
+
+All other parameters recognized by the <tt>header()</tt> method are
+also valid in <tt>redirect</tt>.
 
 <A HREF="#contents">Table of contents</A>
 
@@ -2093,6 +2113,46 @@ uses "shellwords.pl" internally).  This lets you do this sort of thing:
     my_script.pl "'name 1'='I am a long value'" "'name 2'=two\ words"
 </PRE>
 
+<p>
+
+If you run a script that uses CGI.pm from the command line and fail to
+provide it with any arguments, it will print out the line
+
+<pre>
+(offline mode: enter name=value pairs on standard input)
+</pre>
+
+then appear to hang.  In fact, the library is waiting for you to give
+it some parameters to process on its standard input.  If you want to
+give it some parameters, enter them as shown above, then indicate that
+you're finished with input by pressing ^D (^Z on NT/DOS systems).  If
+you don't want to give CGI.pm parameters, just press ^D.
+
+<p>
+
+You can suppress this behavior in any of the following ways:
+
+<dl>
+  <dt>1. Call the script with an empty parameter.
+  <dd>Example:
+      <pre>
+      my_script.pl ''
+      </pre>
+      <p>
+  <dt>2. Redirect standard input from /dev/null or an empty file.
+  <dd>Example:
+      <pre>
+      my_script.pl &lt;/dev/null
+      </pre>
+      <p>
+  <dt>3. Include ":no_debug" in the list of symbols to import on the
+      "use" line.
+  <dd>Example:
+      <pre>
+      use CGI qw/:standard :no_debug/;
+      </pre>
+</dl>
+
 <A HREF="#contents">Table of contents</A>
 
 <A NAME="dumping">
@@ -3150,6 +3210,13 @@ This will work too on Unix systems:
      my_script.pl &lt;/dev/null
 </pre>
 
+Another option is to use the ":no_debug" pragma when you "use"
+CGI.pm.  This will suppress command-line debugging completely:
+
+<pre>
+use CGI qw/:standard :no_debug/;
+</pre>
+
 <H4>You can't retrieve the name of the uploaded file
 using the param() method</H4>
 Most likely the remote user isn't using version 2.0 (or higher)
@@ -3232,7 +3299,84 @@ to move the temporary file elsewhere in the file system if you don't
 want it to be automatically deleted when CGI.pm exits.
 <HR>
 
-<H3><A NAME="non_unix">Using CGI.pm on non-Unix Platforms</A></H3>
+<H2><a name="dos">Avoiding Denial of Service Attacks</a></H2>
+
+A potential problem with CGI.pm is that, by default, it attempts to
+process form POSTings no matter how large they are.  A wily hacker
+could attack your site by sending a CGI script a huge POST of many
+megabytes.  CGI.pm will attempt to read the entire POST into a
+variable, growing hugely in size until it runs out of memory.  While
+the script attempts to allocate the memory the system may slow down
+dramatically.  This is a form of denial of service attack.
+
+<p>
+
+Another possible attack is for the remote user to force CGI.pm to
+accept a huge file upload.  CGI.pm will accept the upload and store it
+in a temporary directory even if your script doesn't expect to receive
+an uploaded file.  CGI.pm will delete the file automatically when it
+terminates, but in the meantime the remote user may have filled up the
+server's disk space, causing problems for other programs.
+
+<p>
+
+The best way to avoid denial of service attacks is to limit the amount
+of memory, CPU time and disk space that CGI scripts can use.  Some Web
+servers come with built-in facilities to accomplish this. In other
+cases, you can use the shell <em>limit</em> or <em>ulimit</em>
+commands to put ceilings on CGI resource usage.
+
+<p>
+
+CGI.pm also has some simple built-in protections against denial of
+service attacks, but you must activate them before you can use them.
+These take the form of two global variables in the CGI name space:
+
+<dl>
+  <dt><strong><tt>$CGI::POST_MAX</tt></strong>
+  <dd>If set to a non-negative integer, this variable puts a ceiling
+      on the size of POSTings, in bytes.  If CGI.pm detects a POST
+      that is greater than the ceiling, it will immediately exit with an error
+      message.  This value will affect both ordinary POSTs and
+      multipart POSTs, meaning that it limits the maximum size of file
+      uploads as well.  You should set this to a reasonably high
+      value, such as 1 megabyte.
+      <p>
+  <dt><strong><tt>$CGI::DISABLE_UPLOADS</tt></strong>
+  <dd>If set to a non-zero value, this will disable file uploads
+      completely.  Other fill-out form values will work as usual.
+</dl>
+
+You can use these variables in either of two ways.
+
+<ol>
+  <li>On a script-by-script basis.  Set the variable at the top of the
+      script, right after the "use" statement:
+      <pre>
+      use CGI qw/:standard/;
+      use CGI::Carp 'fatalsToBrowser';
+      $CGI::POST_MAX=1024 * 100;  # max 100K posts
+      $CGI::DISABLE_UPLOADS = 1;  # no uploads
+      </pre>
+      <p>
+  <li>Globally for all scripts.  Open up CGI.pm, find the definitions
+      for <tt>$POST_MAX</tt> and <tt>$DISABLE_UPLOADS</tt>, and set
+      them to the desired values.  You'll find them towards the top of
+      the file in a subroutine named <tt>initialize_globals</tt>.
+</ol>
+
+Since an attempt to send a POST larger than <tt>$POST_MAX</tt> bytes
+will cause a fatal error, you might want to use CGI::Carp to echo the
+fatal error message to the browser window as shown in the example
+above.  Otherwise the remote user will see only a generic "Internal
+Server" error message.  See the manual page for CGI::Carp for more
+details.
+
+<p>
+<A HREF="#contents">Table of contents</A>
+<HR>
+
+<H2><A NAME="non_unix">Using CGI.pm on non-Unix Platforms</A></H2>
 
 I don't have access to all the combinations of hardware and software
 that I really need to make sure that CGI.pm works consistently for all
@@ -3261,7 +3405,7 @@ correct definition:
 
 Other notes follow:
 
-<H4><a name="windows">Windows NT</a></H4>
+<H3><a name="windows">Windows NT</a></H3>
 
 CGI.pm works well with WebSite, the EMWACS server, Purveyor and the
 Microsoft IIS server.  CGI.pm must be put in the perl5 library
@@ -3322,12 +3466,12 @@ you continue to have problems, make sure you're calling
 <strong>binmode()</strong> on the filehandle that you use to write
 the uploaded file to disk.
 
-<H4>VMS</H4>
+<H3>VMS</H3>
 
 I don't have access to a VMS machine, and I'm not sure whether file upload
 works correctly.  Other features are known to work.
 
-<H4>Macintosh</H4>
+<H3>Macintosh</H3>
 
 Most CGI.pm features work with MacPerl version 5.0.6r1 or higher under
 the WebStar and MacHTTP servers.  In order to install a Perl program
@@ -3431,7 +3575,12 @@ Address bug reports and comments to:<BR>
 <h3>Version 2.37</h3>
 <ol>
   <li>Added $DISABLE_UPLOAD to disable file uploads.
-  <li>Added $UPLOAD_MAX to limit file uploads to a maximum size.
+  <li>Added $POST_MAX to error out if POSTings exceed some ceiling.
+  <li>Fixed url_param(), which wasn't working at all.
+  <li>Fixed variable suicide problem in s///e expressions, where the autoloader
+      was needed during evaluation.
+  <li>Removed excess spaces between elements of checkbox and radio groups
+  <li>Can now create "valueless" submit buttons
   <li>Can now set path_info as well as read it.
   <li>ReadParse() now returns a useful function result.
   <li>import_names() now allows you to optionally clear out the
@@ -3453,6 +3602,7 @@ Address bug reports and comments to:<BR>
   <li>Got rid of warnings when radio_group() is called.
   <li>Cookies now moved to their very own module.
   <li>Fixed documentation bug in CGI::Fast.
+  <li>Added a :no_debug pragma to the import list.
 </ol>
 
 <h3>Version 2.36</h3>
@@ -3920,6 +4070,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Wed Oct  1 07:13:17 EDT 1997
+Last modified: Sun Oct 12 10:08:41 EDT 1997
 <!-- hhmts end -->
 </BODY> </HTML>

@@ -18,13 +18,12 @@ require 5.003;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.3 1997/08/29 11:29:33 lstein Exp lstein $';
-$CGI::VERSION='2.37b5';
+$CGI::revision = '$Id: CGI.pm,v 1.4 1997/10/12 14:04:33 lstein Exp lstein $';
+$CGI::VERSION='2.37b6';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
 # $TempFile::TMPDIRECTORY = '/usr/tmp';
-
 
 # >>>>> Here are some globals that you might want to adjust <<<<<<
 sub initialize_globals {
@@ -42,6 +41,10 @@ sub initialize_globals {
     #    3) print header(-nph=>1)
     $NPH = 0;
 
+    # Set this to 1 to disable debugging from the
+    # command line
+    $NO_DEBUG = 0;
+
     # Set this to 1 to make the temporary files created
     # during file uploads safe from prying eyes
     # or do...
@@ -49,12 +52,12 @@ sub initialize_globals {
     #    2) $CGI::private_tempfiles(1);
     $PRIVATE_TEMPFILES = 0;
 
+    # Set this to a positive value to limit the size of a POSTing
+    # to a certain number of bytes:
+    $POST_MAX = -1;
+
     # Change this to 1 to disable uploads entirely:
     $DISABLE_UPLOADS = 0;
-
-    # Set this to a positive value to limit the size of an uploaded file
-    # to a certain number of bytes:
-    $UPLOAD_MAX = -1;
 
     # Other globals that you shouldn't worry about.
     undef $Q;
@@ -123,7 +126,7 @@ if (defined($ENV{'GATEWAY_INTERFACE'}) &&
 # define it explicitly here.  I'm told that VMS does things
 # differently, hence the special casing here.  Would someone
 # please confirm this for me?
-$CRLF = $OS eq 'VMS' ? "\012" : "\015\012";
+$CRLF = $OS eq 'VMS' ? "\n" : "\015\012";
 
 if ($needs_binmode) {
     $CGI::DefaultClass->binmode(main::STDOUT);
@@ -138,7 +141,7 @@ if ($needs_binmode) {
 	      ':html2'=>[h1..h6,qw/p br hr ol ul li dl dt dd menu code var strong em
 			 tt i b blockquote pre img a address cite samp dfn html head
 			 base body Link nextid title meta kbd start_html end_html
-			 input Select option/],
+			 input Select option comment/],
 	      ':html3'=>[qw/div table caption th td TR Tr super sub strike applet Param 
 			 embed basefont style span layer ilayer/],
 	      ':netscape'=>[qw/blink frameset frame script font fontsize center small big/],
@@ -164,8 +167,9 @@ sub import {
     my ($callpack, $callfile, $callline) = caller;
     foreach (@_) {
 	$NPH++, next if $_ eq ':nph';
-	$EXPORT{$_}++, next if $_ eq ':any';
+	$NO_DEBUG++, next if $_ eq ':no_debug';
 	$PRIVATE_TEMPFILES++, next if $_ eq ':private_tempfiles';
+	$EXPORT{$_}++, next if $_ eq ':any';
 
 	foreach (&expand_tags($_)) {
 	    tr/a-zA-Z0-9_//cd;  # don't allow weird function names
@@ -369,6 +373,9 @@ sub init {
     }
 
     $meth=$ENV{'REQUEST_METHOD'} if defined($ENV{'REQUEST_METHOD'});
+    my($content_length) = $ENV{'CONTENT_LENGTH'} if defined($ENV{'CONTENT_LENGTH'});
+    die "Client attempted to POST $content_length bytes, but POSTs are limited to $POST_MAX"
+	if ($POST_MAX > 0) && ($content_length > $POST_MAX);
 
   METHOD: {
 
@@ -378,8 +385,8 @@ sub init {
 	  && defined($ENV{'CONTENT_TYPE'})
 	  && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|) {
 
-	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary="?([^";]+)"?/;
-	  $self->read_multipart($boundary,$ENV{'CONTENT_LENGTH'},$initializer);
+	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary=\"?([^\";]+)\"?/;
+	  $self->read_multipart($boundary,$content_length,$initializer);
 	  last METHOD;
       } 
 
@@ -420,8 +427,8 @@ sub init {
       }
 
       if ($meth eq 'POST') {
-	  $self->read_from_client(\*STDIN,\$query_string,$ENV{'CONTENT_LENGTH'},0)
-	      if $ENV{'CONTENT_LENGTH'} > 0;
+	  $self->read_from_client(\*STDIN,\$query_string,$content_length,0)
+	      if $content_length > 0;
 	  last METHOD;
       }
 
@@ -434,9 +441,9 @@ sub init {
       # Check the command line and then the standard input for data.
       # We use the shellwords package in order to behave the way that
       # UN*X programmers expect.
-      $query_string = read_from_cmdline();
+      $query_string = read_from_cmdline() unless $NO_DEBUG;
   }
-    
+
     # We now have the query string in hand.  We do slightly
     # different things for keyword lists and parameter lists.
     if ($query_string) {
@@ -446,12 +453,6 @@ sub init {
 	    $self->add_parameter('keywords');
 	    $self->{'keywords'} = [$self->parse_keywordlist($query_string)];
 	}
-    }
-
-    # If method is POST, but we find a QUERY_STRING environment variable,
-    # then stash it in its own namespace.  Some people like this feature.
-    if ($ENV{QUERY_STRING} && $meth eq 'POST') {
-	$self->parse_params($ENV{QUERY_STRING},'.query_string');
     }
 
     # Special case.  Erase everything if there is a field named
@@ -589,33 +590,37 @@ sub as_string {
 sub AUTOLOAD {
     print STDERR "CGI::AUTOLOAD for $AUTOLOAD\n" if $CGI::AUTOLOAD_DEBUG;
     my($func) = $AUTOLOAD;
-    my($pack,$func_name) = $func=~/(.+)::([^:]+)$/;
-    $pack = ${"$pack\:\:AutoloadClass"} || $CGI::DefaultClass
-                unless defined(${"$pack\:\:AUTOLOADED_ROUTINES"});
+    my($pack,$func_name);
+    {
+	local($1,$2); # this fixes an obscure variable suicide problem.
+	($pack,$func_name) = $func=~/(.+)::([^:]+)$/;
+	$pack = ${"$pack\:\:AutoloadClass"} || $CGI::DefaultClass
+	    unless defined(${"$pack\:\:AUTOLOADED_ROUTINES"});
 
-    my($sub) = \%{"$pack\:\:SUBS"};
-    unless (%$sub) {
-	my($auto) = \${"$pack\:\:AUTOLOADED_ROUTINES"};
-	eval "package $pack; $$auto";
-	die $@ if $@;
-    }
-    my($code) = $sub->{$func_name};
+        my($sub) = \%{"$pack\:\:SUBS"};
+        unless (%$sub) {
+	   my($auto) = \${"$pack\:\:AUTOLOADED_ROUTINES"};
+	   eval "package $pack; $$auto";
+	   die $@ if $@;
+       }
+       my($code) = $sub->{$func_name};
 
-    $code = "sub $AUTOLOAD { }" if (!$code and $func_name eq 'DESTROY');
-    if (!$code) {
-	if ($EXPORT{':any'} || 
-	    $EXPORT{$func_name} || 
-	    (%EXPORT_OK || grep(++$EXPORT_OK{$_},&expand_tags(':html')))
-	    && $EXPORT_OK{$func_name}) {
-	    $code = $sub->{'HTML_FUNC'};
-	    $code=~s/func_name/$func_name/mg;
-	}
-    }
-    die "Undefined subroutine $AUTOLOAD\n" unless $code;
-    eval "package $pack; $code";
-    if ($@) {
-	$@ =~ s/ at .*\n//;
-	die $@;
+       $code = "sub $AUTOLOAD { }" if (!$code and $func_name eq 'DESTROY');
+       if (!$code) {
+	   if ($EXPORT{':any'} || 
+	       $EXPORT{$func_name} || 
+	       (%EXPORT_OK || grep(++$EXPORT_OK{$_},&expand_tags(':html')))
+	           && $EXPORT_OK{$func_name}) {
+	       $code = $sub->{'HTML_FUNC'};
+	       $code=~s/func_name/$func_name/mg;
+	   }
+       }
+       die "Undefined subroutine $AUTOLOAD\n" unless $code;
+       eval "package $pack; $code";
+       if ($@) {
+	   $@ =~ s/ at .*\n//;
+	   die $@;
+       }
     }
     goto &{"$pack\:\:$func_name"};
 }
@@ -860,6 +865,20 @@ sub delete_all {
 }
 EOF
 
+'Delete' => <<'EOF',
+sub Delete {
+    my($self,@p) = self_or_default(@_);
+    $self->delete(@p);
+}
+EOF
+
+'Delete_all' => <<'EOF',
+sub Delete_all {
+    my($self,@p) = self_or_default(@_);
+    $self->delete_all(@p);
+}
+EOF
+
 #### Method: autoescape
 # If you want to turn off the autoescaping features,
 # call this method with undef as the argument
@@ -904,7 +923,7 @@ sub url_param {
     my ($self,@p) = self_or_default(@_);
     my $name = shift @p;
     return undef unless $ENV{QUERY_STRING};
-    unless defined($self->{'.url_param'}) {
+    unless (defined($self->{'.url_param'})) {
 	$self->{'.url_param'}={}; # empty hash
 	my(@pairs) = split('&',$ENV{QUERY_STRING});
 	my($param,$value);
@@ -917,8 +936,8 @@ sub url_param {
     }
     return keys %{$self->{'.url_param'}} unless defined($name);
     return () unless $self->{'.url_param'}->{$name};
-    return wantarray ? @{$self->{'.url_param'}->{$name}} 
-           : $self->{$name}->[0];
+    return wantarray ? @{$self->{'.url_param'}->{$name}}
+                     : $self->{'.url_param'}->{$name}->[0];
 }
 END_OF_FUNC
 
@@ -1051,7 +1070,7 @@ END_OF_FUNC
 'redirect' => <<'END_OF_FUNC',
 sub redirect {
     my($self,@p) = self_or_default(@_);
-    my($url,$target,$cookie,$nph,@other) = $self->rearrange([[URI,URL],TARGET,COOKIE,NPH],@p);
+    my($url,$target,$cookie,$nph,@other) = $self->rearrange([[LOCATION,URI,URL],TARGET,COOKIE,NPH],@p);
     $url = $url || $self->self_url;
     my(@o);
     foreach (@other) { tr/"//d; push(@o,split("=")); }
@@ -1436,8 +1455,8 @@ sub submit {
     $value=$self->escapeHTML($value);
 
     my($name) = ' NAME=".submit"';
-    $name = qq/ NAME="$label"/ if $label;
-    $value = $value || $label;
+    $name = qq/ NAME="$label"/ if defined($label);
+    $value = defined($value) ? $value : $label;
     my($val) = '';
     $val = qq/ VALUE="$value"/ if defined($value);
     my($other) = @other ? " @other" : '';
@@ -1490,6 +1509,16 @@ sub defaults {
 }
 END_OF_FUNC
 
+
+#### Method: comment
+# Create an HTML <!-- comment -->
+# Parameters: a string
+'comment' => <<'END_OF_FUNC',
+sub comment {
+    my($self,@p) = self_or_CGI(@_);
+    return "<!-- @p -->";
+}
+END_OF_FUNC
 
 #### Method: checkbox
 # Create a checkbox that is not logically linked to any others.
@@ -1582,10 +1611,10 @@ sub checkbox_group {
 	    $label = $self->escapeHTML($label);
 	}
 	$_ = $self->escapeHTML($_);
-	push(@elements,qq/<INPUT TYPE="checkbox" NAME="$name" VALUE="$_"$checked$other>${label} ${break}/);
+	push(@elements,qq/<INPUT TYPE="checkbox" NAME="$name" VALUE="$_"$checked$other>${label}${break}/);
     }
     $self->register_parameter($name);
-    return wantarray ? @elements : join('',@elements) unless $columns;
+    return wantarray ? @elements : join(' ',@elements) unless $columns;
     return _tableize($rows,$columns,$rowheaders,$colheaders,@elements);
 }
 END_OF_FUNC
@@ -1686,10 +1715,10 @@ sub radio_group {
 	    $label = $self->escapeHTML($label);
 	}
 	$_=$self->escapeHTML($_);
-	push(@elements,qq/<INPUT TYPE="radio" NAME="$name" VALUE="$_"$checkit$other>${label} ${break}/);
+	push(@elements,qq/<INPUT TYPE="radio" NAME="$name" VALUE="$_"$checkit$other>${label}${break}/);
     }
     $self->register_parameter($name);
-    return wantarray ? @elements : join('',@elements) unless $columns;
+    return wantarray ? @elements : join(' ',@elements) unless $columns;
     return _tableize($rows,$columns,$rowheaders,$colheaders,@elements);
 }
 END_OF_FUNC
@@ -2512,16 +2541,7 @@ sub read_multipart {
 	  chmod 0600,$tmp;    # only the owner can tamper with it
 
 	  my ($data);
-	  my ($maxsize) = $UPLOAD_MAX;
 	  while (defined($data = $buffer->read)) {
-	      if ($UPLOAD_MAX >= 0) {
-		  $maxsize -= length($data);
-		  if ($maxsize <= 0) {
-		      # truncate data if necessary
-		      print $filehandle substr($data,0,$maxsize);
-		      last;
-		  }
-	      }
 	      print $filehandle $data;
 	  }
 
@@ -2559,7 +2579,6 @@ sub read_multipart {
 	    info=>{%header}
 	}
     }
-
 }
 END_OF_FUNC
 
@@ -3085,12 +3104,17 @@ This completely clears a parameter.  It sometimes useful for
 resetting parameters that you don't want passed down between
 script invocations.
 
+If you are using the function call interface, use "Delete()" instead
+to avoid conflicts with Perl's built-in delete operator.
+
 =head2 DELETING ALL PARAMETERS:
 
 $query->delete_all();
 
 This clears the CGI object completely.  It might be useful to ensure
 that all the defaults are taken when you create a fill-out form.
+
+Use Delete_all() instead if you are using the function call interface.
 
 =head2 SAVING THE STATE OF THE FORM TO A FILE:
 
@@ -4877,6 +4901,21 @@ names if you prefer:
 	print img {-src=>'fred.gif',-align=>'LEFT'};
 	# gives <img ALIGN="LEFT" SRC="fred.gif">
 
+=head2 Non-standard HTML fields
+
+B<comment()> generates an HTML comment (<!-- comment -->).  Call it
+like
+
+    print comment('here is my comment');
+
+Because of conflicts with built-in Perl functions, the following functions
+begin with initial caps:
+
+    Select
+    Tr
+    Link
+    Delete
+
 =head2 Generating new HTML tags
 
 Since no mere mortal can keep up with Netscape and Microsoft as they
@@ -5035,9 +5074,85 @@ Call B<nph()> with a non-zero parameter at any point after using CGI.pm in your 
 
 =back
 
+=head1 Avoiding Denial of Service Attacks
+
+A potential problem with CGI.pm is that, by default, it attempts to
+process form POSTings no matter how large they are.  A wily hacker
+could attack your site by sending a CGI script a huge POST of many
+megabytes.  CGI.pm will attempt to read the entire POST into a
+variable, growing hugely in size until it runs out of memory.  While
+the script attempts to allocate the memory the system may slow down
+dramatically.  This is a form of denial of service attack.
+
+Another possible attack is for the remote user to force CGI.pm to
+accept a huge file upload.  CGI.pm will accept the upload and store it
+in a temporary directory even if your script doesn't expect to receive
+an uploaded file.  CGI.pm will delete the file automatically when it
+terminates, but in the meantime the remote user may have filled up the
+server's disk space, causing problems for other programs.
+
+The best way to avoid denial of service attacks is to limit the amount
+of memory, CPU time and disk space that CGI scripts can use.  Some Web
+servers come with built-in facilities to accomplish this. In other
+cases, you can use the shell I<limit> or I<ulimit>
+commands to put ceilings on CGI resource usage.
+
+
+CGI.pm also has some simple built-in protections against denial of
+service attacks, but you must activate them before you can use them.
+These take the form of two global variables in the CGI name space:
+
+=over 4
+
+=item B<$CGI::POST_MAX>
+
+If set to a non-negative integer, this variable puts a ceiling
+on the size of POSTings, in bytes.  If CGI.pm detects a POST
+that is greater than the ceiling, it will immediately exit with an error
+message.  This value will affect both ordinary POSTs and
+multipart POSTs, meaning that it limits the maximum size of file
+uploads as well.  You should set this to a reasonably high
+value, such as 1 megabyte.
+
+=item B<$CGI::DISABLE_UPLOADS>
+
+If set to a non-zero value, this will disable file uploads
+completely.  Other fill-out form values will work as usual.
+
+=back
+
+You can use these variables in either of two ways.
+
+=over 4
+
+=item B<1. On a script-by-script basis>
+
+Set the variable at the top of the script, right after the "use" statement:
+
+    use CGI qw/:standard/;
+    use CGI::Carp 'fatalsToBrowser';
+    $CGI::POST_MAX=1024 * 100;  # max 100K posts
+    $CGI::DISABLE_UPLOADS = 1;  # no uploads
+
+=item B<2. Globally for all scripts>
+
+Open up CGI.pm, find the definitions for $POST_MAX and 
+$DISABLE_UPLOADS, and set them to the desired values.  You'll 
+find them towards the top of the file in a subroutine named 
+initialize_globals().
+
+=back
+
+Since an attempt to send a POST larger than $POST_MAX bytes
+will cause a fatal error, you might want to use CGI::Carp to echo the
+fatal error message to the browser window as shown in the example
+above.  Otherwise the remote user will see only a generic "Internal
+Server" error message.  See the L<CGI::Carp> manual page for more
+details.
+
 =head1 AUTHOR INFORMATION
 
-Copyright 1995,1996, Lincoln D. Stein.  All rights reserved.  It may
+Copyright 1995-1997, Lincoln D. Stein.  All rights reserved.  It may
 be used and modified freely, but I do request that this copyright
 notice remain attached to the file.  You may modify this module as you
 wish, but if you redistribute a modified version, please attach a note

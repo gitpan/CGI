@@ -1,6 +1,7 @@
 #!/usr/local/bin/perl
      
 use CGI;
+use CGI::Carp qw/fatalsToBrowser/;
  
 $query = new CGI;
 
@@ -15,7 +16,7 @@ print $query->end_html;
 sub print_prompt {
    my($query) = @_;
  
-   print $query->start_multipart_form;
+   print $query->start_form;
    print "<EM>What's your name?</EM><BR>";
    print $query->textfield('name');
    print $query->checkbox('Not my real name');

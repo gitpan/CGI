@@ -133,18 +133,18 @@ use Carp;
 
 @ISA = qw(Exporter);
 @EXPORT = qw(confess croak carp);
-@EXPORT_OK = qw(carpout fatalsToBrowser);
+@EXPORT_OK = qw(carpout fatalsToBrowser wrap);
 
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
 $main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.06';
+$CGI::Carp::VERSION = '1.07';
 
 # fancy import routine detects and handles 'errorWrap' specially.
 sub import {
     my $pkg = shift;
     my(%routines);
     grep($routines{$_}++,@_);
-    $WRAP++ if $routines{'fatalsToBrowser'};
+    $WRAP++ if $routines{'fatalsToBrowser'} || $routines{'wrap'};
     my($oldlevel) = $Exporter::ExportLevel;
     $Exporter::ExportLevel = 1;
     Exporter::import($pkg,keys %routines);
@@ -230,12 +230,18 @@ sub fatalsToBrowser {
     my($msg) = @_;
     $msg=~s/>/&gt;/g;
     $msg=~s/</&lt;/g;
+    $msg=~s/&/&amp;/g;
+    $msg=~s/\"/&quot;/g;
+    my($wm) = $ENV{SERVER_ADMIN} ? 
+	qq[the webmaster (<a href="mailto:$ENV{SERVER_ADMIN}">$ENV{SERVER_ADMIN}</a>)] :
+	"this site's webmaster";
     print STDOUT "Content-type: text/html\n\n";
     print STDOUT <<END;
 <H1>Software error:</H1>
 <CODE>$msg</CODE>
 <P>
-Please send mail to this site's webmaster for help.
+For help, please send mail to $wm, giving this error message 
+and the time and date of the error.
 END
 }
 
