@@ -7,6 +7,7 @@ use lib '../blib/lib','../blib/arch';
 BEGIN {$| = 1; print "1..33\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use CGI ();
+use Config;
 $loaded = 1;
 print "ok 1\n";
 
@@ -76,17 +77,22 @@ test(30,join(' ',$q->param('bar')) eq 'foo bar baz','tied interface store');
 
 # test posting
 $q->_reset_globals;
-$test_string = 'game=soccer&game=baseball&weather=nice';
-$ENV{REQUEST_METHOD}='POST';
-$ENV{CONTENT_LENGTH}=length($test_string);
-$ENV{QUERY_STRING}='big_balls=basketball&small_balls=golf';
-if (open(CHILD,"|-")) {  # cparent
+if ($Config{d_fork}) {
+  $test_string = 'game=soccer&game=baseball&weather=nice';
+  $ENV{REQUEST_METHOD}='POST';
+  $ENV{CONTENT_LENGTH}=length($test_string);
+  $ENV{QUERY_STRING}='big_balls=basketball&small_balls=golf';
+  if (open(CHILD,"|-")) {  # cparent
     print CHILD $test_string;
     close CHILD;
     exit 0;
+  }
+  # at this point, we're in a new (child) process
+  test(31,$q=new CGI,"CGI::new() from POST");
+  test(32,$q->param('weather') eq 'nice',"CGI::param() from POST");
+  test(33,$q->url_param('big_balls') eq 'basketball',"CGI::url_param()");
+} else {
+  print "ok 31 # Skip\n";
+  print "ok 32 # Skip\n";
+  print "ok 33 # Skip\n";
 }
-# at this point, we're in a new (child) process
-test(31,$q=new CGI,"CGI::new() from POST");
-test(32,$q->param('weather') eq 'nice',"CGI::param() from POST");
-test(33,$q->url_param('big_balls') eq 'basketball',"CGI::url_param()");
-

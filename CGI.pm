@@ -18,7 +18,7 @@ require 5.004;
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.30 2000/03/28 21:31:40 lstein Exp $';
-$CGI::VERSION='2.64';
+$CGI::VERSION='2.65';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.

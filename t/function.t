@@ -6,6 +6,7 @@ use lib '../blib/lib','../blib/arch';
 
 BEGIN {$| = 1; print "1..26\n"; }
 END {print "not ok 1\n" unless $loaded;}
+use Config;
 use CGI (':standard','keywords');
 $loaded = 1;
 print "ok 1\n";
@@ -63,17 +64,23 @@ test(21,join(' ',keywords()) eq 'mary had a little lamb','CGI::keywords');
 test(22,join(' ',param('keywords')) eq 'mary had a little lamb','CGI::keywords');
 
 CGI::_reset_globals;
-$test_string = 'game=soccer&game=baseball&weather=nice';
-$ENV{REQUEST_METHOD}='POST';
-$ENV{CONTENT_LENGTH}=length($test_string);
-$ENV{QUERY_STRING}='big_balls=basketball&small_balls=golf';
-if (open(CHILD,"|-")) {  # cparent
+if ($Config{d_fork}) {
+  $test_string = 'game=soccer&game=baseball&weather=nice';
+  $ENV{REQUEST_METHOD}='POST';
+  $ENV{CONTENT_LENGTH}=length($test_string);
+  $ENV{QUERY_STRING}='big_balls=basketball&small_balls=golf';
+  if (open(CHILD,"|-")) {  # cparent
     print CHILD $test_string;
     close CHILD;
     exit 0;
+  }
+  # at this point, we're in a new (child) process
+  test(23,param('weather') eq 'nice',"CGI::param() from POST");
+  test(24,url_param('big_balls') eq 'basketball',"CGI::url_param()");
+} else {
+  print "ok 23 # Skip\n";
+  print "ok 24 # Skip\n";
 }
-# at this point, we're in a new (child) process
-test(23,param('weather') eq 'nice',"CGI::param() from POST");
-test(24,url_param('big_balls') eq 'basketball',"CGI::url_param()");
+
 test(25,redirect('http://somewhere.else') eq "Status: 302 Moved${CRLF}Location: http://somewhere.else${CRLF}${CRLF}","CGI::redirect() 1");
 test(26,redirect(-Location=>'http://somewhere.else',-Type=>'text/html') eq "Status: 302 Moved${CRLF}Location: http://somewhere.else${CRLF}Content-Type: text/html; charset=ISO-8859-1${CRLF}${CRLF}","CGI::redirect() 2");
