@@ -129,9 +129,9 @@ use Carp;
 @EXPORT = qw(confess croak carp);
 @EXPORT_OK = qw(carpout fatalsToBrowser);
 
-$main::SIG{__WARN__}='CGI::Carp::warn';
-$main::SIG{__DIE__}='CGI::Carp::die';
-$CGI::Carp::VERSION = '1.04';
+$main::SIG{__WARN__}=\&CGI::Carp::warn;
+$main::SIG{__DIE__}=\&CGI::Carp::die;
+$CGI::Carp::VERSION = '1.05';
 
 # fancy import routine detects and handles 'errorWrap' specially.
 sub import {

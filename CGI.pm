@@ -21,8 +21,8 @@ require 5.001;
 # Set this to 1 to enable copious autoloader debugging messages
 $AUTOLOAD_DEBUG=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.25 1996/09/10 15:45 lstein Exp $';
-$CGI::VERSION='2.25';
+$CGI::revision = '$Id: CGI.pm,v 2.26 1996/10/15 15:45 lstein Exp $';
+$CGI::VERSION='2.26';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -262,7 +262,6 @@ sub init {
     # if it was read from STDIN originally.)
     if (defined(@QUERY_PARAM) && !$initializer) {
 
-	$self->{'.init'}++;	# flag we've been inited
 	foreach (@QUERY_PARAM) {
 	    $self->param(-name=>$_,-value=>$QUERY_PARAM{$_});
 	}
@@ -318,6 +317,10 @@ sub init {
 	      $self->read_from_client(\*STDIN,\$query_string,$ENV{'CONTENT_LENGTH'},0)
 		  if $ENV{'CONTENT_LENGTH'} > 0;
 	  }
+	  # Some people want to have their cake and eat it too!
+	  # Uncomment this line to have the contents of the query string
+	  # APPENDED to the POST data.
+	  # $query_string .= ($query_string ? '&' : '') . $ENV{'QUERY_STRING'} if $ENV{'QUERY_STRING'};
 	  last METHOD;
       }
 	  
@@ -344,12 +347,16 @@ sub init {
     if ($self->param('.defaults')) {
 	undef %{$self};
     }
-    
-    # flag that we've been inited
-    $self->{'.init'}++ if $self->param;
 
+    # Associative array containing our defined fieldnames
+    $self->{'.fieldnames'} = {};
+    foreach ($self->param('.cgifields')) {
+	$self->{'.fieldnames'}->{$_}++;
+    }
+    
     # Clear out our default submission button flag if present
     $self->delete('.submit');
+    $self->delete('.cgifields');
     $self->save_request unless $initializer;
 }
 
@@ -530,7 +537,7 @@ sub func_name {
 	my(@attr) = CGI::make_attributes('',shift);
 	$attr = " @attr" if @attr;
     }
-    my($tag,$untag) = ("<func_name$attr>","</func_name>");
+    my($tag,$untag) = ("\U<func_name$attr>\E","\U</func_name>\E");
     return $tag unless @_;
     if (ref($_[0]) eq 'ARRAY') {
 	my(@r);
@@ -539,7 +546,7 @@ sub func_name {
 	}
 	return "@r";
     } else {
-	return  "$tag@_$untag";
+	return "$tag@_$untag";
     }
 }
 END_OF_FUNC
@@ -862,11 +869,12 @@ END_OF_FUNC
 # Parameters:
 # $title -> (optional) The title for this HTML document (-title)
 # $author -> (optional) e-mail address of the author (-author)
-# $base -> (option) if set to true, will enter the BASE address of this document
+# $base -> (optional) if set to true, will enter the BASE address of this document
 #          for resolving relative references (-base) 
-# $xbase -> (option) alternative base at some remote location (-xbase)
+# $xbase -> (optional) alternative base at some remote location (-xbase)
 # $script -> (option) Javascript code (-script)
-# @other -> (option) any other named parameters you'd like to incorporate into
+# $meta -> (optional) Meta information tags
+# @other -> (optional) any other named parameters you'd like to incorporate into
 #           the <BODY> tag.
 ####
 'start_html' => <<'END_OF_FUNC',
@@ -880,6 +888,7 @@ sub start_html {
     $title = $self->escapeHTML($title || 'Untitled Document');
     $author = $self->escapeHTML($author);
     my(@result);
+    push(@result,'<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">');
     push(@result,"<HTML><HEAD><TITLE>$title</TITLE>");
     push(@result,"<LINK REV=MADE HREF=\"mailto:$author\">") if $author;
     push(@result,"<BASE HREF=\"http://".$self->server_name.":".$self->server_port.$self->script_name."\">")
@@ -952,6 +961,7 @@ sub startform {
     $enctype = $enctype || &URL_ENCODED;
     $action = $action ? qq/ACTION="$action"/ : '';
     my($other) = @other ? " @other" : '';
+    $self->{'.parametersToAdd'}={};
     return qq/<FORM METHOD="$method" $action ENCTYPE="$enctype"$other>\n/;
 }
 END_OF_FUNC
@@ -989,7 +999,8 @@ END_OF_FUNC
 # End a form
 'endform' => <<'END_OF_FUNC',
 sub endform {
-    return "</FORM>\n";
+    my($self,@p) = self_or_default(@_);    
+    return ($self->get_fields,"</FORM>");
 }
 END_OF_FUNC
 
@@ -1247,7 +1258,7 @@ sub checkbox {
     my($name,$checked,$value,$label,$override,@other) = 
 	$self->rearrange([NAME,[CHECKED,SELECTED,ON],VALUE,LABEL,[OVERRIDE,FORCE]],@p);
 
-    if (!$override && $self->inited) {
+    if (!$override && $self->{'.fieldnames'}->{$name}) {
 	$checked = $self->param($name) ? ' CHECKED' : '';
 	$value = defined $self->param($name) ? $self->param($name) :
 	    (defined $value ? $value : 'on');
@@ -1260,6 +1271,7 @@ sub checkbox {
     $value = $self->escapeHTML($value);
     $the_label = $self->escapeHTML($the_label);
     my($other) = @other ? " @other" : '';
+    $self->register_parameter($name);
     return <<END;
 <INPUT TYPE="checkbox" NAME="$name" VALUE="$value"$checked$other>$the_label
 END
@@ -1321,6 +1333,7 @@ sub checkbox_group {
 	$_ = $self->escapeHTML($_);
 	push(@elements,qq/<INPUT TYPE="checkbox" NAME="$name" VALUE="$_"$checked$other>${label} ${break}/);
     }
+    $self->register_parameter($name);
     return wantarray ? @elements : join('',@elements) unless $columns;
     return _tableize($rows,$columns,$rowheaders,$colheaders,@elements);
 }
@@ -1353,13 +1366,17 @@ sub _tableize {
     $result = "<TABLE>";
     my($row,$column);
     unshift(@$colheaders,'') if @$colheaders && @$rowheaders;
-    $result .= "<TR><TH>" . join ("<TH>",@{$colheaders}) if @{$colheaders};
+    $result .= "<TR>" if @{$colheaders};
+    foreach (@{$colheaders}) {
+	$result .= "<TH>$_</TH>";
+    }
     for ($row=0;$row<$rows;$row++) {
 	$result .= "<TR>";
-	$result .= "<TH>$rowheaders->[$row]" if @$rowheaders;
+	$result .= "<TH>$rowheaders->[$row]</TH>" if @$rowheaders;
 	for ($column=0;$column<$columns;$column++) {
-	    $result .= "<TD>" . $elements[$column*$rows + $row];
+	    $result .= "<TD>" . $elements[$column*$rows + $row] . "</TD>";
 	}
+	$result .= "</TR>";
     }
     $result .= "</TABLE>";
     return $result;
@@ -1420,6 +1437,7 @@ sub radio_group {
 	$_=$self->escapeHTML($_);
 	push(@elements,qq/<INPUT TYPE="radio" NAME="$name" VALUE="$_"$checkit$other>${label} ${break}/);
     }
+    $self->register_parameter($name);
     return wantarray ? @elements : join('',@elements) unless $columns;
     return _tableize($rows,$columns,$rowheaders,$colheaders,@elements);
 }
@@ -1520,6 +1538,7 @@ sub scrolling_list {
 	$result .= "<OPTION $selectit VALUE=\"$value\">$label\n";
     }
     $result .= "</SELECT>\n";
+    $self->register_parameter($name);
     return $result;
 }
 END_OF_FUNC
@@ -1963,6 +1982,7 @@ END_OF_FUNC
 sub https {
     local($^W)=0;
     my ($self,$parameter) = self_or_CGI(@_);
+    return $ENV{HTTPS} unless $parameter;
     return $ENV{$parameter} if $parameter=~/^HTTPS/;
     return $ENV{"HTTPS_\U$parameter\E"} if $parameter;
     my(@p);
@@ -1979,10 +1999,9 @@ END_OF_FUNC
 'protocol' => <<'END_OF_FUNC',
 sub protocol {
     my $self = shift;
-    return 'https' if $self->https(); 
+    return 'https' if $self->https() eq 'ON'; 
     return 'https' if $self->server_port == 443;
     my $prot = $self->server_protocol;
-    return 'http' if $prot =~ /http/i;
     my($protocol,$version) = split('/',$prot);
     return "\L$protocol\E";
 }
@@ -2028,16 +2047,6 @@ END_OF_FUNC
 sub user_name {
     my ($self) = self_or_CGI(@_);
     return $self->http('from') || $ENV{'REMOTE_IDENT'} || $ENV{'REMOTE_USER'};
-}
-END_OF_FUNC
-
-
-# Return true if we've been initialized with a query
-# string.
-'inited' => <<'END_OF_FUNC',
-sub inited {
-    my($self) = shift;
-    return $self->{'.init'};
 }
 END_OF_FUNC
 
@@ -2090,7 +2099,7 @@ sub previous_or_default {
     my($self,$name,$defaults,$override) = @_;
     my(%selected);
 
-    if (!$override && ($self->inited || $self->param($name))) {
+    if (!$override && ($self->{'.fieldnames'}->{$name} || $self->param($name))) {
 	grep($selected{$_}++,$self->param($name));
     } elsif (defined($defaults) && ref($defaults) && 
 	     (ref($defaults) eq 'ARRAY')) {
@@ -2100,6 +2109,22 @@ sub previous_or_default {
     }
 
     return %selected;
+}
+END_OF_FUNC
+
+'register_parameter' => <<'END_OF_FUNC',
+sub register_parameter {
+    my($self,$param) = @_;
+    $self->{'.parametersToAdd'}->{$param}++;
+}
+END_OF_FUNC
+
+'get_fields' => <<'END_OF_FUNC',
+sub get_fields {
+    my($self) = @_;
+    return $self->hidden(-name=>'.cgifields',
+			 -values=>[keys %{$self->{'.parametersToAdd'}}],
+			 -override=>1);
 }
 END_OF_FUNC
 
