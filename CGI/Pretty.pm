@@ -10,7 +10,7 @@ package CGI::Pretty;
 use strict;
 use CGI ();
 
-$CGI::Pretty::VERSION = '1.02';
+$CGI::Pretty::VERSION = '1.03';
 $CGI::DefaultClass = __PACKAGE__;
 $CGI::Pretty::AutoloadClass = 'CGI';
 @CGI::Pretty::ISA = qw( CGI );
@@ -19,30 +19,18 @@ initialize_globals();
 
 sub _prettyPrint {
     my $input = shift;
-    my $NON_PRETTIFY_ENDTAGS =  join "", map { "</$_>" } @CGI::Pretty::AS_IS;
 
-    my ( $pretag, $begintag, $betweentag, $endtag, $posttag );
-
-    if ( ( $endtag ) = $$input =~ /.*<\/(.*?)>/si ) {
-	if ( ($pretag, $begintag, $betweentag, $posttag ) = $$input =~
-	     /(.*?)<$endtag(.*?)>(.*?)<\/$endtag>(.*)/si ) {
-
-	    if ( $NON_PRETTIFY_ENDTAGS !~ /<\/$endtag>/ ) {
-		_prettyPrint( \$betweentag );
-	    }
+    foreach my $i ( @CGI::Pretty::AS_IS ) {
+	if ( $$input =~ /<\/$i>/si ) {
+	    my ( $a, $b, $c, $d, $e ) = $$input =~ /(.*)<$i(\s?)(.*?)>(.*?)<\/$i>(.*)/si;
+	    _prettyPrint( \$a );
+	    _prettyPrint( \$e );
 	    
-	    $pretag =~ s/$CGI::Pretty::LINEBREAK/$CGI::Pretty::LINEBREAK$CGI::Pretty::INDENT/g;
-
-	    _prettyPrint( \$posttag );
-	    $$input = "$pretag<$endtag$begintag>$betweentag</$endtag>$posttag";
-	}
-	else {
-	    $$input =~ s/$CGI::Pretty::LINEBREAK/$CGI::Pretty::LINEBREAK$CGI::Pretty::INDENT/g;
+	    $$input = "$a<$i$b$c>$d</$i>$e";
+	    return;
 	}
     }
-    else {
-	$$input =~ s/$CGI::Pretty::LINEBREAK/$CGI::Pretty::LINEBREAK$CGI::Pretty::INDENT/g;
-    }
+    $$input =~ s/$CGI::Pretty::LINEBREAK/$CGI::Pretty::LINEBREAK$CGI::Pretty::INDENT/g;
 }
 
 sub comment {

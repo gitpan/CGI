@@ -17,8 +17,8 @@ require 5.004;
 # The most recent version and complete docs are available at:
 #   http://stein.cshl.org/WWW/software/CGI/
 
-$CGI::revision = '$Id: CGI.pm,v 1.18 1999/06/09 14:52:45 lstein Exp $';
-$CGI::VERSION='2.54';
+$CGI::revision = '$Id: CGI.pm,v 1.19 1999/08/31 17:04:37 lstein Exp $';
+$CGI::VERSION='2.55';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -95,6 +95,8 @@ if ($OS=~/Win/i) {
   $OS = 'WINDOWS';
 } elsif ($OS=~/vms/i) {
   $OS = 'VMS';
+} elsif ($OS=~/bsdos/i) {
+  $OS = 'UNIX';
 } elsif ($OS=~/dos/i) {
   $OS = 'DOS';
 } elsif ($OS=~/^MacOS$/i) {
@@ -2202,7 +2204,8 @@ sub url {
         # strip query string
         substr($script_name,$index) = '' if ($index = index($script_name,'?')) >= 0;
         # and path
-        substr($script_name,$index) = '' if $path and ($index = rindex($script_name,$path)) >= 0;
+        substr($script_name,$index) = '' if exists($ENV{PATH_INFO})
+                                     and ($index = rindex($script_name,$ENV{PATH_INFO})) >= 0;
     } else {
 	$script_name = $self->script_name;
     }
@@ -2856,7 +2859,7 @@ sub read_multipart {
 
 	# If no filename specified, then just read the data and assign it
 	# to our parameter list.
-	unless ($filename) {
+	unless (defined $filename) {
 	    my($value) = $buffer->readBody;
 	    push(@{$self->{$param}},$value);
 	    next;
@@ -2879,7 +2882,7 @@ sub read_multipart {
           for (my $cnt=10;$cnt>0;$cnt--) {
 	    next unless $tmpfile = new TempFile($seqno);
 	    $tmp = $tmpfile->as_string;
-	    last if $filehandle = Fh->new($filename,$tmp,$PRIVATE_TEMPFILES);
+	    last if defined($filehandle = Fh->new($filename,$tmp,$PRIVATE_TEMPFILES));
             $seqno += int rand(100);
           }
           die "CGI open of tmpfile: $!\n" unless $filehandle;
@@ -5495,7 +5498,7 @@ parameter.  See checkbox_group() for further details.
 
 =head2 CREATING A RESET BUTTON
 
-   print $query->Reset
+   print $query->reset
 
 reset() creates the "reset" button.  Note that it restores the
 form to its value from the last time the script was called, 
@@ -6431,7 +6434,7 @@ for suggestions and bug fixes.
 				  -rows=>10,
 				  -columns=>50);
  
-	   print "<P>",$query->Reset;
+	   print "<P>",$query->reset;
 	   print $query->submit('Action','Shout');
 	   print $query->submit('Action','Scream');
 	   print $query->endform;
