@@ -5,7 +5,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.40, 5/20/98, L. Stein
+Version 2.41, 5/28/98, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -117,15 +117,15 @@ examples from <cite>The Official Guide to CGI.pm</cite></a>
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm-2.40.tar.gz">Download 2.40 (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.40.zip">Download 2.40 (pkzip archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package
+  <li><STRONG><A HREF="CGI.pm-2.41.tar.gz">Download 2.41 (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.41.zip">Download 2.41 (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.40.sit">Download 2.40
       (Macintosh stuffit archive)</A></STRONG>
   <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
 </ul>
 
 <em>I'm looking for a volunteer to make a Macintosh Stuffit archive of
-version 2.40!</em>
+version 2.41!</em>
 
 <p>
 
@@ -1162,14 +1162,43 @@ a few exceptions:
 
 To add attributes to an HTML tag, simply pass a reference to an
 associative array as the first argument.  The keys and values of the
-associative array become the names and values of the attributes.  You
-can use an initial hyphen (<cite>-name</cite>) for readability if you
-wish:
+associative array become the names and values of the attributes.  For
+example, here's how to generate an &lt;A&gt; anchor link:
 
 <pre>
    use CGI qw/:standard/;
    print a({-href=&gt;"bad_art.html"},"Jump to the silly exhibit");
+
+   <i>&lt;A HREF="bad_art.html"&gt;Jump to the silly exhibit&lt;/A&gt;</i>
 </pre>
+
+You may dispense with the dashes in front of the attribute names if
+you prefer:
+<pre>
+   print img {src=&gt;'fred.gif',align=&gt;'LEFT'};
+
+   <i>&lt;IMG ALIGN="LEFT" SRC="fred.gif"&gt;</i>
+</pre>
+
+Sometimes an HTML tag attribute has no argument.  For example, ordered
+lists can be marked as COMPACT, or you wish to specify that a table
+has a border with &lt;TABLE BORDER&gt;.  The syntax for this is an
+argument that that points to an undef string:
+
+<pre>
+   print ol({compact=&gt;undef},li('one'),li('two'),li('three'));
+</pre>
+
+Prior to CGI.pm version 2.41, providing an empty ('') string as an
+attribute argument was the same as providing undef.  However, this has
+changed in order to accomodate those who want to create tags of the form 
+&lt;IMG ALT=""&gt;.  The difference is shown in this table:
+
+<table border>
+<tr><th>CODE</th>      <th>RESULT</th></tr>
+<tr><td><tt>img({alt=&gt;undef})</tt></td>  <td>&lt;IMG ALT&gt;</td></tr>
+<tr><td><tt>img({alt=&gt;''})</tt></td>     <td>&lt;IMT ALT=""&gt;</td></tr>
+</table>
 
 <h4>Distributive HTML Tags and Tables</h4>
 
@@ -1200,9 +1229,9 @@ naturally.  Here is some code and the HTML it outputs:
 
 <blockquote><pre>
 use CGI qw/:standard :html3 -no_debug/;
-print table({-border=>''},
+print table({-border=&gt;undef},
         caption(strong('When Should You Eat Your Vegetables?')),
-        Tr({-align=>CENTER,-valign=>TOP},
+        Tr({-align=&gt;CENTER,-valign=&gt;TOP},
         [
            th(['','Breakfast','Lunch','Dinner']),
            th('Tomatoes').td(['no','yes','yes']),
@@ -1237,7 +1266,7 @@ use CGI qw/:standard :html3 -no_debug/;
 foreach $n (@values) {
    push(@rows,td([$n,$n**2,$n**3]));
 }
-print table({-border=>'',-width=>'25%'},
+print table({-border=&gt;undef,-width=>'25%'},
             caption(b('Wow.  I can multiply!')),
             Tr(\@rows)
            );
@@ -4250,6 +4279,18 @@ perl -V
 
 <H2><A NAME="new">Revision History</A></H2>
 
+<h3>Version 2.41</h3>
+<ol>
+  <li>Changed handling of empty attributes in HTML tag generation.  Be
+      warned!  Use <tt>table({-border=&gt;undef})</tt> rather than
+      <tt>table({-border=&gt;''})</tt>.
+  <li>Changes to allow uploaded filenames to be compared to other
+      strings with "eq", "cmp" and "ne".
+  <li>Changes to allow CGI.pm to coexist more peacefully with ActiveState PerlEX.
+  <li>Changes to prevent exported variables from clashing when
+      importing ":all" set in combination with cookies.
+</ol>
+
 <h3>Version 2.40</h3>
 <ol>
   <li>CGI::Carp patched to work better with mod_perl (thanks to Chris
@@ -4820,6 +4861,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Wed May 20 12:16:39 EDT 1998
+Last modified: Thu May 28 17:45:42 EDT 1998
 <!-- hhmts end -->
 </BODY> </HTML>

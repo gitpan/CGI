@@ -18,8 +18,8 @@ require 5.004;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.29 1998/03/24 22:11:50 lstein Exp lstein $';
-$CGI::VERSION='2.40';
+$CGI::revision = '$Id: CGI.pm,v 1.32 1998/05/28 21:55:43 lstein Exp $';
+$CGI::VERSION='2.41';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -122,6 +122,8 @@ if (defined($ENV{'GATEWAY_INTERFACE'}) &&
     $| = 1;
     require Apache;
 }
+# Turn on special checking for ActiveState's PerlEx
+$PERLEX = defined($ENV{'GATEWAY_INTERFACE'}) and $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-PerlEx/;
 
 # Define the CRLF sequence.  I can't use a simple "\r\n" because the meaning
 # of "\n" is different on different OS's (sometimes it generates CRLF, sometimes LF
@@ -173,8 +175,10 @@ if ($needs_binmode) {
 # to import symbols into caller
 sub import {
     my $self = shift;
-    undef %EXPORT_OK;
-    undef %EXPORT;
+
+# This causes modules to clash.  
+#    undef %EXPORT_OK;
+#    undef %EXPORT;
 
     $self->_setup_symbols(@_);
     my ($callpack, $callfile, $callline) = caller;
@@ -222,6 +226,7 @@ sub new {
 	Apache->request->register_cleanup(\&CGI::_reset_globals);
 	undef $NPH;
     }
+    $self->_reset_globals if $PERLEX;
     $self->init($initializer);
     return $self;
 }
@@ -957,7 +962,7 @@ sub make_attributes {
 	my($key) = $_;
 	$key=~s/^\-//;     # get rid of initial - if present
 	$key=~tr/a-z_/A-Z-/; # parameters are upper case, use dashes
-	push(@att,$attr->{$_} ne '' ? qq/$key="$attr->{$_}"/ : qq/$key/);
+	push(@att,defined($attr->{$_}) ? qq/$key="$attr->{$_}"/ : qq/$key/);
     }
     return @att;
 }
@@ -2815,7 +2820,11 @@ END_OF_AUTOLOAD
 
 ################### Fh -- lightweight filehandle ###############
 package Fh;
-use overload '""'  => \&asString;
+use overload 
+    '""'  => \&asString,
+    'cmp' => \&compare,
+    'fallback'=>1;
+
 $FH='fh00000';
 
 *Fh::AUTOLOAD = \&CGI::AUTOLOAD;
@@ -2826,9 +2835,18 @@ $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 'asString' => <<'END_OF_FUNC',
 sub asString {
     my $self = shift;
-    my ($i);
-    ($i = $$self) =~ s/\*(\w+::)+//;
+    my $i = $$self;
+    $i=~ s/^\*(\w+::)+//; # get rid of package name
+    $i =~ s/\\(.)/$1/g;
     return $i;
+}
+END_OF_FUNC
+
+'compare' => <<'END_OF_FUNC',
+sub compare {
+    my $self = shift;
+    my $value = shift;
+    return "$self" cmp $value;
 }
 END_OF_FUNC
 
@@ -2837,8 +2855,9 @@ sub new {
     my($pack,$name,$file,$delete) = @_;
     require Fcntl unless defined &Fcntl::O_RDWR;
     ++$FH;
-    *{$FH} = $name;
-    sysopen($FH,$file,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL()) || die "CGI open of $file: $!\n";
+    *{$FH} = quotemeta($name);
+    sysopen($FH,$file,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL()) 
+	|| die "CGI open of $file: $!\n";
     unlink($file) if $delete;
     return bless \*{$FH},$pack;
 }
@@ -4237,9 +4256,18 @@ you prefer:
 
 Sometimes an HTML tag attribute has no argument.  For example, ordered
 lists can be marked as COMPACT.  The syntax for this is an argument that
-that points to an undef or empty string:
+that points to an undef string:
 
-   print ol({compact=>''},li('one'),li('two'),li('three'));
+   print ol({compact=>undef},li('one'),li('two'),li('three'));
+
+Prior to CGI.pm version 2.41, providing an empty ('') string as an
+attribute argument was the same as providing undef.  However, this has
+changed in order to accomodate those who want to create tags of the form 
+<IMG ALT="">.  The difference is shown in these two pieces of code:
+  
+   CODE                   RESULT
+   img({alt=>undef})      <IMG ALT>
+   img({alt=>''})         <IMT ALT="">
 
 =head2 THE DISTRIBUTIVE PROPERTY OF HTML SHORTCUTS
 
@@ -4264,7 +4292,7 @@ This example will result in HTML output that looks like this:
 
 This is extremely useful for creating tables.  For example:
 
-   print table({-border=>''},
+   print table({-border=>undef},
            caption('When Should You Eat Your Vegetables?'),
            Tr({-align=>CENTER,-valign=>TOP},
            [

@@ -1,5 +1,6 @@
 #!/usr/local/bin/perl -w
 
+use lib '..';
 use CGI qw(:standard);
 use CGI::Carp qw/fatalsToBrowser/;
 
@@ -32,7 +33,7 @@ print start_multipart_form(),
 # Process the form if there is a file name entered
 if ($file = param('filename')) {
     $tmpfile=tmpFileName($file);
-    $mimetype = uploadInfo($file)->{'Content-Type'};
+    $mimetype = uploadInfo($file)->{'Content-Type'} || '';
     print hr(),
           h2($file),
           h3($tmpfile),

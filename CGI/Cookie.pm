@@ -17,9 +17,9 @@ package CGI::Cookie;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::Cookie::VERSION='1.04';
+$CGI::Cookie::VERSION='1.05';
 
-use CGI qw/unescape escape/;
+use CGI;
 use overload '""' => \&as_string;
 
 # fetch a list of cookies from the environment and
@@ -65,8 +65,8 @@ sub parse {
     my(@pairs) = split("; ",$raw_cookie);
     foreach (@pairs) {
 	my($key,$value) = split("=");
-	my(@values) = map unescape($_),split('&',$value);
-	$key = unescape($key);
+	my(@values) = map CGI::unescape($_),split('&',$value);
+	$key = CGI::unescape($key);
 	$results{$key} = $self->new(-name=>$key,-value=>\@values);
     }
     return \%results unless wantarray;
@@ -117,8 +117,8 @@ sub as_string {
     push(@constant_values,"expires=$expires") if $expires = $self->expires;
     push(@constant_values,'secure') if $secure = $self->secure;
 
-    my($key) = escape($self->name);
-    my($cookie) = join("=",$key,join("&",map escape($_),$self->value));
+    my($key) = CGI::escape($self->name);
+    my($cookie) = join("=",$key,join("&",map CGI::escape($_),$self->value));
     return join("; ",$cookie,@constant_values);
 }
 
