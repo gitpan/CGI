@@ -7,7 +7,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.87, 10/7/2002, L. Stein
+Version 2.88, 10/14/2002, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -129,17 +129,6 @@ examples from <cite>The Official Guide to CGI.pm</cite></a>
 
 <p>
 
-<h3><font color="red">CGI.pm Version 3.01</font></h3>
-
-Version 3.0 of CGI.pm provides a modularized design and significant
-performance enhancements, courtesy David James.  Please try and report
-any bugs or misfeatures to <a href="mailto:lstein@cshl.org">me</a>.
-
-<ul>
-  <li><a href="CGI.pm-3.01.tar.gz">Download 3.01</a></li>
-</ul>
-
-<p>
 
 <H2><A NAME="installation">Installation</A></H2>
 
@@ -4696,6 +4685,13 @@ you.
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.88</h3>
+<ol>
+  <li>Fixed problem with uploads being refused under Perl 5.8 when
+      under Taint mode.
+  <li>Fixed uninitialized variable warnings under Perl 5.8.
+  <li>Fixed CGI::Pretty regression test failures.
+</ol>
 <h3>Version 2.87</h3>
 <ol>
   <li>Security hole patched: when processing multipart/form-data postings,
@@ -5692,6 +5688,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Sun Oct  6 21:00:00 EDT 2002
+Last modified: Mon Oct 14 09:55:36 EDT 2002
 <!-- hhmts end -->
 </BODY> </HTML>
