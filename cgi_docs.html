@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.29, 12/09/96, L. Stein
+Version 2.30, 1/01/97, L. Stein
 <p>
 
 <strong>WARNING:</strong> As threatened, the <code>import()</code>
@@ -111,7 +111,7 @@ href="#import">importing CGI methods</a> for an explanation.)
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.29?</A>
+  <LI><A HREF="#new">What's new in version 2.30?</A>
 </MENU>
 
 <HR>
@@ -807,14 +807,18 @@ example:
 
 <p>
 
-Most HTML tags are represented as lowercase function calls.  There are a
-couple of exceptions:
+Most HTML tags are represented as lowercase function calls.  There are
+a few exceptions:
 
 <ol>
   <li>The &lt;tr&gt; tag used to start a new table row conflicts with the
-      perl <cite>translate</cite> function <code>tr()</code>.  Use TR() instead.
+      perl <cite>translate</cite> function <code>tr()</code>.  Use
+      TR() or Tr() instead.
   <li>The &lt;param&gt; tag used to pass parameters to an applet
-      conflicts with CGI's own <code>param() </code> method.  Use PARAM() instead.
+      conflicts with CGI's own <code>param() </code> method.  Use
+      PARAM() instead.
+  <li>The &lt;select&gt; tag used to create selection lists conflicts
+      with perl's select() function.  Use <code>Select()</code> instead.
 </ol>
 
 <h4>Tags with Attributes</h4>
@@ -1959,7 +1963,7 @@ through this interface.  The methods are as follows:
   <DD>Returns the "magic cookie" maintained by Netscape 1.1 and higher in a raw
       state.  You'll probably want to use <a href="cookies">cookie()</a> instead,
       which gives you a high-level interface to the cookie functions.
-  <DT>path_info() 
+  <DT><a name="path_info">path_info()</a>
   <DD>Returns additional path information from the script URL.
        E.G. fetching <CODE>/cgi-bin/your_script/additional/stuff</CODE> will
        result in <CODE>$query-&gt;path_info()</CODE> returning
@@ -1992,6 +1996,11 @@ through this interface.  The methods are as follows:
        scripts.
   <DT>server_name()
   <DD>Return the name of the WWW server the script is running under.
+  <DT>server_software()
+  <DD>Return the name and version of the server software.
+  <DT>virtual_host()
+  <DD>When using the virtual host feature of some servers, returns the
+      name of the virtual host the browser is accessing.
   <DT>server_port()
   <DD>Return the communications port the server is using.
   <DT>user_agent()
@@ -2879,22 +2888,23 @@ yourself.
 <p>
 
 There are a number of differences in file name and text processing
-conventions on different platforms.  By default, CGI.pm is set up
-to work properly on a Unix (or Linux) system.  To run it in other
-operating systems find the section of code near the top that looks
-like this:
+conventions on different platforms.  By default, CGI.pm is set up to
+work properly on a Unix (or Linux) system.  During load, it will
+attempt to guess the correct operating system using the Config module.
+Currently it guesses correctly; however if the operating system names
+change it may not work right.  The main symptom will be that file
+upload does not work correctly.  If this happens, find the place at
+the top of the script where the OS is defined, and uncomment the
+correct definition:
+
 <pre>
    # CHANGE THIS VARIABLE FOR YOUR OPERATING SYSTEM
-   $OS = 'UNIX';
+   # $OS = 'UNIX';
    # $OS = 'MACINTOSH';
    # $OS = 'WINDOWS';
    # $OS = 'NT';
    # $OS = 'VMS';
 </pre>
-
-Comment out 'UNIX' and uncomment the line that's appropriate for your
-OS.  (WINDOWS is valid for both Windows 3.1 and Windows95).
-<p>
 
 Other notes follow:
 
@@ -2913,19 +2923,22 @@ the Perl DLL library (IIS).  The home site for the NT port of Perl is:
 
 <p>
 
-For best results with the Microsoft IIS server, put CGI.pm into <a
-href="#nph">NPH mode</a>.  This is because IIS assumes that a script
-will either produce all the required HTTP headers, or will produce
-none of them.  Without NPH mode, certain scripts, such as those using
-<strong>redirect()</strong> will mysteriously fail.
+The Microsoft IIS server is seriously broken with respect to
+the handling of <a href="#path_info">additional path information</a>.
+If you use the DLL version of Perl, IIS will attempt to execute the
+additional path information as a script.  If you use the normal
+version of Perl, the additional path information will contain
+incorrect information.  This is not a bug in CGI.pm.
 
 <p>
+
 WebSite uses a slightly different cgi-bin directory structure than
 the standard.  For this server, place the scripts in the
 <CODE>cgi-shl</CODE> directory.  CGI.pm appears to work correctly
 in both the Windows95 and WindowsNT versions of WebSite.
 
 <p>
+
 Old Netscape Communications Server technical notes recommended
 placing <code>perl.exe</code> in cgi-bin.  This a very bad idea because
 it opens up a gaping security hole.  Put a C <code>.exe</code> wrapper
@@ -3043,6 +3056,23 @@ Address bug reports and comments to:<BR>
 
 <HR>
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.30</h3>
+<ol>
+  <li>Automatic detection of operating system at load time.
+  <li>Changed select() function to Select() in order to avoid
+      conflict with Perl built-in.
+  <li>Added Tr() as an alternative to TR(); some people think it
+      looks better that way.
+  <li>Fixed problem with autoloading of MultipartBuffer::DESTROY code.
+  <li>Added the following methods:
+      <ul>
+	<li>virtual_host()
+	<li>server_software()
+      </ul>
+  <li>Automatic NPH mode when running under Microsoft IIS server.
+  <li>Fixed problems when radio_button() passed a default value of "0".
+</ol>
+
 <h3>Version 2.29</h3>
 <ol>
   <li>Fixed cookie bugs
@@ -3430,6 +3460,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Mon Dec  9 14:38:39 EST 1996
+Last modified: Thu Jan  2 17:40:01 EST 1997
 <!-- hhmts end -->
 </BODY> </HTML>

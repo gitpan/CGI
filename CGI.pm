@@ -28,20 +28,44 @@ $AUTOLOAD_DEBUG=0;
 #    3) print header(-nph=>1)
 $NPH=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.29 1996/12/08 19:46 lstein Exp $';
-$CGI::VERSION='2.29';
+$CGI::revision = '$Id: CGI.pm,v 2.30 1997/1/01 12:12 lstein Exp $';
+$CGI::VERSION='2.30';
 
-# ------------------ START OF THE LIBRARY ------------
-
-# CHANGE THIS VARIABLE FOR YOUR OPERATING SYSTEM
-$OS = 'UNIX';
+# OVERRIDE THE OS HERE IF CGI.pm GUESSES WRONG
+# $OS = 'UNIX';
 # $OS = 'MACINTOSH';
 # $OS = 'WINDOWS';
 # $OS = 'NT';
 # $OS = 'VMS';
 
+# HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
+# UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
+# $TempFile::TMPDIRECTORY = '/usr/tmp';
+
+
+# ------------------ START OF THE LIBRARY ------------
+
+# FIGURE OUT THE OS WE'RE RUNNING UNDER
+# Some systems support the $^O variable.  If not
+# available then require() the Config library
+unless ($OS) {
+    unless ($OS = $^O) {
+	require Config;
+	$OS = $Config::Config{'osname'};
+    }
+}
+if ($OS=~/Win/i) {
+    $OS = 'WINDOWS';
+} elsif ($OS=~/vms/i) {
+    $OS = 'VMS';
+} elsif ($OS=~/Mac/i) {
+    $OS = 'MACINTOSH';
+} else {
+    $OS = 'UNIX';
+}
+
 # Some OS logic.  Binary mode enabled on DOS, NT and VMS
-$needs_binmode = $OS=~/^(WINDOWS|NT|VMS)/;
+$needs_binmode = $OS=~/^(WINDOWS|VMS)/;
 
 # This is the default class for the CGI object to use when all else fails.
 $DefaultClass = 'CGI' unless defined $CGI::DefaultClass;
@@ -51,10 +75,12 @@ $DefaultClass = 'CGI' unless defined $CGI::DefaultClass;
 $SL = {
     UNIX=>'/',
     WINDOWS=>'\\',
-    NT=>'\\',
     MACINTOSH=>':',
     VMS=>'\\'
     }->{$OS};
+
+# Turn on NPH scripts by default when running under IIS server!
+$NPH++ if $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 
 # This is really "\r\n", but the meaning of \n is different
 # in MacPerl, so we resort to octal here.
@@ -71,8 +97,8 @@ if ($needs_binmode) {
 	      ':html2'=>[h1..h6,qw/p br hr ol ul li dl dt dd menu code var strong em
 			 tt i b blockquote pre img a address cite samp dfn html head
 			 base body link nextid title meta kbd start_html end_html
-			 input select option/],
-	      ':html3'=>[qw/div table caption th td TR super sub strike applet PARAM embed basefont/],
+			 input Select option/],
+	      ':html3'=>[qw/div table caption th td TR Tr super sub strike applet PARAM embed basefont/],
 	      ':netscape'=>[qw/blink frameset frame script font fontsize center/],
 	      ':form'=>[qw/textfield textarea filefield password_field hidden checkbox checkbox_group 
 		       submit reset defaults radio_group popup_menu button autoEscape
@@ -80,8 +106,8 @@ if ($needs_binmode) {
 		       start_multipart_form isindex tmpFileName URL_ENCODED MULTIPART/],
 	      ':cgi'=>[qw/param path_info path_translated url self_url script_name cookie 
 		       raw_cookie request_method query_string accept user_agent remote_host 
-		       remote_addr referer server_name server_port server_protocol
-		       remote_ident auth_type http
+		       remote_addr referer server_name server_software server_port server_protocol
+		       virtual_host remote_ident auth_type http
 		       remote_user user_name header redirect import_names put/],
 	      ':ssl' => [qw/https/],
 	      ':cgi-lib' => [qw/ReadParse PrintHeader HtmlTop HtmlBot SplitParam/],
@@ -98,7 +124,7 @@ sub import {
     foreach (@_) {
 	$NPH++, next if $_ eq ':nph';
 	foreach (&expand_tags($_)) {
-	    tr/a-zA-Z0-9_//cd;	# don't allow weird function names
+	    tr/a-zA-Z0-9_//cd;  # don't allow weird function names
 	    $EXPORT{$_}++;
 	}
     }
@@ -114,7 +140,7 @@ sub import {
 		last;
 	    }
 	}
-        *{"${callpack}::$sym"} = \&{"$def\:\:$sym"};
+	*{"${callpack}::$sym"} = \&{"$def\:\:$sym"};
     }
 }
 
@@ -211,7 +237,7 @@ sub self_or_default {
 }
 
 sub self_or_CGI {
-    local $^W=0;		# prevent a warning
+    local $^W=0;                # prevent a warning
     if (defined($_[0]) &&
 	(substr(ref($_[0]),0,3) eq 'CGI' 
 	 || eval "\$_[0]->isaCGI()")) {
@@ -402,7 +428,7 @@ sub new_MultipartBuffer {
 # Read data from a file handle
 sub read_from_client {
     my($self, $fh, $buff, $len, $offset) = @_;
-    local $^W=0;		# prevent a warning
+    local $^W=0;                # prevent a warning
     return read($fh, $$buff, $len, $offset);
 }
 
@@ -426,7 +452,7 @@ sub print {
 # unescape URL-encoded data
 sub unescape {
     my($todecode) = @_;
-    $todecode =~ tr/+/ /;	# pluses become spaces
+    $todecode =~ tr/+/ /;       # pluses become spaces
     $todecode =~ s/%([0-9a-fA-F]{2})/pack("c",hex($1))/ge;
     return $todecode;
 }
@@ -452,7 +478,7 @@ sub save_request {
 sub parse_keywordlist {
     my($self,$tosplit) = @_;
     $tosplit = &unescape($tosplit); # unescape the keywords
-    $tosplit=~tr/+/ /;		# pluses to spaces
+    $tosplit=~tr/+/ /;          # pluses to spaces
     my(@keywords) = split(/\s+/,$tosplit);
     return @keywords;
 }
@@ -506,7 +532,7 @@ AUTOLOAD {
 	die $@ if $@;
     }
     my($code)= $sub->{$func_name};
-    $code = "sub $AUTOLOAD { }" if (!$code and $func_name =~ m/::DESTROY$/);
+    $code = "sub $AUTOLOAD { }" if (!$code and $func_name eq 'DESTROY');
     if (!$code) {
 	if ($EXPORT{':any'} || 
 	    $EXPORT{$func_name} || 
@@ -520,7 +546,7 @@ AUTOLOAD {
     eval "package $pack; $code";
     if ($@) {
 	$@ =~ s/ at .*\n//;
-        die $@;
+	die $@;
     }
     goto &{"$pack\:\:$func_name"};
 }
@@ -528,7 +554,7 @@ AUTOLOAD {
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
 ###############################################################################
-$AUTOLOADED_ROUTINES = '';	# get rid of -w warning
+$AUTOLOADED_ROUTINES = '';      # get rid of -w warning
 $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 
 %SUBS = (
@@ -799,7 +825,7 @@ sub save {
 	    print $filehandle "$escaped_param=",escape($value),"\n";
 	}
     }
-    print $filehandle "=\n";	# end of record
+    print $filehandle "=\n";    # end of record
 }
 END_OF_FUNC
 
@@ -879,7 +905,7 @@ sub redirect {
 	 '-Status'=>'302 Found',
 	 '-Location'=>$url,
 	 '-URI'=>$url,
-         '-nph'=>($nph||$NPH));
+	 '-nph'=>($nph||$NPH));
     push(@o,'-Target'=>$target) if $target;
     push(@o,'-Cookie'=>$cookie) if $cookie;
     return $self->header(@o);
@@ -1443,7 +1469,7 @@ sub radio_group {
 	$checked = $default;
     }
     # If no check array is specified, check the first by default
-    $checked = $values->[0] unless $checked;
+    $checked = $values->[0] unless defined($checked) && $checked ne '';
     $name=$self->escapeHTML($name);
 
     my(@elements);
@@ -1876,7 +1902,7 @@ sub accept {
 
     # Didn't get it, so try pattern matching.
     foreach (keys %prefs) {
-	next unless /\*/;	# not a pattern match
+	next unless /\*/;       # not a pattern match
 	($pat = $_) =~ s/([^\w*])/\\$1/g; # escape meta characters
 	$pat =~ s/\*/.*/g; # turn it into a pattern
 	return $prefs{$_} if $search=~/$pat/;
@@ -1911,6 +1937,15 @@ sub raw_cookie {
 }
 END_OF_FUNC
 
+#### Method: virtual_host
+# Return the name of the virtual_host, which
+# is not always the same as the server
+######
+'virtual_host' => <<'END_OF_FUNC',
+sub virtual_host {
+    return http('host') || server_name();
+}
+END_OF_FUNC
 
 #### Method: remote_host
 # Return the name of the remote host, or its IP
@@ -1969,10 +2004,18 @@ END_OF_FUNC
 ####
 'server_name' => <<'END_OF_FUNC',
 sub server_name {
-    return $ENV{'SERVER_NAME'} || 'dummy.host.name';
+    return $ENV{'SERVER_NAME'} || 'localhost';
 }
 END_OF_FUNC
 
+#### Method: server_software
+# Return the name of the server software
+####
+'server_software' => <<'END_OF_FUNC',
+sub server_software {
+    return $ENV{'SERVER_SOFTWARE'} || 'cmdline';
+}
+END_OF_FUNC
 
 #### Method: server_port
 # Return the tcp/ip port the server is running on
@@ -2115,7 +2158,7 @@ sub rearrange {
 	$param[$i]=~tr/a-z/A-Z/; # parameters are upper case
     }
     
-    my(%param) = @param;		# convert into associative array
+    my(%param) = @param;                # convert into associative array
     my(@return_array);
     
     my($key)='';
@@ -2244,7 +2287,7 @@ sub read_multipart {
 	my($tmpfile) = new TempFile;
 	open (OUT,">$tmpfile") || die "CGI open of $tmpfile: $!\n";
 	$CGI::DefaultClass->binmode(OUT) if $CGI::needs_binmode;
-	chmod 0666,$tmpfile;	# make sure anyone can delete it.
+	chmod 0666,$tmpfile;    # make sure anyone can delete it.
 	my $data;
 	while ($data = $buffer->read) {
 	    print OUT $data;
@@ -2301,7 +2344,7 @@ package MultipartBuffer;
 # a 5K buffer by default.
 $FILLUNIT = 1024 * 5;
 $TIMEOUT = 10*60;       # 10 minute timeout
-$SPIN_LOOP_MAX = 1000;	# bug fix for some Netscape servers
+$SPIN_LOOP_MAX = 1000;  # bug fix for some Netscape servers
 $CRLF=$CGI::CRLF;
 
 #reuse the autoload function
@@ -2310,7 +2353,7 @@ $CRLF=$CGI::CRLF;
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
 ###############################################################################
-$AUTOLOADED_ROUTINES = '';	# prevent -w error
+$AUTOLOADED_ROUTINES = '';      # prevent -w error
 $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 %SUBS =  (
 
@@ -2346,11 +2389,11 @@ sub new {
 
     } else { # otherwise we find it ourselves
 	my($old);
-	($old,$/) = ($/,$CRLF);	# read a CRLF-delimited line
-	$boundary = <$IN>;	# BUG: This won't work correctly under mod_perl
+	($old,$/) = ($/,$CRLF); # read a CRLF-delimited line
+	$boundary = <$IN>;      # BUG: This won't work correctly under mod_perl
 	$length -= length($boundary);
-	chomp($boundary);		# remove the CRLF
-	$/ = $old;			# restore old line separator
+	chomp($boundary);               # remove the CRLF
+	$/ = $old;                      # restore old line separator
     }
 
     my $self = {LENGTH=>$length,
@@ -2376,7 +2419,7 @@ sub readHeader {
 	$self->fillBuffer($FILLUNIT);
 	$ok++ if ($end = index($self->{BUFFER},"${CRLF}${CRLF}")) >= 0;
 	$ok++ if $self->{BUFFER} eq '';
-	$FILLUNIT *= 2 if length($self->{BUFFER}) >= $FILLUNIT;	
+	$FILLUNIT *= 2 if length($self->{BUFFER}) >= $FILLUNIT; 
     } until $ok;
 
     my($header) = substr($self->{BUFFER},0,$end+2);
@@ -2411,7 +2454,7 @@ sub read {
     my($self,$bytes) = @_;
 
     # default number of bytes to read
-    $bytes = $bytes || $FILLUNIT;	
+    $bytes = $bytes || $FILLUNIT;       
 
     # Fill up our internal buffer in such a way that the boundary
     # is never split between reads.
@@ -2438,9 +2481,9 @@ sub read {
     }
 
     my $bytesToReturn;    
-    if ($start > 0) {		# read up to the boundary
+    if ($start > 0) {           # read up to the boundary
 	$bytesToReturn = $start > $bytes ? $bytes : $start;
-    } else {	# read the requested number of bytes
+    } else {    # read the requested number of bytes
 	# leave enough bytes in the buffer to allow us to read
 	# the boundary.  Thanks to Kevin Hendrick for finding
 	# this one.
@@ -2509,10 +2552,13 @@ END_OF_AUTOLOAD
 package TempFile;
 
 $SL = $CGI::SL;
-@TEMP=("${SL}usr${SL}tmp","${SL}var${SL}tmp","${SL}tmp","${SL}temp","${SL}Temporary Items");
-foreach (@TEMP) {
-    do {$TMPDIRECTORY = $_; last} if -w $_;
+unless ($TMPDIRECTORY) {
+    @TEMP=("${SL}usr${SL}tmp","${SL}var${SL}tmp","${SL}tmp","${SL}temp","${SL}Temporary Items");
+    foreach (@TEMP) {
+	do {$TMPDIRECTORY = $_; last} if -d $_ && -w _;
+    }
 }
+
 $TMPDIRECTORY  = "." unless $TMPDIRECTORY;
 $SEQUENCE="CGItemp$$0000";
 
@@ -2529,7 +2575,7 @@ sub as_string {
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
 ###############################################################################
-$AUTOLOADED_ROUTINES = '';	# prevent -w error
+$AUTOLOADED_ROUTINES = '';      # prevent -w error
 $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 %SUBS = (
 
@@ -2545,7 +2591,7 @@ END_OF_FUNC
 'DESTROY' => <<'END_OF_FUNC'
 sub DESTROY {
     my($self) = @_;
-    unlink $$self;		# get rid of the file
+    unlink $$self;              # get rid of the file
 }
 END_OF_FUNC
 
@@ -2615,8 +2661,8 @@ as your home directory, or in cgi-bin itself and prefix all Perl
 scripts that call it with something along the lines of the following
 preamble:
 
-        use lib '/home/davis/lib';
-        use CGI;
+	use lib '/home/davis/lib';
+	use CGI;
 
 If you are using a version of perl earlier than 5.002 (such as NT perl), use
 this instead:
@@ -2667,7 +2713,7 @@ reference:
     $query = new CGI( {'dinosaur'=>'barney',
 		       'song'=>'I love you',
 		       'friends'=>[qw/Jessica George Nancy/]}
-                    );
+		    );
 
 or from a properly formatted, URL-escaped query string:
 
@@ -2676,8 +2722,8 @@ or from a properly formatted, URL-escaped query string:
 To create an empty query, initialize it from an empty string or hash:
 
 	$empty_query = new CGI("");
-             -or-
-        $empty_query = new CGI({});
+	     -or-
+	$empty_query = new CGI({});
 
 =head2 FETCHING A LIST OF KEYWORDS FROM THE QUERY:
 
@@ -2706,7 +2752,7 @@ of the spec, and so isn't guaranteed).
 
     @values = $query->param('foo');
 
-              -or-
+	      -or-
 
     $value = $query->param('foo');
 
@@ -2730,7 +2776,7 @@ in more detail later:
 
     $query->param(-name=>'foo',-values=>['an','array','of','values']);
 
-                              -or-
+			      -or-
 
     $query->param(-name=>'foo',-value=>'the value');
 
@@ -2876,7 +2922,7 @@ this way:
 
     $q = $in{CGI};
     print $q->textfield(-name=>'wow',
-                        -value=>'does this really work?');
+			-value=>'does this really work?');
 
 This allows you to start using the more interesting features
 of CGI.pm without rewriting your old scripts from scratch.
@@ -2890,8 +2936,8 @@ arguments to the various CGI functions.  In this style, you pass a
 series of name=>argument pairs, like this:
 
    $field = $query->radio_group(-name=>'OS',
-                                -values=>[Unix,Windows,Macintosh],
-                                -default=>'Unix');
+				-values=>[Unix,Windows,Macintosh],
+				-default=>'Unix');
 
 The advantages of this style are that you don't have to remember the
 exact order of the arguments, and if you leave out a parameter, in
@@ -2903,13 +2949,13 @@ JUSTIFICATION parameter to the text field tags, you can start using
 the feature without waiting for a new version of CGI.pm:
 
    $field = $query->textfield(-name=>'State',
-                              -default=>'gaseous',
-                              -justification=>'RIGHT');
+			      -default=>'gaseous',
+			      -justification=>'RIGHT');
 
 This will result in an HTML tag that looks like this:
 
 	<INPUT TYPE="textfield" NAME="State" VALUE="gaseous"
-               JUSTIFICATION="RIGHT">
+	       JUSTIFICATION="RIGHT">
 
 Parameter names are case insensitive: you can use -name, or -Name or
 -NAME.  You don't have to use the hyphen if you don't want to.  After
@@ -2920,8 +2966,8 @@ parameters exclusively:
    $query = new CGI;
    $query->use_named_parameters(1);
    $field = $query->radio_group('name'=>'OS',
-                                'values'=>['Unix','Windows','Macintosh'],
-                                'default'=>'Unix');
+				'values'=>['Unix','Windows','Macintosh'],
+				'default'=>'Unix');
 
 Actually, CGI.pm only looks for a hyphen in the first parameter.  So
 you can leave it off subsequent parameters if you like.  Something to
@@ -2935,17 +2981,17 @@ all string constants just to play it safe.
 
 	print $query->header;
 
-             -or-
+	     -or-
 
-        print $query->header('image/gif');
+	print $query->header('image/gif');
 
-             -or-
+	     -or-
 
-        print $query->header('text/html','204 No response');
+	print $query->header('text/html','204 No response');
 
-             -or-
+	     -or-
 
-        print $query->header(-type=>'image/gif',
+	print $query->header(-type=>'image/gif',
 			     -nph=>1,
 			     -status=>'402 Payment required',
 			     -expires=>'+3d',
@@ -2977,11 +3023,11 @@ indicated expiration date.  The following forms are all valid for the
 
 	+30s                              30 seconds from now
 	+10m                              ten minutes from now
-	+1h	                          one hour from now
-        -1d                               yesterday (i.e. "ASAP!")
+	+1h                               one hour from now
+	-1d                               yesterday (i.e. "ASAP!")
 	now                               immediately
 	+3M                               in three months
-        +10y                              in ten years time
+	+10y                              in ten years time
 	Thursday, 25-Apr-96 00:40:33 GMT  at the indicated time & date
 
 (CGI::expires() is the static function call used internally that turns
@@ -3017,7 +3063,7 @@ of the document you are redirecting to.
 You can use named parameters:
 
     print $query->redirect(-uri=>'http://somewhere.else/in/movie/land',
-                           -nph=>1);
+			   -nph=>1);
 
 The B<-nph> parameter, if set to a true value, will issue the correct
 headers to work with a NPH (no-parse-header) script.  This is important
@@ -3028,17 +3074,17 @@ expect all their scripts to be NPH.
 =head2 CREATING THE HTML HEADER:
 
    print $query->start_html(-title=>'Secrets of the Pyramids',
-                            -author=>'fred@capricorn.org',
-                            -base=>'true',
+			    -author=>'fred@capricorn.org',
+			    -base=>'true',
 			    -meta=>{'keywords'=>'pharaoh secret mummy',
-                                    'copyright'=>'copyright 1996 King Tut'},
-                            -BGCOLOR=>'blue');
+				    'copyright'=>'copyright 1996 King Tut'},
+			    -BGCOLOR=>'blue');
 
    -or-
 
    print $query->start_html('Secrets of the Pyramids',
-                            'fred@capricorn.org','true',
-                            'BGCOLOR="blue"');
+			    'fred@capricorn.org','true',
+			    'BGCOLOR="blue"');
 
 This will return a canned HTML header and the opening <BODY> tag.  
 All parameters are optional.   In the named parameter form, recognized
@@ -3087,21 +3133,21 @@ B<-script> field:
       $JSCRIPT=<<END;
       // Ask a silly question
       function riddle_me_this() {
-         var r = prompt("What walks on four legs in the morning, " +
-                       "two legs in the afternoon, " +
-                       "and three legs in the evening?");
-         response(r);
+	 var r = prompt("What walks on four legs in the morning, " +
+		       "two legs in the afternoon, " +
+		       "and three legs in the evening?");
+	 response(r);
       }
       // Get a silly answer
       function response(answer) {
-         if (answer == "man")
-            alert("Right you are!");
-         else
-            alert("Wrong!  Guess again.");
+	 if (answer == "man")
+	    alert("Right you are!");
+	 else
+	    alert("Wrong!  Guess again.");
       }
       END
       print $query->start_html(-title=>'The Riddle of the Sphinx',
-                               -script=>$JSCRIPT);
+			       -script=>$JSCRIPT);
 
 See
 
@@ -3164,10 +3210,10 @@ choices:
 This forces the default value to be used, regardless of the previous value:
 
    print $query->textfield(-name=>'field_name',
-                           -default=>'starting value',
-                           -override=>1,
-                           -size=>50,
-                           -maxlength=>80);
+			   -default=>'starting value',
+			   -override=>1,
+			   -size=>50,
+			   -maxlength=>80);
 
 I<Yet another note> By default, the text and labels of form elements are
 escaped according to HTML rules.  This means that you can safely use
@@ -3195,8 +3241,8 @@ default is to process the query with the current script.
 =head2 STARTING AND ENDING A FORM
 
     print $query->startform(-method=>$method,
-	                    -action=>$action,
-	                    -encoding=>$encoding);
+			    -action=>$action,
+			    -encoding=>$encoding);
       <... various form stuff ...>
     print $query->endform;
 
@@ -3266,9 +3312,9 @@ call.  See start_html() for details.
 =head2 CREATING A TEXT FIELD
 
     print $query->textfield(-name=>'field_name',
-	                    -default=>'starting value',
-	                    -size=>50,
-	                    -maxlength=>80);
+			    -default=>'starting value',
+			    -size=>50,
+			    -maxlength=>80);
 	-or-
 
     print $query->textfield('field_name','starting value',50,80);
@@ -3317,10 +3363,10 @@ value, you can force its current value by using the -override (alias -force)
 parameter:
 
     print $query->textfield(-name=>'field_name',
-	                    -default=>'starting value',
+			    -default=>'starting value',
 			    -override=>1,
-	                    -size=>50,
-	                    -maxlength=>80);
+			    -size=>50,
+			    -maxlength=>80);
 
 JAVASCRIPTING: You can also provide B<-onChange>, B<-onFocus>, B<-onBlur>
 and B<-onSelect> parameters to register JavaScript event handlers.
@@ -3333,9 +3379,9 @@ user changes the portion of the text that is selected.
 =head2 CREATING A BIG TEXT FIELD
 
    print $query->textarea(-name=>'foo',
-	 		  -default=>'starting value',
-	                  -rows=>10,
-	                  -columns=>50);
+			  -default=>'starting value',
+			  -rows=>10,
+			  -columns=>50);
 
 	-or
 
@@ -3368,9 +3414,9 @@ and B<-onSelect> parameters are recognized.  See textfield().
 =head2 CREATING A FILE UPLOAD FIELD
 
     print $query->filefield(-name=>'uploaded_file',
-	                    -default=>'starting value',
-	                    -size=>50,
-	 		    -maxlength=>80);
+			    -default=>'starting value',
+			    -size=>50,
+			    -maxlength=>80);
 	-or-
 
     print $query->filefield('uploaded_file','starting value',50,80);
@@ -3442,13 +3488,13 @@ of the file using standard Perl file reading calls:
 	# Read a text file and print it out
 	while (<$filename>) {
 	   print;
-        }
+	}
 
-        # Copy a binary file to somewhere safe
-        open (OUTFILE,">>/usr/local/web/users/feedback");
+	# Copy a binary file to somewhere safe
+	open (OUTFILE,">>/usr/local/web/users/feedback");
 	while ($bytesread=read($filename,$buffer,1024)) {
 	   print OUTFILE $buffer;
-        }
+	}
 
 JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur>
 and B<-onSelect> parameters are recognized.  See textfield()
@@ -3457,24 +3503,24 @@ for details.
 =head2 CREATING A POPUP MENU
 
    print $query->popup_menu('menu_name',
-                            ['eenie','meenie','minie'],
-                            'meenie');
+			    ['eenie','meenie','minie'],
+			    'meenie');
 
       -or-
 
    %labels = ('eenie'=>'your first choice',
-              'meenie'=>'your second choice',
-              'minie'=>'your third choice');
+	      'meenie'=>'your second choice',
+	      'minie'=>'your third choice');
    print $query->popup_menu('menu_name',
-                            ['eenie','meenie','minie'],
-                            'meenie',\%labels);
+			    ['eenie','meenie','minie'],
+			    'meenie',\%labels);
 
 	-or (named parameter style)-
 
    print $query->popup_menu(-name=>'menu_name',
 			    -values=>['eenie','meenie','minie'],
-	                    -default=>'meenie',
-	                    -labels=>\%labels);
+			    -default=>'meenie',
+			    -labels=>\%labels);
 
 popup_menu() creates a menu.
 
@@ -3520,23 +3566,23 @@ section for details on when these handlers are called.
 =head2 CREATING A SCROLLING LIST
 
    print $query->scrolling_list('list_name',
-                                ['eenie','meenie','minie','moe'],
-                                ['eenie','moe'],5,'true');
+				['eenie','meenie','minie','moe'],
+				['eenie','moe'],5,'true');
       -or-
 
    print $query->scrolling_list('list_name',
-                                ['eenie','meenie','minie','moe'],
-                                ['eenie','moe'],5,'true',
-                                \%labels);
+				['eenie','meenie','minie','moe'],
+				['eenie','moe'],5,'true',
+				\%labels);
 
 	-or-
 
    print $query->scrolling_list(-name=>'list_name',
-                                -values=>['eenie','meenie','minie','moe'],
-                                -default=>['eenie','moe'],
-	                        -size=>5,
-	                        -multiple=>'true',
-                                -labels=>\%labels);
+				-values=>['eenie','meenie','minie','moe'],
+				-default=>['eenie','moe'],
+				-size=>5,
+				-multiple=>'true',
+				-labels=>\%labels);
 
 scrolling_list() creates a scrolling list.  
 
@@ -3590,20 +3636,20 @@ the description of when these handlers are called.
 =head2 CREATING A GROUP OF RELATED CHECKBOXES
 
    print $query->checkbox_group(-name=>'group_name',
-                                -values=>['eenie','meenie','minie','moe'],
-                                -default=>['eenie','moe'],
-	                        -linebreak=>'true',
-	                        -labels=>\%labels);
+				-values=>['eenie','meenie','minie','moe'],
+				-default=>['eenie','moe'],
+				-linebreak=>'true',
+				-labels=>\%labels);
 
    print $query->checkbox_group('group_name',
-                                ['eenie','meenie','minie','moe'],
-                                ['eenie','moe'],'true',\%labels);
+				['eenie','meenie','minie','moe'],
+				['eenie','moe'],'true',\%labels);
 
    HTML3-COMPATIBLE BROWSERS ONLY:
 
    print $query->checkbox_group(-name=>'group_name',
-                                -values=>['eenie','meenie','minie','moe'],
-	                        -rows=2,-columns=>2);
+				-values=>['eenie','meenie','minie','moe'],
+				-rows=2,-columns=>2);
     
 
 checkbox_group() creates a list of checkboxes that are related
@@ -3684,8 +3730,8 @@ of the particular button clicked on using the "this" variable.
 
     print $query->checkbox(-name=>'checkbox_name',
 			   -checked=>'checked',
-		           -value=>'ON',
-		           -label=>'CLICK ME');
+			   -value=>'ON',
+			   -label=>'CLICK ME');
 
 	-or-
 
@@ -3734,21 +3780,21 @@ parameter.  See checkbox_group() for further details.
 
    print $query->radio_group(-name=>'group_name',
 			     -values=>['eenie','meenie','minie'],
-                             -default=>'meenie',
+			     -default=>'meenie',
 			     -linebreak=>'true',
 			     -labels=>\%labels);
 
 	-or-
 
    print $query->radio_group('group_name',['eenie','meenie','minie'],
-                                          'meenie','true',\%labels);
+					  'meenie','true',\%labels);
 
 
    HTML3-COMPATIBLE BROWSERS ONLY:
 
    print $query->radio_group(-name=>'group_name',
-                             -values=>['eenie','meenie','minie','moe'],
-	                     -rows=2,-columns=>2);
+			     -values=>['eenie','meenie','minie','moe'],
+			     -rows=2,-columns=>2);
 
 radio_group() creates a set of logically-related radio buttons
 (turning one member of the group on turns the others off)
@@ -3823,7 +3869,7 @@ or in other creative ways:
 =head2 CREATING A SUBMIT BUTTON 
 
    print $query->submit(-name=>'button_name',
-		        -value=>'value');
+			-value=>'value');
 
 	-or-
 
@@ -3878,7 +3924,7 @@ changes the user ever made.
 =head2 CREATING A HIDDEN FIELD
 
 	print $query->hidden(-name=>'hidden_name',
-	                     -default=>['value1','value2'...]);
+			     -default=>['value1','value2'...]);
 
 		-or-
 
@@ -3919,8 +3965,8 @@ do it manually:
 =head2 CREATING A CLICKABLE IMAGE BUTTON
 
      print $query->image_button(-name=>'button_name',
-			        -src=>'/source/URL',
-			        -align=>'MIDDLE');	
+				-src=>'/source/URL',
+				-align=>'MIDDLE');      
 
 	-or-
 
@@ -3960,8 +4006,8 @@ Fetch the value of the button this way:
 =head2 CREATING A JAVASCRIPT ACTION BUTTON
 
      print $query->button(-name=>'button_name',
-                          -value=>'user visible label',
-                          -onClick=>"do_something()");
+			  -value=>'user visible label',
+			  -onClick=>"do_something()");
 
 	-or-
 
@@ -4056,7 +4102,7 @@ array reference, or even associative array reference.  For example,
 you can store an entire associative array into a cookie this way:
 
 	$cookie=$query->cookie(-name=>'family information',
-                               -value=>\%childrens_ages);
+			       -value=>\%childrens_ages);
 
 =item B<-path>
 
@@ -4090,10 +4136,10 @@ header within the string returned by the header() method:
 To create multiple cookies, give header() an array reference:
 
 	$cookie1 = $query->cookie(-name=>'riddle_name',
-                                  -value=>"The Sphynx's Question");
-        $cookie2 = $query->cookie(-name=>'answers',
-                                  -value=>\%answers);
-        print $query->header(-cookie=>[$cookie1,$cookie2]);
+				  -value=>"The Sphynx's Question");
+	$cookie2 = $query->cookie(-name=>'answers',
+				  -value=>\%answers);
+	print $query->header(-cookie=>[$cookie1,$cookie2]);
 
 To retrieve a cookie, request it by name by calling cookie()
 method without the B<-value> parameter:
@@ -4220,14 +4266,14 @@ Produces something that looks like:
 
     <UL>
     <LI>name1
-        <UL>
-        <LI>value1
-        <LI>value2
-        </UL>
+	<UL>
+	<LI>value1
+	<LI>value2
+	</UL>
     <LI>name2
-        <UL>
-        <LI>value1
-        </UL>
+	<UL>
+	<LI>value1
+	</UL>
     </UL>
 
 You can pass a value of 'true' to dump() in order to get it to
@@ -4282,11 +4328,23 @@ E.G. fetching /cgi-bin/your_script/additional/stuff will
 result in $query->path_info() returning
 "additional/stuff".
 
+NOTE: The Microsoft Internet Information Server
+is broken with respect to additional path information.  If
+you use the Perl DLL library, the IIS server will attempt to
+execute the additional path information as a Perl script.
+If you use the ordinary file associations mapping, the
+path information will be present in the environment, 
+but incorrect.  The best thing to do is to avoid using additional
+path information in CGI scripts destined for use with IIS.
+
 =item B<path_translated()>
 
 As per path_info() but returns the additional
 path information translated into a physical path, e.g.
 "/usr/local/etc/httpd/htdocs/additional/stuff".
+
+The Microsoft IIS is broken with respect to the translated
+path as well.
 
 =item B<remote_host()>
 
@@ -4307,6 +4365,20 @@ browsers.
 
 Return the authorization/verification method in use for this
 script, if any.
+
+=item B<server_name ()>
+
+Returns the name of the server, usually the machine's host
+name.
+
+=item B<virtual_host ()>
+
+When using virtual hosts, returns the name of the host that
+the browser attempted to contact
+
+=item B<server_software ()>
+
+Returns the server software and version number.
 
 =item B<remote_user ()>
 
@@ -4341,32 +4413,32 @@ This example shows how to use the HTML methods:
 			     "Many years ago on the island of",
 			     $q->a({href=>"http://crete.org/"},"Crete"),
 			     "there lived a minotaur named",
-                             $q->strong("Fred."),
+			     $q->strong("Fred."),
 			    ),
-               $q->hr;
+	       $q->hr;
 
 This results in the following HTML code (extra newlines have been
 added for readability):
 
 	<blockquote>
-        Many years ago on the island of
+	Many years ago on the island of
 	<a HREF="http://crete.org/">Crete</a> there lived
-        a minotaur named <strong>Fred.</strong> 
-        </blockquote>
-        <hr>
+	a minotaur named <strong>Fred.</strong> 
+	</blockquote>
+	<hr>
 
 If you find the syntax for calling the HTML shortcuts awkward, you can
 import them into your namespace and dispense with the object syntax
 completely (see the next section for more details):
 
-	use CGI shortcuts;	# IMPORT HTML SHORTCUTS
+	use CGI shortcuts;      # IMPORT HTML SHORTCUTS
 	print blockquote(
 		     "Many years ago on the island of",
 		     a({href=>"http://crete.org/"},"Crete"),
 		     "there lived a minotaur named",
-                     strong("Fred."),
+		     strong("Fred."),
 		     ),
-               hr;
+	       hr;
 
 =head2 PROVIDING ARGUMENTS TO HTML SHORTCUTS
 
@@ -4490,11 +4562,11 @@ importing CGI.pm methods, you can create visually elegant scripts:
        "What's your name? ",textfield('name'),p,
        "What's the combination?",
        checkbox_group(-name=>'words',
-	  	      -values=>['eenie','meenie','minie','moe'],
+		      -values=>['eenie','meenie','minie','moe'],
 		      -defaults=>['eenie','moe']),p,
        "What's your favorite color?",
        popup_menu(-name=>'color',
-	          -values=>['red','green','blue','chartreuse']),p,
+		  -values=>['red','green','blue','chartreuse']),p,
        submit,
        end_form,
        hr,"\n";
@@ -4527,10 +4599,10 @@ mode, CGI.pm will output the necessary extra header information when
 the header() and redirect() methods are
 called.
 
-B<Important:> If you use the Microsoft Internet
-Information Server, you >must designate your script as an NPH
-script.  Otherwise many of CGI.pm's features, such as redirection and
-the ability to output non-HTML files, will fail.
+The Microsoft Internet Information Server requires NPH mode.  As of version
+2.30, CGI.pm will automatically detect when the script is running under IIS
+and put itself into this mode.  You do not need to do this manually, although
+it won't hurt anything if you do.
 
 There are a number of ways to put CGI.pm into NPH mode:
 
@@ -4617,86 +4689,86 @@ for suggestions and bug fixes.
 
 	#!/usr/local/bin/perl
      
-    	use CGI;
+	use CGI;
  
 	$query = new CGI;
 
- 	print $query->header;
- 	print $query->start_html("Example CGI.pm Form");
- 	print "<H1> Example CGI.pm Form</H1>\n";
- 	&print_prompt($query);
- 	&do_work($query);
+	print $query->header;
+	print $query->start_html("Example CGI.pm Form");
+	print "<H1> Example CGI.pm Form</H1>\n";
+	&print_prompt($query);
+	&do_work($query);
 	&print_tail;
- 	print $query->end_html;
+	print $query->end_html;
  
- 	sub print_prompt {
-     	   my($query) = @_;
+	sub print_prompt {
+	   my($query) = @_;
  
-     	   print $query->startform;
-     	   print "<EM>What's your name?</EM><BR>";
-     	   print $query->textfield('name');
-     	   print $query->checkbox('Not my real name');
+	   print $query->startform;
+	   print "<EM>What's your name?</EM><BR>";
+	   print $query->textfield('name');
+	   print $query->checkbox('Not my real name');
  
-     	   print "<P><EM>Where can you find English Sparrows?</EM><BR>";
-     	   print $query->checkbox_group(
-                                 -name=>'Sparrow locations',
- 				 -values=>[England,France,Spain,Asia,Hoboken],
-			         -linebreak=>'yes',
- 				 -defaults=>[England,Asia]);
+	   print "<P><EM>Where can you find English Sparrows?</EM><BR>";
+	   print $query->checkbox_group(
+				 -name=>'Sparrow locations',
+				 -values=>[England,France,Spain,Asia,Hoboken],
+				 -linebreak=>'yes',
+				 -defaults=>[England,Asia]);
  
-     	   print "<P><EM>How far can they fly?</EM><BR>",
-            	$query->radio_group(
+	   print "<P><EM>How far can they fly?</EM><BR>",
+		$query->radio_group(
 			-name=>'how far',
- 		        -values=>['10 ft','1 mile','10 miles','real far'],
- 		        -default=>'1 mile');
+			-values=>['10 ft','1 mile','10 miles','real far'],
+			-default=>'1 mile');
  
-     	   print "<P><EM>What's your favorite color?</EM>  ";
-     	   print $query->popup_menu(-name=>'Color',
+	   print "<P><EM>What's your favorite color?</EM>  ";
+	   print $query->popup_menu(-name=>'Color',
 				    -values=>['black','brown','red','yellow'],
 				    -default=>'red');
  
-     	   print $query->hidden('Reference','Monty Python and the Holy Grail');
+	   print $query->hidden('Reference','Monty Python and the Holy Grail');
  
-     	   print "<P><EM>What have you got there?</EM><BR>";
-     	   print $query->scrolling_list(
+	   print "<P><EM>What have you got there?</EM><BR>";
+	   print $query->scrolling_list(
 			 -name=>'possessions',
- 			 -values=>['A Coconut','A Grail','An Icon',
- 			           'A Sword','A Ticket'],
- 			 -size=>5,
- 			 -multiple=>'true');
+			 -values=>['A Coconut','A Grail','An Icon',
+				   'A Sword','A Ticket'],
+			 -size=>5,
+			 -multiple=>'true');
  
-     	   print "<P><EM>Any parting comments?</EM><BR>";
-     	   print $query->textarea(-name=>'Comments',
-		                  -rows=>10,
+	   print "<P><EM>Any parting comments?</EM><BR>";
+	   print $query->textarea(-name=>'Comments',
+				  -rows=>10,
 				  -columns=>50);
  
-     	   print "<P>",$query->reset;
-     	   print $query->submit('Action','Shout');
-     	   print $query->submit('Action','Scream');
-     	   print $query->endform;
-     	   print "<HR>\n";
- 	}
+	   print "<P>",$query->reset;
+	   print $query->submit('Action','Shout');
+	   print $query->submit('Action','Scream');
+	   print $query->endform;
+	   print "<HR>\n";
+	}
  
- 	sub do_work {
-     	   my($query) = @_;
-     	   my(@values,$key);
+	sub do_work {
+	   my($query) = @_;
+	   my(@values,$key);
 
-     	   print "<H2>Here are the current settings in this form</H2>";
+	   print "<H2>Here are the current settings in this form</H2>";
 
-     	   foreach $key ($query->param) {
- 	      print "<STRONG>$key</STRONG> -> ";
- 	      @values = $query->param($key);
- 	      print join(", ",@values),"<BR>\n";
-          }
- 	}
+	   foreach $key ($query->param) {
+	      print "<STRONG>$key</STRONG> -> ";
+	      @values = $query->param($key);
+	      print join(", ",@values),"<BR>\n";
+	  }
+	}
  
- 	sub print_tail {
-     	   print <<END;
- 	<HR>
- 	<ADDRESS>Lincoln D. Stein</ADDRESS><BR>
- 	<A HREF="/">Home Page</A>
- 	END
- 	}
+	sub print_tail {
+	   print <<END;
+	<HR>
+	<ADDRESS>Lincoln D. Stein</ADDRESS><BR>
+	<A HREF="/">Home Page</A>
+	END
+	}
 
 =head1 BUGS
 
