@@ -1,8 +1,8 @@
 package CGI;
 
 require 5.001;
-$CGI::revision = '$Id: CGI.pm,v 2.1 1995/11/25 14:50:43 lstein Exp $';
-($CGI::VERSION=$CGI::revision)=~s/.*(\d+\.\d+).*/$1/;
+$CGI::revision = '$Id: CGI.pm,v 1.1.1.1 1995/12/01 05:58:39 lstein Exp $';
+$CGI::VERSION=2.13;
 
 =head1 NAME
 
@@ -1031,7 +1031,7 @@ TOP, BOTTOM or MIDDLE
 
 =back
 
-Fetch the value of the buttonthis way:
+Fetch the value of the button this way:
      $x = $query->param('button_name.x');
      $y = $query->param('button_name.y');
 
@@ -1322,7 +1322,8 @@ sub new {
     my($IN);
     if ($filehandle) {
 	my($package) = caller;
-	$IN="$package\:\:$filehandle"; # force into caller's package
+	# force into caller's package if necessary
+	$IN = $filehandle=~/[':]/ ? $filehandle : "$package\:\:$filehandle"; 
     }
     my $self = {};
     bless $self,$class;
@@ -1457,7 +1458,7 @@ sub save {
     my($self,$filehandle) = @_;
     my($param);
     my($package) = caller;
-    $filehandle = "$package\:\:$filehandle";
+    $filehandle = $filehandle=~/[':]/ ? $filehandle : "$package\:\:$filehandle";
     foreach $param ($self->param) {
 	my($escaped_param) = &escape($param);
 	my($value);
@@ -1654,8 +1655,8 @@ sub textfield {
 
     my($current) = defined($self->param($name)) ? $self->param($name) : $default;
 
-    $current = $self->escapeHTML($current) || '';
-    $name = $self->escapeHTML($name) || '';
+    $current = $self->escapeHTML($current);
+    $name = $self->escapeHTML($name);
     my($s) = defined($size) ? qq/SIZE=$size/ : '';
     my($m) = defined($maxlength) ? qq/MAXLENGTH=$maxlength/ : '';
     return qq/<INPUT TYPE="text" NAME="$name" VALUE="$current" $s $m @other>/;
@@ -1729,9 +1730,7 @@ sub textarea {
     $current=$self->escapeHTML($current);
     my($r) = "ROWS=$rows" if $rows;
     my($c) = "COLS=$cols" if $cols;
-    return <<END;
-<TEXTAREA NAME="$name" $r $c @other>$current</TEXTAREA>
-END
+    return qq{<TEXTAREA NAME="$name" $r $c @other>$current</TEXTAREA>};
 }
 
 #### Method: submit
@@ -1855,7 +1854,7 @@ sub checkbox_group {
 
     my($self,@p) = @_;
     my($name,$values,$defaults,$linebreak,$labels,$rows,$columns,$rowheaders,$colheaders,@other) =
-	$self->rearrange([NAME,VALUES,[DEFAULTS,DEFAULT],
+	$self->rearrange([NAME,[VALUES,VALUE],[DEFAULTS,DEFAULT],
 			  LINEBREAK,LABELS,ROWS,[COLUMNS,COLS],
 			  ROWHEADERS,COLHEADERS],@p);
 
@@ -1925,7 +1924,7 @@ sub radio_group {
     my($self,@p) = @_;
 
     my($name,$values,$default,$linebreak,$labels,$rows,$columns,$rowheaders,$colheaders,@other) =
-	$self->rearrange([NAME,VALUES,DEFAULT,LINEBREAK,LABELS,
+	$self->rearrange([NAME,[VALUES,VALUE],DEFAULT,LINEBREAK,LABELS,
 			  ROWS,[COLUMNS,COLS],
 			  ROWHEADERS,COLHEADERS],@p);
     my($result,$checked);
@@ -1971,7 +1970,7 @@ sub popup_menu {
     my($self,@p) = @_;
 
     my($name,$values,$default,$labels,@other) =
-	$self->rearrange([NAME,VALUES,[DEFAULT,DEFAULTS],LABELS],@p);
+	$self->rearrange([NAME,[VALUES,VALUE],[DEFAULT,DEFAULTS],LABELS],@p);
     my($result,$selected);
 
     if (defined($self->param($name))) {
@@ -2016,9 +2015,9 @@ sub popup_menu {
 #   A string containing the definition of a scrolling list.
 ####
 sub scrolling_list {
-     my($self,@p) = @_;
+    my($self,@p) = @_;
     my($name,$values,$defaults,$size,$multiple,$labels,@other)
-	= $self->rearrange([NAME,VALUES,[DEFAULTS,DEFAULT],SIZE,MULTIPLE,LABELS],
+	= $self->rearrange([NAME,[VALUES,VALUE],[DEFAULTS,DEFAULT],SIZE,MULTIPLE,LABELS],
 			   @p);
 
     my($result);
@@ -2563,7 +2562,8 @@ sub new {
     my $IN;
     if ($filehandle) {
 	my($package) = caller;
-	$IN="$package\:\:$filehandle"; # force into caller's package
+	# force into caller's package if necessary
+	$IN = $filehandle=~/[':]/ ? $filehandle : "$package\:\:$filehandle"; 
     }
     $IN = "main::STDIN" unless $IN;
     my $self = {LENGTH=>$length,
@@ -2683,7 +2683,8 @@ sub eof {
 
 package TempFile;
 
-foreach ('/usr/tmp','/tmp') {
+@TEMP=('/usr/tmp','/var/tmp','/tmp',);
+foreach (@TEMP) {
     do {$TMPDIRECTORY = $_; last} if -w $_;
 }
 $TMPDIRECTORY  = "." unless $TMPDIRECTORY;

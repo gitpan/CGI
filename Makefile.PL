@@ -4,6 +4,7 @@ use ExtUtils::MakeMaker;
 WriteMakefile(
     'NAME'	=> 'CGI',
     'DISTNAME'  => 'CGI.pm',
-    'VERSION'   => '2.1',
-    'dist' => {'COMPRESS'=>'compress', 'SUFFIX' => 'Z'}
+    'VERSION'   => '2.13',
+    'linkext'   => { LINKTYPE=>'' },	# no link needed
+    'dist'      => {'COMPRESS'=>'compress', 'SUFFIX' => 'Z'}
 );

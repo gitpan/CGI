@@ -1,7 +1,16 @@
 .rn '' }`
-''' $RCSfile: CGI.man,v $$Revision: 2.1 $$Date: 1995/11/13 04:14:26 $
+''' $RCSfile: CGI.man,v $$Revision: 1.1.1.1 $$Date: 1995/12/01 05:58:39 $
 ''' 
 ''' $Log: CGI.man,v $
+.\" Revision 1.1.1.1  1995/12/01  05:58:39  lstein
+.\" Here we go again.  This is CGI, releasable, and probably "done".
+.\"
+.\" Revision 1.1.1.1  1995/12/01  05:51:07  lstein
+.\" Starting over from scratch because it got gloriously confused.
+.\"
+# Revision 2.11  1995/11/26  04:46:26  lstein
+# Very minor changes.  Mostly aesthetic.
+#
 # Revision 2.1  1995/11/13  04:14:26  lstein
 # Making CGI user-installation-friendly.
 #

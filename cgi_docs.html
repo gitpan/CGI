@@ -1,12 +1,11 @@
 <HTML> <HEAD>
 <TITLE>CGI.pm - a Perl5 CGI Library</TITLE>
-<BASE HREF="http://www-genome.wi.mit.edu/ftp/distribution/software/WWW/cgi_docs.html">
 </HEAD>
 
 <BODY>
 <H1><IMG SRC="/www/wilogo.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.1, 11/25/95, L. Stein<BR>
+Version 2.13, 12/9/95, L. Stein<BR>
 <STRONG>Warning:</STRONG>
 Users of hidden fields in older versions
 <A HREF="#hidden_fields_warning">read this.</A>
@@ -83,7 +82,7 @@ if ($query-&gt;param) {
   <LI><A HREF="#non_unix">Using CGI.pm on non-Unix Platforms</A>
   <LI><A HREF="#future">Future prospects</A>
   <LI><A HREF="#distribution">Distribution information</A>
-  <LI><A HREF="#new">What's new in version 2.00?</A>
+  <LI><A HREF="#new">What's new in version 2.13?</A>
 </MENU>
 
 <HR>
@@ -1586,6 +1585,11 @@ HREF="/~lstein">lstein@genome.wi.mit.edu</A>
 <HR>
 <H2><A NAME="new">Revision History: v1.3-&gt;v2.0</A></H2>
 
+<H3>Version 2.13</H3>
+<OL>
+  <LI>Fixed a bug that interfered with the value "0" being entered into
+       text fields.
+</OL>
 <H3>Version 2.01</H3>
 <OL>
   <LI>Added -rows and -columns to the radio and checkbox groups.

@@ -1,8 +1,6 @@
-CGI.c
 CGI.man
 CGI.pm
 MANIFEST
-Makefile
 Makefile.PL
 README
 cgi_docs.html
