@@ -1,5 +1,9 @@
-This is CGI.pm 2.36, an easy-to-use Perl5 library for writing World
+WHAT IS THIS?
+
+This is CGI.pm 2.37, an easy-to-use Perl5 library for writing World
 Wide Web CGI scripts.
+
+HOW DO I INSTALL IT?
 
 To install this module, cd to the directory that contains this README
 file and type the following:
@@ -16,35 +20,41 @@ If you have trouble installing CGI.pm because you have insufficient
 access privileges to add to the perl library directory, you can still
 use CGI.pm.  See the docs for details.
 
-This module works with NT, Windows, Macintosh and VMS servers, although
-it hasn't been tested as extensively as it should be.  See the docs
-for notes on your particular platform.
+WHAT SYSTEMS DOES IT WORK WITH?
 
-The documentation for these modules is part of the CGI.pm itself.  It
-can be read using the pod2man and pod2html programs that come with
-perl5.001.  To convert them into manual page format, type something
-like the following:
+This module works with NT, Windows, Macintosh, OS/2 and VMS servers,
+although it hasn't been tested as extensively as it should be.  See
+the docs for notes on your particular platform.
 
-	pod2man CGI.pm > CGI.man
+WHERE IS THE DOCUMENTATION?
 
-For your convenience, there's a man page already compiled.  The very
-verbose HTML document that is used for online documentation can also
-be found in cgi_docs.html.
+You'll find very verbose documentation in the file cgi_docs.html,
+located in the top level directory.  
+
+Terser documentation is found in POD (plain old documentation) form in
+CGI.pm itself.  When you install CGI, the MakeMaker program will
+automatically install the manual pages for you (on Unix systems, type
+"man CGI").
+
+WHERE ARE THE EXAMPLES?
 
 A collection of examples demonstrating various CGI features and
-techniques are in the directory "examples".
+techniques are in the directory "examples".  Many more examples of CGI
+scripts of various degrees of complexity can be found at:
+
+	http://www.genome.wi.mit.edu/WWW/examples/Ch9/
+
+
+WHERE IS THE ONLINE DOCUMENTATION?
 
 Online documentation of for CGI.pm, and notifications of new versions
 can be found at:
 
 	http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 
-Many examples of CGI scripts of various degrees of complexity can be
-found at:
-
-	http://www.genome.wi.mit.edu/WWW/examples/Ch9/
 
 Have fun, and let me know how it turns out!
 
 Lincoln D. Stein
-lstein@genome.wi.mit.edu
+lstein@w3.org
+

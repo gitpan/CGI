@@ -187,7 +187,7 @@ sub die {
     my $message = shift;
     my $time = scalar(localtime);
     my($file,$line,$id) = id(1);
-    return undef if $file=~/^\(eval/;
+#    return undef if $file=~/^\(eval/;
     $message .= " at $file line $line.\n" unless $message=~/\n$/;
     &fatalsToBrowser($message) if $WRAP;
     my $stamp = stamp;

@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.5 1997/11/09 21:34:44 lstein Exp lstein $';
-$CGI::VERSION='2.37010';
+$CGI::revision = '$Id: CGI.pm,v 1.8 1997/12/19 20:12:28 lstein Exp lstein $';
+$CGI::VERSION='2.37012';
 use UNIVERSAL qw(isa);
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
@@ -169,11 +169,13 @@ if ($needs_binmode) {
 sub import {
     my $self = shift;
     my ($callpack, $callfile, $callline) = caller;
+    my $compile = 0;
     foreach (@_) {
 	$NPH++, next if /^[:-]nph$/;
 	$NO_DEBUG++, next if /^[:-]no_debug$/;
 	$PRIVATE_TEMPFILES++, next if /^[:-]private_tempfiles$/;
 	$EXPORT{$_}++, next if /^[:-]any$/;
+	$compile++, next if /^[:-]compile$/;
 
 	foreach (&expand_tags($_)) {
 	    tr/a-zA-Z0-9_//cd;  # don't allow weird function names
@@ -181,6 +183,8 @@ sub import {
 	}
 
     }
+    _compile_all(keys %EXPORT) if $compile;
+
     # To allow overriding, search through the packages
     # Till we find one in which the correct subroutine is defined.
     my @packages = ($self,@{"$self\:\:ISA"});
@@ -219,7 +223,6 @@ sub new {
 	Apache->request->register_cleanup(\&CGI::_reset_globals);
 	undef $NPH;
     }
-    $initializer = to_filehandle($initializer) if $initializer;
     $self->init($initializer);
     return $self;
 }
@@ -357,7 +360,7 @@ sub use_named_parameters {
 
 sub init {
     my($self,$initializer) = @_;
-    my($query_string,$meth,$content_length,@lines) = ('','',0);
+    my($query_string,$meth,$content_length,$fh,@lines) = ('','',0,'');
 
     # if we get called more than once, we want to initialize
     # ourselves from the original query (which may be gone
@@ -374,16 +377,19 @@ sub init {
     $content_length = $ENV{'CONTENT_LENGTH'} if defined($ENV{'CONTENT_LENGTH'});
     die "Client attempted to POST $content_length bytes, but POSTs are limited to $POST_MAX"
 	if ($POST_MAX > 0) && ($content_length > $POST_MAX);
+    $fh = to_filehandle($initializer) if $initializer;
 
   METHOD: {
 
       # special case for multipart postings
       if ($meth eq 'POST'
 	  && defined($ENV{'CONTENT_TYPE'})
-	  && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|) {
+	  && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|
+	  && ( !defined($initializer) || $fh )
+	  ) {
 
 	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary=\"?([^\";]+)\"?/;
-	  $self->read_multipart($boundary,$content_length,$initializer);
+	  $self->read_multipart($boundary,$content_length,to_filehandle($initializer));
 	  last METHOD;
       } 
 
@@ -397,9 +403,8 @@ sub init {
 	      last METHOD;
 	  }
 	  
-	  $initializer = $$initializer if ref($initializer);
-	  if (defined(fileno($initializer))) {
-	      while (<$initializer>) {
+	  if ($fh ne '') {
+	      while (<$fh>) {
 		  chomp;
 		  last if /^=/;
 		  push(@lines,$_);
@@ -412,7 +417,11 @@ sub init {
 	      }
 	      last METHOD;
 	  }
+
+	  # last chance -- treat it as a string
+	  $initializer = $$initializer if ref($initializer);
 	  $query_string = $initializer;
+
 	  last METHOD;
       }
 
@@ -471,18 +480,20 @@ sub init {
 
 }
 
-
 # FUNCTIONS TO OVERRIDE:
-
 # Turn a string into a filehandle
 sub to_filehandle {
     my $string = shift;
+    return $string if ref($string) eq 'GLOB';
+    return $string if ref($string) eq 'FileHandle';
     if ($string && !ref($string)) {
-	my($package) = caller(1);
-	my($tmp) = $string=~/[':]/ ? $string : "$package\:\:$string"; 
-	return $tmp if defined(fileno($tmp));
+	my $caller = 1;
+	while (my $package = caller($caller++)) {
+	    my($tmp) = $string=~/[':]/ ? $string : "$package\:\:$string"; 
+	    return $tmp if defined(fileno($tmp));
+	}
     }
-    return $string;
+    return undef;
 }
 
 # Create a new multipart buffer
@@ -495,6 +506,7 @@ sub new_MultipartBuffer {
 sub read_from_client {
     my($self, $fh, $buff, $len, $offset) = @_;
     local $^W=0;                # prevent a warning
+    return undef unless defined($fh);
     return read($fh, $$buff, $len, $offset);
 }
 
@@ -517,7 +529,7 @@ sub print {
 
 # unescape URL-encoded data
 sub unescape {
-    shift if ref($_[0]) || $_[0] eq $DefaultClass;
+    shift if ref($_[0]);
     my $todecode = shift;
     return undef unless defined($todecode);
     $todecode =~ tr/+/ /;       # pluses become spaces
@@ -580,11 +592,17 @@ sub all_parameters {
 
 sub AUTOLOAD {
     print STDERR "CGI::AUTOLOAD for $AUTOLOAD\n" if $CGI::AUTOLOAD_DEBUG;
+    my $func = &_compile;
+    goto &$func;
+}
+
+sub _compile {
     my($func) = $AUTOLOAD;
     my($pack,$func_name);
     {
 	local($1,$2); # this fixes an obscure variable suicide problem.
 	($pack,$func_name) = $func=~/(.+)::([^:]+)$/;
+	$pack=~s/::SUPER$//;	# fix another obscure problem
 	$pack = ${"$pack\:\:AutoloadClass"} || $CGI::DefaultClass
 	    unless defined(${"$pack\:\:AUTOLOADED_ROUTINES"});
 
@@ -613,7 +631,7 @@ sub AUTOLOAD {
 	   die $@;
        }
     }
-    goto &{"$pack\:\:$func_name"};
+    return "$pack\:\:$func_name";
 }
 
 # PRIVATE SUBROUTINE
@@ -1098,7 +1116,7 @@ sub redirect {
     my($url,$target,$cookie,$nph,@other) = $self->rearrange([[LOCATION,URI,URL],TARGET,COOKIE,NPH],@p);
     $url = $url || $self->self_url;
     my(@o);
-    foreach (@other) { tr/"//d; push(@o,split("=")); }
+    foreach (@other) { tr/\"//d; push(@o,split("=")); }
     unshift(@o,
 	 '-Status'=>'302 Moved',
 	 '-Location'=>$url,
@@ -1645,13 +1663,14 @@ sub checkbox_group {
 }
 END_OF_FUNC
 
-
 # Escape HTML -- used internally
 'escapeHTML' => <<'END_OF_FUNC',
 sub escapeHTML {
     my($self,$toencode) = @_;
+    $toencode = $self unless ref($self);
     return undef unless defined($toencode);
-    return $toencode if $self->{'dontescape'};
+    return $toencode if ref($self) && $self->{'dontescape'};
+
     $toencode=~s/&/&amp;/g;
     $toencode=~s/\"/&quot;/g;
     $toencode=~s/>/&gt;/g;
@@ -1660,6 +1679,19 @@ sub escapeHTML {
 }
 END_OF_FUNC
 
+# unescape HTML -- used internally
+'unescapeHTML' => <<'END_OF_FUNC',
+sub unescapeHTML {
+    my $string = ref($_[0]) ? $_[1] : $_[0];
+    return undef unless defined($string);
+    $string=~s/&amp;/&/ig;
+    $string=~s/&quot;/\"/ig;
+    $string=~s/&gt;/>/ig;
+    $string=~s/&lt;/</ig;
+    $string=~s/&#(\d+);/chr($1)/eig; 
+    return $string;
+}
+END_OF_FUNC
 
 # Internal procedure - don't use
 '_tableize' => <<'END_OF_FUNC',
@@ -2062,6 +2094,8 @@ END_OF_FUNC
 'expires' => <<'END_OF_FUNC',
 sub expires {
     my($time,$format) = @_;
+    $format ||= 'http';
+
     my(@MON)=qw/Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec/;
     my(@WDAY) = qw/Sun Mon Tue Wed Thu Fri Sat/;
 
@@ -2264,7 +2298,7 @@ END_OF_FUNC
 ####
 'script_name' => <<'END_OF_FUNC',
 sub script_name {
-    return $ENV{'SCRIPT_NAME'} if $ENV{'SCRIPT_NAME'};
+    return $ENV{'SCRIPT_NAME'} if defined($ENV{'SCRIPT_NAME'});
     # These are for debugging
     return "/$0" unless $0=~/^\//;
     return $0;
@@ -2441,7 +2475,7 @@ END_OF_FUNC
 'default_dtd' => <<'END_OF_FUNC',
 sub default_dtd {
     my ($self,$param) = self_or_CGI(@_);
-    $CGI::$DEFAULT_DTD = $param if defined($param);
+    $CGI::DEFAULT_DTD = $param if defined($param);
     return $CGI::DEFAULT_DTD;
 }
 END_OF_FUNC
@@ -2545,7 +2579,7 @@ sub read_multipart {
 	    next;
 	}
 
-	my ($tmpfile,$tmp);
+	my ($tmpfile,$tmp,$filehandle);
       UPLOADS: {
 	  # If we get here, then we are dealing with a potentially large
 	  # uploaded form.  Save the data to a temporary file, then open
@@ -2554,27 +2588,8 @@ sub read_multipart {
 
 	  $tmpfile = new TempFile;
 	  $tmp = $tmpfile->as_string;
-	
-	  # Now create a new filehandle in the caller's namespace.
-	  # The name of this filehandle just happens to be identical
-	  # to the original filename (NOT the name of the temporary
-	  # file, which is hidden!)
-	  my($filehandle);
-	  if ($filename=~/^[a-zA-Z_]/) {
-	      my($frame,$cp)=(1);
-	      do { $cp = caller($frame++); } until !$cp->isa('CGI');
-	      $filehandle = "$cp\:\:$filename";
-	  } else {
-	      $filehandle = "\:\:$filename";
-	  }
-
-	  # This technique causes open to fail if file already exists.
-	  unless (defined(&O_RDWR)) {
-	      require Fcntl;
-	      import Fcntl qw/O_RDWR O_CREAT O_EXCL/;
-	  }
-	  sysopen($filehandle,$tmp,&O_RDWR|&O_CREAT|&O_EXCL) || die "CGI open of $tmp: $!\n";
-	  unlink($tmp) if $PRIVATE_TEMPFILES;
+	  
+	  $filehandle = Fh->new($filename,$tmp,$PRIVATE_TEMPFILES);
 
 	  $CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
 	  chmod 0600,$tmp;    # only the owner can tamper with it
@@ -2584,16 +2599,9 @@ sub read_multipart {
 	      print $filehandle $data;
 	  }
 
-	  # reportedly seek() doesn't work correctly on some
-	  # windows systems.  Play it safe.
-	  if ($CGI::OS eq 'UNIX') {
-	      seek($filehandle,0,0);
-	  } else {
-	      close($filehandle);
-	      open($filehandle, $tmp) || die "CGI open of $tmp: $!\n";
-	      $CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
-	  }
-
+	  # back up to beginning of file
+	  seek($filehandle,0,0);
+	  $CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
       }
 	
 	# skip the file if uploads disabled
@@ -2602,7 +2610,7 @@ sub read_multipart {
 	    { }
 	}
 
-	push(@{$self->{$param}},$filename);
+	push(@{$self->{$param}},$filehandle);
 	
 	# Under Unix, it would be safe to let the temporary file
 	# be deleted immediately.  However, I fear that other operating
@@ -2614,7 +2622,7 @@ sub read_multipart {
 	# asking for $query->{$query->param('foo')}, where 'foo'
 	# is the name of the file upload field.
 	$self->{'.tmpfiles'}->{$filename}= {
-	    name=>($PRIVATE_TEMPFILES ? '' : $tmpfile),
+	    name=>$tmpfile,
 	    info=>{%header}
 	}
     }
@@ -2630,10 +2638,20 @@ sub tmpFileName {
 }
 END_OF_FUNC
 
-'uploadInfo' => <<'END_OF_FUNC'
+'uploadInfo' => <<'END_OF_FUNC',
 sub uploadInfo {
     my($self,$filename) = self_or_default(@_);
     return $self->{'.tmpfiles'}->{$filename}->{info};
+}
+END_OF_FUNC
+
+'_compile_all' => <<'END_OF_FUNC',
+sub _compile_all {
+    foreach (@_) {
+	next if defined(&$_);
+	$AUTOLOAD = "CGI::$_";
+	_compile();
+    }
 }
 END_OF_FUNC
 
@@ -2641,7 +2659,52 @@ END_OF_FUNC
 END_OF_AUTOLOAD
 ;
 
-# Globals and stubs for other packages that we use
+#########################################################
+# Globals and stubs for other packages that we use.
+#########################################################
+
+################### Fh -- lightweight filehandle ###############
+package Fh;
+use overload '""'  => \&asString;
+$FH='fh00000';
+
+*Fh::AUTOLOAD = \&CGI::AUTOLOAD;
+
+$AUTOLOADED_ROUTINES = '';      # prevent -w error
+$AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
+%SUBS =  (
+'asString' => <<'END_OF_FUNC',
+sub asString {
+    my $self = shift;
+    my ($i);
+    ($i = $$self) =~ s/\*Fh:://;
+    return $i;
+}
+END_OF_FUNC
+
+'new'  => <<'END_OF_FUNC',
+sub new {
+    my($pack,$name,$file,$delete) = @_;
+    require Fcntl unless defined &Fcntl::O_RDWR;
+    ++$FH;
+    *{$FH} = $name;
+    sysopen($FH,$file,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL()) || die "CGI open of $file: $!\n";
+    unlink($file) if $delete;
+    return bless \*{$FH},$pack;
+}
+END_OF_FUNC
+
+'DESTROY'  => <<'END_OF_FUNC',
+sub DESTROY {
+    my $self = shift;
+    close $self;
+}
+END_OF_FUNC
+
+);
+END_OF_AUTOLOAD
+
+######################## MultipartBuffer ####################
 package MultipartBuffer;
 
 # how many bytes to read at a time.  We use
@@ -2735,7 +2798,8 @@ sub readHeader {
 	$ok++ if ($end = index($self->{BUFFER},"${CRLF}${CRLF}")) >= 0;
 	$ok++ if $self->{BUFFER} eq '';
 	$bad++ if !$ok && $self->{LENGTH} <= 0;
-	$FILLUNIT *= 2 if length($self->{BUFFER}) >= $FILLUNIT; 
+	# this was a bad idea
+	# $FILLUNIT *= 2 if length($self->{BUFFER}) >= $FILLUNIT; 
     } until $ok || $bad;
     return () if $bad;
 
@@ -2950,7 +3014,7 @@ EOF
     ;
 }
 
-$revision;
+1;
 
 __END__
 

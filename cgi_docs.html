@@ -5,23 +5,14 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.37b10, 11/22/97, L. Stein
+Version 2.37b12, 12/20/97, L. Stein
 <p>
 
 <strong>This is a beta release.</strong> 2.36 is the official release.
-This is a <i>near final</i> version.  Problems with the ActiveWare
-port of Perl5 to Windows NT are still being resolved.
+This is a <i>near final</i> version, however, and contains fixes for
+many bugs that are present in 2.36.
 
 <p>
-
-<strong>Windows NT Users:</strong> <a href="#windows">See below</a>
-for advice on using PerlIS build 307.
-<p>
-
-<strong>Macintosh Users:</strong> Due to a change of workplaces, I no
-longer have access to a Macintosh.  I am looking for a volunteer to
-put the complete CGI distribution into StuffIt format for the benefit
-of other Mac uses.
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
 fill-out forms on the fly and to parse their contents.  It provides a
@@ -107,6 +98,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <li><a href="#stylesheets">Limited Support for Cascading Style Sheets</a>
   <LI><A HREF="#nph">Using NPH Scripts</A>
   <LI><A HREF="#advanced">Advanced techniques</A>
+  <LI><A HREF="#subclassing">Subclassing CGI.pm</A>
   <LI><A HREF="#mod_perl">Using CGI.pm with mod_perl and FastCGI</A>
   <LI><A HREF="#migrating">Migrating from cgi-lib.pl</A>
   <LI><a href="#upload_caveats">Using the File Upload Feature</a>
@@ -123,8 +115,8 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm-2.37b10.tar.gz">Download 2.37 beta (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.37b10.zip">Download 2.37 beta (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b12.tar.gz">Download 2.37 beta (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b12.zip">Download 2.37 beta (pkzip archive)</A></STRONG>
   <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package (Macintosh stuffit archive)</A></STRONG>
   <li><STRONG><A HREF="CGI.pm.tar.gz">Download 2.36 package (gzip tar archive)</A></STRONG>
   <li><STRONG><A HREF="CGIpm.zip">Download 2.36 package (pkzip archive)</A></STRONG>
@@ -778,7 +770,7 @@ also valid in <tt>redirect</tt>.
 			    -meta=&gt;{'keywords'=&gt;'pharoah secret mummy',
                                     'copyright'=&gt;'copyright 1996 King Tut'},
 			    -style=>{'src'=>'/styles/style1.css'},
-                            -print_dtd=>1,
+                            -dtd=>1,
                             -BGCOLOR=&gt;'blue');
 
    <EM>old style</EM>
@@ -1502,13 +1494,19 @@ $CGI::PRIVATE_TEMPFILES to 1.  Alternatively, call the built-in
 function CGI::private_tempfiles(1), or just <cite>use CGI
 qw/-private_tempfiles</cite>.  The temp file will now be unlinked as
 soon as it is created, making it inaccessible to other users.  The
-<strong>downside</strong> of this is that you will be unable to obtain
-the name of the temporary file using <cite>tmpFileName()</cite>.  This
-function will return an empty string.  Further, since
-PRIVATE_TEMPFILES is a global variable, its setting will affect all
-instances of CGI.pm if you are running mod_perl.  You can work around
-this limitation by declaring $CGI::PRIVATE_TEMPFILES as a local at the
-top of your script.
+<strong>downside</strong> of this is that you will be unable to access
+this temporary file directly (<cite>tmpFileName()</cite> will continue
+to return a string, but you will find no file at that location.)
+Further, since PRIVATE_TEMPFILES is a global variable, its setting
+will affect all instances of CGI.pm if you are running mod_perl.  You
+can work around this limitation by declaring $CGI::PRIVATE_TEMPFILES
+as a local at the top of your script.
+
+<p>
+
+On Windows NT, it is impossible to make a temporary file private.
+This is because Windows doesn't allow you to delete a file before
+closing it.
 
 <p>
 
@@ -2194,25 +2192,107 @@ Currently there are 8 method families defined in CGI.pm.  They are:
   <dd>This imports all the public methods into your namespace!
 </dl>
 
-In addition to these method families, there is a special one named
-<cite>-any</cite> that changes the behavior of the CGI query object.
-If you import <cite>-any</cite>, then any method that the query object
-doesn't recognize will be interpreted as a new HTML tag.  This allows
-you to support the next <cite>ad hoc</cite> Netscape or Microsoft HTML
-extension.  For example, to support Netscape's latest tag,
-&lt;GRADIENT&gt; (which causes the user's desktop to be flooded with a
-rotating gradient fill until his machine reboots), you can use
-something like this:
+<h3>Pragmas</h3>
+
+In addition to importing individual methods and method families,
+<cite>use CGI</cite> recognizes several pragmas, all proceeded by
+dashes.
+
+<dl>
+  <dt><b>-any</b>
+  <dd>When you <cite>use CGI -any</cite>, then any method that the
+      query object doesn't recognize will be interpreted as a new HTML tag.
+      This allows you to support the next <cite>ad hoc</cite> Netscape or
+      Microsoft HTML extension.  For example, to support Netscape's latest
+      tag, &lt;GRADIENT&gt; (which causes the user's desktop to be flooded
+      with a rotating gradient fill until his machine reboots), you can use
+      something like this:
+
+      <blockquote><pre>
+      use CGI qw(-any);
+      $q=new CGI;
+      print $q-&gt;gradient({speed=&gt;'fast',start=&gt;'red',end=&gt;'blue'});
+      </pre></blockquote>
+
+      Since using <cite>any</cite> causes any mistyped method name
+      to be interpreted as an HTML tag, use it with care or not at
+      all.
+      <p>
+  <dt><b>-compile</b>
+  <dd>This causes the indicated autoloaded methods to be compiled up front,
+      rather than deferred to later.  This is useful for scripts that
+      run for an extended period of time under FastCGI or mod_perl,
+      and for those destined to be crunched by Malcom Beattie's Perl
+      compiler.  Use it in conjunction with the methods or method familes
+      you plan to use.
+      <blockquote><pre>
+      use CGI qw(-compile :standard :html3);
+      </pre></blockquote>
+      or even
+      <blockquote><pre>
+      use CGI qw(-compile :all);
+      </pre></blockquote>
+      <p>
+  <dt><b>-nph</b>
+  <dd>This makes CGI.pm produce a header appropriate for an NPH (no
+      parsed header) script.  You may need to do other things as well
+      to tell the server that the script is NPH.  See the <a href="#nph">discussion
+      of NPH scripts</a> below.
+      <p>
+  <dt><b>-nodebug</b>
+  <dd>This turns off the command-line processing features.  If you
+      want to run a CGI.pm script from the command line to produce
+      HTML, and you don't want it pausing to request CGI parameters
+      from standard input, then use this pragma:
+      <blockquote><pre>
+      use CGI qw(-no_debug :standard);
+      </pre></blockquote>
+      See <a href="#debugging">debugging</a> for more details.
+      <p>
+  <dt><b>-private_tempfiles</b>
+  <dd>CGI.pm can process uploaded file. Ordinarily it spools the
+      uploaded file to a temporary directory, then deletes the file
+      when done.  However, this opens the risk of eavesdropping as
+      described in the <a href="#upload">file upload section.</a>
+      Another CGI script author could peek at this data during the
+      upload, even if it is confidential information. On Unix systems,
+      the <b>-private_tempfiles</b>
+      pragma will cause the temporary file to be unlinked as soon
+      as it is opened and before any data is written into it,
+      eliminating the risk of eavesdropping.
+</dl>
+
+
+<H3>Optional Utility Functions</H3>
+
+In addition to the standard imported functions, there are a few
+optional functions that you must request by name if you want them.
+They were originally intended for internal use only, but are now made
+available by popular request.
+
+<h4>escape(), unescape()</h4>
 
 <blockquote><pre>
-use CGI qw(-any);
-$q=new CGI;
-print $q-&gt;gradient({speed=&gt;'fast',start=&gt;'red',end=&gt;'blue'});
+use CGI qw/escape unescape/;
+$q = escape('This $string contains ~wonderful~ characters');
+$u = unescape($q);
 </pre></blockquote>
 
-Since using <cite>any</cite> causes any mistyped method name
-to be interpreted as an HTML tag, use it with care or not at
-all.
+These functions escape and unescape strings according to the URL
+hex escape rules.  For example, the space character will be converted
+into the string "%20".
+
+<h4>escapeHTML(), unescapeHTML()</h4>
+
+<blockquote><pre>
+use CGI qw/escape unescape/;
+$q = escapeHTML('This string is &lt;illegal&gt; html!');
+$u = unescapeHTML($q);
+</pre></blockquote>
+
+These functions escape and unescape strings according to the HTML
+character entity rules.  For example, the character &lt; will be
+escaped as &amp;lt;.
 
 <HR>
 <A NAME="debugging">
@@ -3066,6 +3146,62 @@ print $query-&gt;end_html;
 <A HREF="#contents">Table of contents</A>
 <HR>
 
+<h2><a name="subclassing">Subclassing CGI.pm</a></h2>
+
+CGI.pm uses various tricks to work in both an object-oriented and
+function-oriented fashion.  It uses even more tricks to load quickly,
+despite the fact that it is a humungous module.  These tricks may get
+in your way when you attempt to subclass CGI.pm.
+
+<p>
+
+If you use standard subclassing techniques and restrict yourself to
+using CGI.pm and its subclasses in the object-oriented manner, you'll
+have no problems.  However, if you wish to use the function-oriented
+calls with your subclass, follow this model:
+
+<blockquote><pre>
+package MySubclass;
+use vars qw(@ISA $VERSION);
+require CGI;
+@ISA = qw(CGI);
+$VERSION = 1.0;
+
+$CGI::DefaultClass = __PACKAGE__;
+$AutoloadClass = 'CGI';
+
+sub new {
+   ....
+}
+1;
+</pre></blockquote>
+
+
+The first special trick is to set the CGI package variable
+$CGI::DefaultClass to the name of the module you are defining.  If you
+are using perl 5.004 or higher, you can use the special token
+"__PACKAGE__" to retrieve the name of the current module.  Otherwise,
+just hard code the name of the module.  This variable tells CGI what
+type of default object to create when called in the function-oriented
+manner.
+
+<p>
+
+The second trick is to set the package variable $AutoloadClass to the
+string "CGI".  This tells the CGI autoloader where to look for
+functions that are not defined.  If you wish to override CGI's
+autoloader, set this to the name of your own package.
+
+<p>
+
+More information on extending CGI.pm can be found in my forthcoming
+book, <cite>Lincoln Stein's Guide to CGI.pm</cite>, to be published to
+Wiley &amp; Sons in January 1998.
+
+<p>
+<A HREF="#contents">Table of contents</A>
+<HR>
+
 <h2><a name="mod_perl">Using CGI.pm with mod_perl and FastCGI</a></h2>
 
 <h3>FastCGI</h3>
@@ -3407,7 +3543,13 @@ directories to store temporary files in.
 <h4>On Windows Systems, the temporary file is never deleted, but hangs
 around in <code>\temp</code>, taking up space.</h4>
 
-Be sure to close the filehandle before your program exits.  
+Be sure to close the filehandle before your program exits.  In fact,
+close the file as soon as you're finished with it, because the file
+will end up hanging around if the script later crashes.
+<p>
+
+Unix users don't have this problem, because well designed operating
+systems make it possible to delete a file without closing it.
 
 <h4>When you press the "back" button, the same page is loaded,
 not the previous one.</h4>
@@ -3716,6 +3858,21 @@ Address bug reports and comments to:<BR>
 
 <h3>Version 2.37</h3>
 <ol>
+  <li>Documented the import pragmas a little better.
+  <li>Added a -compile switch to the use clause for the long-suffering
+      mod_perl and Perl compiler users.
+  <li>Fixed initialization routines so that FileHandle and type globs
+      work correctly (and hash initialization doesn't fail!).
+  <li>Better deletion of temporary files on NT systems.
+  <li>Added documentation on escape(), unescape(), unescapeHTML() and
+      unescapeHTML() subroutines.
+  <li>Added documentation on creating subclasses.
+  <li>Fixed problem when calling $self->SUPER::foo() from inheriting
+      subclasses.
+  <li>Fixed problem using filehandles from within subroutines.
+  <li>Fixed inability to use the string "CGI" as a parameter.
+  <li>Fixed exponentially growing $FILLUNIT bug
+  <li>Check for undef filehandle in read_from_client()
   <li>Now requires the UNIVERSAL.pm module, present in Perl 5.003_7 or
       higher.
   <li>Fixed problem with uppercase-only parameters being ignored.
@@ -4091,7 +4248,7 @@ to bump up the major version number.
        "use of uninitialized variable" warnings when running
        with the -w switch.
   <LI> Added the <CODE>autoEscape()</CODE> method.
-  <LI> Added string interpolation of the CGI object.
+v  <LI> Added string interpolation of the CGI object.
   <LI> Added the ability to pass additional parameters to
        the &lt;BODY&gt; tag.
   <LI> Added the ability to specify the status code in the
@@ -4226,6 +4383,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Sun Nov 23 12:31:38 EST 1997
+Last modified: Sat Dec 20 10:56:08 EST 1997
 <!-- hhmts end -->
 </BODY> </HTML>
