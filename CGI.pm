@@ -19,7 +19,7 @@ require 5.004;
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.6 2000/04/10 14:47:37 lstein Exp $ ';
-$CGI::VERSION='3.02';
+$CGI::VERSION='3.03_01';
 
 use CGI::Object;
 
