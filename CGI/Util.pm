@@ -71,12 +71,13 @@ sub rearrange {
 sub make_attributes {
     my $attr = shift;
     return () unless $attr && ref($attr) && ref($attr) eq 'HASH';
+    my $escape = shift || 0;
     my(@att);
     foreach (keys %{$attr}) {
 	my($key) = $_;
 	$key=~s/^\-//;     # get rid of initial - if present
 	$key=~tr/a-z_/A-Z-/; # parameters are upper case, use dashes
-	my $value = simple_escape($attr->{$_});
+	my $value = $escape ? simple_escape($attr->{$_}) : $attr->{$_};
 	push(@att,defined($attr->{$_}) ? qq/$key="$value"/ : qq/$key/);
     }
     return @att;

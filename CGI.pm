@@ -18,7 +18,7 @@ require 5.004;
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.30 2000/03/28 21:31:40 lstein Exp $';
-$CGI::VERSION='2.65';
+$CGI::VERSION='2.66';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -564,7 +564,7 @@ sub _make_tag_func {
                     UNIVERSAL::isa(\$_[0],'CGI')));
 	    my(\$attr) = '';
 	    if (ref(\$_[0]) && ref(\$_[0]) eq 'HASH') {
-		my(\@attr) = make_attributes(shift() );
+		my(\@attr) = make_attributes(shift()||undef,1);
 		\$attr = " \@attr" if \@attr;
 	    }
 	);
