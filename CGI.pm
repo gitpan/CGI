@@ -21,8 +21,8 @@ require 5.001;
 # Set this to 1 to enable copious autoloader debugging messages
 $AUTOLOAD_DEBUG=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.23 1996/08/12 09:32 lstein Exp $';
-$CGI::VERSION='2.23';
+$CGI::revision = '$Id: CGI.pm,v 2.24 1996/08/20 12:48 lstein Exp $';
+$CGI::VERSION='2.24';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -68,7 +68,7 @@ if ($needs_binmode) {
 	      ':html3'=>[qw/table caption th td TR super sub strike applet PARAM embed basefont/],
 	      ':netscape'=>[qw/blink frameset frame script font fontsize center/],
 	      ':form'=>[qw/textfield textarea filefield password_field hidden checkbox checkbox_group 
-		       submit reset defaults radio_group popup_menu button
+		       submit reset defaults radio_group popup_menu button autoEscape
 		       scrolling_list image_button start_form end_form startform endform
 		       start_multipart_form isindex tmpFileName URL_ENCODED MULTIPART/],
 	      ':cgi'=>[qw/param path_info path_translated url self_url script_name cookie 
@@ -165,7 +165,7 @@ sub param {
 	$name = $p[0];
     }
 
-    return () unless $name && $self->{$name};
+    return () unless defined($name) && $self->{$name};
     return wantarray ? @{$self->{$name}} : $self->{$name}->[0];
 }
 
@@ -232,8 +232,6 @@ sub import_names {
 # will happen automatically if the first parameter
 # begins with a -.
 sub use_named_parameters {
-#    warn "use_named_parameters: @_ from ",join(" ",caller());
-
     my($self,$use_named) = self_or_default(@_);
     return $self->{'.named'} unless defined ($use_named);
 
@@ -694,7 +692,7 @@ sub delete_all {
 EOF
 
 #### Method: autoescape
-# If you won't to turn off the autoescaping features,
+# If you want to turn off the autoescaping features,
 # call this method with undef as the argument
 'autoEscape' => <<'END_OF_FUNC',
 sub autoEscape {
@@ -898,7 +896,8 @@ $script
 </SCRIPT>
 END
     ;
-    push(@result,"</HEAD><BODY @other>");
+    my($other) = @other ? " @other" : '';
+    push(@result,"</HEAD><BODY$other>");
     return join("\n",@result);
 }
 END_OF_FUNC
@@ -930,7 +929,8 @@ sub isindex {
     my($self,@p) = self_or_CGI(@_);
     my($action,@other) = $self->rearrange([ACTION],@p);
     $action = qq/ACTION="$action"/ if $action;
-    return "<ISINDEX $action @other>";
+    my($other) = @other ? " @other" : '';
+    return "<ISINDEX $action$other>";
 }
 END_OF_FUNC
 
@@ -951,7 +951,8 @@ sub startform {
     $method = $method || 'POST';
     $enctype = $enctype || &URL_ENCODED;
     $action = $action ? qq/ACTION="$action"/ : '';
-    return qq/<FORM METHOD="$method" $action ENCTYPE=$enctype @other>\n/;
+    my($other) = @other ? " @other" : '';
+    return qq/<FORM METHOD="$method" $action ENCTYPE=$enctype$other>\n/;
 }
 END_OF_FUNC
 
@@ -1018,7 +1019,7 @@ sub textfield {
     $name = defined($name) ? $self->escapeHTML($name) : '';
     my($s) = defined($size) ? qq/ SIZE=$size/ : '';
     my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
-    my($other) = join(" ",@other);
+    my($other) = @other ? " @other" : '';    
     return qq/<INPUT TYPE="text" NAME="$name" VALUE="$current"$s$m$other>/;
 }
 END_OF_FUNC
@@ -1046,7 +1047,7 @@ sub filefield {
     my($s) = defined($size) ? qq/ SIZE=$size/ : '';
     my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
     $current = defined($current) ? $self->escapeHTML($current) : '';
-    my($other) =join(" ",@other);
+    $other = ' ' . join(" ",@other);
     return qq/<INPUT TYPE="file" NAME="$name" VALUE="$current"$s$m$other>/;
 }
 END_OF_FUNC
@@ -1077,7 +1078,7 @@ sub password_field {
     $current = defined($current) ? $self->escapeHTML($current) : '';
     my($s) = defined($size) ? qq/ SIZE=$size/ : '';
     my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
-    my($other) = join(" ",@other);
+    my($other) = @other ? " @other" : '';
     return qq/<INPUT TYPE="password" NAME="$name" VALUE="$current"$s$m$other>/;
 }
 END_OF_FUNC
@@ -1107,7 +1108,7 @@ sub textarea {
     $current = defined($current) ? $self->escapeHTML($current) : '';
     my($r) = $rows ? " ROWS=$rows" : '';
     my($c) = $cols ? " COLS=$cols" : '';
-    my($other) = join(' ',@other);
+    my($other) = @other ? " @other" : '';
     return qq{<TEXTAREA NAME="$name"$r$c$other>$current</TEXTAREA>};
 }
 END_OF_FUNC
@@ -1140,7 +1141,7 @@ sub button {
     my($val) = '';
     $val = qq/ VALUE="$value"/ if $value;
     $script = qq/ ONCLICK="$script"/ if $script;
-    my($other) =join(" ",@other);
+    my($other) = @other ? " @other" : '';
     return qq/<INPUT TYPE="button"$name$val$script$other>/;
 }
 END_OF_FUNC
@@ -1169,7 +1170,7 @@ sub submit {
     $value = $value || $label;
     my($val) = '';
     $val = qq/ VALUE="$value"/ if defined($value);
-    my($other) = join(' ',@other);
+    my($other) = @other ? " @other" : '';
     return qq/<INPUT TYPE="submit"$name$val$other>/;
 }
 END_OF_FUNC
@@ -1188,7 +1189,7 @@ sub reset {
     my($label,@other) = $self->rearrange([NAME],@p);
     $label=$self->escapeHTML($label);
     my($value) = defined($label) ? qq/ VALUE="$label"/ : '';
-    my($other) = join(' ',@other);
+    my($other) = @other ? " @other" : '';
     return qq/<INPUT TYPE="reset"$value$other>/;
 }
 END_OF_FUNC
@@ -1214,7 +1215,7 @@ sub defaults {
     $label=$self->escapeHTML($label);
     $label = $label || "Defaults";
     my($value) = qq/ VALUE="$label"/;
-    my($other) = join(' ',@other);
+    my($other) = @other ? " @other" : '';
     return qq/<INPUT TYPE="submit" NAME=".defaults"$value$other>/;
 }
 END_OF_FUNC
@@ -1251,7 +1252,7 @@ sub checkbox {
     $name = $self->escapeHTML($name);
     $value = $self->escapeHTML($value);
     $the_label = $self->escapeHTML($the_label);
-    my($other) = join(" ",@other);
+    my($other) = @other ? " @other" : '';
     return <<END;
 <INPUT TYPE="checkbox" NAME="$name" VALUE="$value"$checked$other>$the_label
 END
@@ -1301,7 +1302,7 @@ sub checkbox_group {
     # Create the elements
     my(@elements);
     my(@values) = $values ? @$values : $self->param($name);
-    my($other) = join(" ",@other);
+    my($other) = @other ? " @other" : '';
     foreach (@values) {
 	$checked = $checked{$_} ? ' CHECKED' : '';
 	$label = '';
@@ -1399,7 +1400,7 @@ sub radio_group {
 
     my(@elements);
     my(@values) = $values ? @$values : $self->param($name);
-    my($other) = join(" ",@other);
+    my($other) = @other ? " @other" : '';
     foreach (@values) {
 	my($checkit) = $checked eq $_ ? ' CHECKED' : '';
 	my($break) = $linebreak ? '<BR>' : '';
@@ -1446,7 +1447,7 @@ sub popup_menu {
 	$selected = $default;
     }
     $name=$self->escapeHTML($name);
-    my($other) = join(" ",@other);
+    my($other) = @other ? " @other" : '';
 
     my(@values) = $values ? @$values : $self->param($name);
     $result = qq/<SELECT NAME="$name"$other>\n/;
@@ -1499,7 +1500,7 @@ sub scrolling_list {
     my(%selected) = $self->previous_or_default($name,$defaults,$override);
     my($is_multiple) = $multiple ? ' MULTIPLE' : '';
     my($has_size) = $size ? " SIZE=$size" : '';
-    my($other) = join(" ",@other);
+    my($other) = @other ? " @other" : '';
 
     $name=$self->escapeHTML($name);
     $result = qq/<SELECT NAME="$name"$has_size$is_multiple$other>\n/;
@@ -1576,7 +1577,7 @@ sub image_button {
 	$self->rearrange([NAME,SRC,ALIGN],@p);
 
     my($align) = $alignment ? " ALIGN=\U$alignment" : '';
-    my($other) = join(" ",@other);
+    my($other) = @other ? " @other" : '';
     $name=$self->escapeHTML($name);
     return qq/<INPUT TYPE="image" NAME="$name" SRC="$src"$align$other>/;
 }
@@ -2055,20 +2056,21 @@ sub rearrange {
     my(%param) = @param;		# convert into associative array
     my(@return_array);
     
-    my($key);
+    my($key)='';
     foreach $key (@$order) {
 	my($value);
 	# this is an awful hack to fix spurious warnings when the
 	# -w switch is set.
-	if (ref($key) && ref($key) eq 'ARRAY') {
+	if (ref($key) eq 'ARRAY') {
 	    foreach (@$key) {
-		$value = $param{$_} unless defined($value);
+		last if defined($value);
+		$value = $param{$_};
 		delete $param{$_};
 	    }
 	} else {
 	    $value = $param{$key};
+	    delete $param{$key};
 	}
-	delete $param{$key};
 	push(@return_array,$value);
     }
     push (@return_array,$self->make_attributes(\%param)) if %param;
@@ -2162,7 +2164,7 @@ sub read_multipart {
 	# the file for reading.
 	my($tmpfile) = new TempFile;
 	open (OUT,">$tmpfile") || die "CGI open of $tmpfile: $!\n";
-	$self->binmode(OUT) if $CGI::needs_binmode;
+	$CGI::DefaultClass->binmode(OUT) if $CGI::needs_binmode;
 	chmod 0666,$tmpfile;	# make sure anyone can delete it.
 	my $data;
 	while ($data = $buffer->read) {
@@ -2184,7 +2186,7 @@ sub read_multipart {
 	}
 
 	open($filehandle,$tmpfile) || die "CGI open of $tmpfile: $!\n";
-	$self->binmode($filehandle) if $CGI::needs_binmode;
+	$CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
 
 	push(@{$self->{$param}},$filename);
 
@@ -2226,7 +2228,6 @@ $CRLF=$CGI::CRLF;
 
 #reuse the autoload function
 *MultipartBuffer::AUTOLOAD = \&CGI::AUTOLOAD;
-*MultipartBuffer::binmode = \&CGI::binmode;
 
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
@@ -2246,7 +2247,7 @@ sub new {
     }
     $IN = "main::STDIN" unless $IN;
 
-    $self->binmode($IN) if $CGI::needs_binmode;
+    $CGI::DefaultClass->binmode($IN) if $CGI::needs_binmode;
     
     # If the user types garbage into the file upload field,
     # then Netscape passes NOTHING to the server (not good).

@@ -50,7 +50,7 @@ END
     ;
 
 # Create the form
-print hr,
+print hr(),
     start_form,
     
     "Your first name: ",

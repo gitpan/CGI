@@ -96,8 +96,7 @@ sub print_prompt {
 
 sub print_response {
     import_names('Q');
-    print
-	h2("Your profile"),
+    print h2("Your profile"),
 	"You are a ",b($Q::age)," year old ",b($Q::color,$Q::gender),".",
 	"You should be ashamed of yourself for lying so ",
 	"blatantly to big brother!",
