@@ -2,10 +2,10 @@
 <TITLE>CGI.pm - a Perl5 CGI Library</TITLE>
 </HEAD>
 
-<BODY>
+<BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.37b12, 12/20/97, L. Stein
+Version 2.37b17, 1/18/98, L. Stein
 <p>
 
 <strong>This is a beta release.</strong> 2.36 is the official release.
@@ -115,8 +115,8 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm-2.37b12.tar.gz">Download 2.37 beta (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.37b12.zip">Download 2.37 beta (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b17.tar.gz">Download 2.37 beta (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b17.zip">Download 2.37 beta (pkzip archive)</A></STRONG>
   <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package (Macintosh stuffit archive)</A></STRONG>
   <li><STRONG><A HREF="CGI.pm.tar.gz">Download 2.36 package (gzip tar archive)</A></STRONG>
   <li><STRONG><A HREF="CGIpm.zip">Download 2.36 package (pkzip archive)</A></STRONG>
@@ -287,12 +287,23 @@ $query = new CGI({'dinosaur'=&gt;'barney',
                   'friends'=&gt;[qw/Jessica George Nancy/]});
 </pre></blockquote>
 
-Finally, you can initialize a CGI object by passing a URL-style query
-string to the new() method like this:
+You can initialize a CGI object by passing a URL-style query string to
+the new() method like this:
 
 <blockquote><pre>
 $query = new CGI('dinosaur=barney&amp;color=purple');
 </pre></blockquote>
+
+Or you can clone a CGI object from an existing one.  The parameter
+lists of the clone will be identical, but other fields, such as
+autoescaping, are not:
+
+<pre><blockquote>
+$old_query = new CGI;
+$new_query = new CGI($old_query);
+</blockquote></pre>
+
+<p>
 
 This form also allows you to create a CGI object that is initially empty:
 
@@ -316,6 +327,7 @@ will return the keywords as a perl array.
 <H3>Fetching The Names Of All The Parameters Passed To Your
 Script</H3>
 </A>
+
 <PRE>
     @names = $query-&gt;param
 </PRE>
@@ -425,13 +437,28 @@ script does not exit after processing a request.
 represents a major security risk, as evil people could then use this
 feature to redefine central variables such as @INC.
 CGI.pm will exit with an error if you try to do this.
-<P>
-<EM>Note</EM>: this method used to be called import().  As of
-version 2.20 <code>import()</code> has been changed to be consistent
-with other Perl modules.  Please change all occurrences of import() to
-import_names().
 
 <P>
+
+<A NAME="param_fetch"><H3>Direct Access to the Parameter List</H3>
+</A>
+
+<blockquote><pre>
+$q->param_fetch('address')->[1] = '1313 Mockingbird Lane';
+unshift @{$q->param_fetch(-name=>'address')},'George Munster';
+</pre></blockquote>
+
+If you need access to the parameter list in a way that isn't covered
+by the methods above, you can obtain a direct reference to it by
+calling the <b>param_fetch()</b> method with the name of the parameter
+you want.  This will return an array reference to the named
+parameters, which you then can manipulate in any way you like.
+
+<p>
+
+You may call <b>param_fetch()</b> with the name of the CGI parameter,
+or with the <b>-name</b> argument, which has the same meaning as
+elsewhere.
 
 <A HREF="#contents">Table of contents</A>
 
@@ -518,7 +545,7 @@ series of name=&gt;argument pairs, like this:
 </PRE>
 
 The advantages of this style are that you don't have to remember the
-exact order of the arguments, and if you leave out a parameter, iit
+exact order of the arguments, and if you leave out a parameter, it
 will usually default to some reasonable value.  If you provide
 a parameter that the method doesn't recognize, it will usually do
 something useful with it, such as incorporating it into the HTML
@@ -911,6 +938,32 @@ All parameters are optional:
                              );
      </pre>
 
+     A final feature allows you to incorporate multiple &lt;SCRIPT&gt; sections into the
+     header.  Just pass the list of script sections as an array reference.
+     This allows you to specify different source files for different dialects
+     of JavaScript.  Example:     
+
+     <pre>
+     print $q-&gt;start_html(-title=&gt;'The Riddle of the Sphinx',
+                          -script=&gt;[
+                                    { -language =&gt; 'JavaScript1.0',
+                                      -src      =&gt; '/javascript/utilities10.js'
+                                    },
+                                    { -language =&gt; 'JavaScript1.1',
+                                      -src      =&gt; '/javascript/utilities11.js'
+                                    },
+                                    { -language =&gt; 'JavaScript1.2',
+                                      -src      =&gt; '/javascript/utilities12.js'
+                                    },
+                                    { -language =&gt; 'JavaScript28.2',
+                                      -src      =&gt; '/javascript/utilities219.js'
+                                    }
+                                 ]
+                             );
+     </pre>
+
+    (If this looks a bit extreme, take my advice and stick with straight CGI scripting.)  
+<p>
   <LI>A <strong>-noScript</strong> parameter to pass some HTML that will be displayed
       in browsers that do not have JavaScript (or have JavaScript turned off).
   <LI><strong>-onLoad</strong> and <strong>-onUnload</strong> parameters to
@@ -1544,10 +1597,14 @@ the file upload feature.</A>
 <PRE>
   <EM>Named parameter style</EM>
   print $query-&gt;popup_menu(-name=&gt;'menu_name',
+			    -values=&gt;{'eenie'=&gt;'one',
+                                         'meenie'=&gt;'two',
+                                         'minie'=>&gt;'three'],
+	                    -default=&gt;'meenie');
+
+  print $query-&gt;popup_menu(-name=&gt;'menu_name',
 			    -values=&gt;['eenie','meenie','minie'],
-	                    -default=&gt;'meenie',
-	                    -labels=&gt;{'eenie'=&gt;'one','meenie'=&gt;'two',
-                                      'minie'=&gt;'three'});
+	                    -default=&gt;'meenie');
   
   <EM>Old style</EM>
   print $query-&gt;popup_menu('menu_name',
@@ -1559,10 +1616,12 @@ the file upload feature.</A>
 <UL>
   <LI>The required first argument (<strong>-name</strong>) is the menu's name.
   <LI>The required second argument (<strong>-values</strong>) is an array
-       <EM>reference</EM> containing the list
-       of menu items in the menu.  You can pass the method an anonymous 
-       array, as shown in the example, or a reference to a named array,
-       such as <TT>\@foo</TT>
+      <EM>reference</EM> containing the list
+      of menu items in the menu.  You can pass the method an anonymous 
+      array, as shown in the example, or a reference to a named array,
+      such as <TT>\@foo</TT>.  If you pass a <em>HASH reference</em>,
+      the keys will be used for the menu values, and the values will
+      be used for the menu labels (see -labels below).
   <LI>The optional third parameter (<strong>-default</strong>) is the name of the
        default menu choice.  
        If not specified, the first item will be the default.  The value of 
@@ -1572,8 +1631,11 @@ the file upload feature.</A>
        labels for one or more of the menu items.  You can use this when you
        want the user to see one menu string, but have the browser return your
        program a different one.  If you don't specify this, the value string
-       will be used instead ("eenie", "meenie" and "minie" in this example).
+       will be used instead ("eenie", "meenie" and "minie" in this
+      example).  This is equivalent to using a hash reference for the
+      -values parameter.
 </UL>
+
 When the form is processed, the selected value of the popup menu can
 be retrieved using:
 <PRE>
@@ -1607,8 +1669,10 @@ handlers.
 <STRONG>scrolling_list()</STRONG> creates a scrolling list.
 <UL>
   <LI>The first and second arguments (<strong>-name, -values</strong>)are the list name
-       and values, respectively.  As in the popup menu, the second argument should 
-       be an array reference.
+      and values, respectively.  As in the popup menu, the second argument should 
+      be an array reference or hash reference.  In the latter case,
+      the values of the hash are used as the human-readable labels in
+      the list.
   <LI>The optional third argument (<strong>-default</strong>)can be either a reference
        to a list containing the values to be selected by default, or can be a 
        single value to select.  If this argument is missing or undefined,
@@ -1617,9 +1681,10 @@ handlers.
   <LI>The optional fifth argument (<strong>-multiple</strong>) can be set to true to allow multiple
        simultaneous selections.
   <LI>The option sixth argument (<strong>-labels</strong>) can be used to assign user-visible labels
-       to the list items different from the ones used for the values as above.
+       to the list items different from the ones used for the values
+      as above.  This is equivalent to passing a hash reference to -values.
        In this example we assume that an associative array <CODE>%labels</CODE>
-       has already been created.
+       has already been created.  
 </UL>
 When this form is processed, all selected list items will be returned as
 a list under the parameter name 'list_name'.  The values of the
@@ -1660,9 +1725,9 @@ handlers.
   <LI>The first and second arguments (<strong>-name, -values</strong>) are the checkbox
        name and values, 
        respectively.  As in the popup menu, the second argument should 
-       be an array reference.  These values are used for the user-readable
-       labels printed next to the checkboxes as well as for the values
-       passed to your script in the query string.
+       be an array reference or a hash reference.  These values are
+      used for the user-readable labels printed next to the checkboxes
+      as well as for the values passed to your script in the query string.
   <LI>The optional third argument (<strong>-default</strong>) can be either a
        reference to a list
        containing the values to be checked by default, or can be a 
@@ -1675,11 +1740,12 @@ handlers.
        When the form is procesed, all checked boxes will be returned as
        a list under the parameter name 'group_name'.  The values of the
        "on" checkboxes can be retrieved with:
-  <LI>The optional fifth argument (<strong>-labels</strong>) is a reference to an associative array
+  <LI>The optional fifth argument (<strong>-labels</strong>) is a reference to an hash
        of checkbox labels.  This allows you to use different strings for
        the user-visible button labels and the values sent to your script.  In
        this example we assume that an associative array <CODE>%labels</CODE>
-       has previously been created.
+       has previously been created.  This is equivalent to passing a
+      hash reference to -values.
  <LI>The optional parameter <STRONG>-nolabels</STRONG> can be used to
      suppress the printing of labels next to the button.  This is
      useful if you want to capture the button elements individually and use them
@@ -1797,11 +1863,14 @@ code to be performed every time the user clicks on the button.
   <LI>The first argument (<STRONG>-name</STRONG> is the name of the
        group and is required.
   <LI>The second argument (<STRONG>-values</STRONG> is the list of
-       values for the radio buttons.
-       The values and the labels that appear on the page are identical.
-       Pass an array <EM>reference</EM> in the second argument, either using 
-       an anonymous array, as shown, or by referencing a named array as 
-       in <CODE>\@foo</CODE>.
+      values for the radio buttons.
+      The values and the labels that appear on the page are identical.
+      Pass an array <EM>reference</EM> in the second argument, either using 
+      an anonymous array, as shown, or by referencing a named array as 
+      in <CODE>\@foo</CODE>.  You may also use a hash reference in
+      order to produce human-readable labels that are different from
+      the values that will be returned as parameters to the CGI
+      script.
   <LI>The optional third parameter (<STRONG>-default</STRONG> is the
        value of the default button to
        turn on. If not specified, the first item will be the default.  Specify
@@ -1814,7 +1883,8 @@ code to be performed every time the user clicks on the button.
        an associative array containing labels to be printed next to
        each the button.  If not provided the button value will be
        used instead.  This example assumes that the associative array
-       <CODE>%labels</CODE> has already been defined.
+       <CODE>%labels</CODE> has already been defined.  This is
+      equivalent to passing a hash reference to -values.
  <LI>The optional parameter <STRONG>-nolabels</STRONG> can be used to
      suppress the printing of labels next to the button.  This is
      useful if you want to capture the button elements individually and use them
@@ -2233,13 +2303,18 @@ dashes.
       use CGI qw(-compile :all);
       </pre></blockquote>
       <p>
+      Note that using the -compile pragma in this way will always have
+      the effect of importing the compiled functions into the current
+      namespace.  If you want to compile without importing use the
+      <a href="#compile">compile()</a> method instead.
+      <p>
   <dt><b>-nph</b>
   <dd>This makes CGI.pm produce a header appropriate for an NPH (no
       parsed header) script.  You may need to do other things as well
       to tell the server that the script is NPH.  See the <a href="#nph">discussion
       of NPH scripts</a> below.
       <p>
-  <dt><b>-nodebug</b>
+  <dt><b>-no_debug</b>
   <dd>This turns off the command-line processing features.  If you
       want to run a CGI.pm script from the command line to produce
       HTML, and you don't want it pausing to request CGI parameters
@@ -2285,7 +2360,7 @@ into the string "%20".
 <h4>escapeHTML(), unescapeHTML()</h4>
 
 <blockquote><pre>
-use CGI qw/escape unescape/;
+use CGI qw/escapeHTML unescapeHTML/;
 $q = escapeHTML('This string is &lt;illegal&gt; html!');
 $u = unescapeHTML($q);
 </pre></blockquote>
@@ -2293,6 +2368,23 @@ $u = unescapeHTML($q);
 These functions escape and unescape strings according to the HTML
 character entity rules.  For example, the character &lt; will be
 escaped as &amp;lt;.
+
+<h4><a name="compile">compile()</a></h4>
+
+Ordinarily CGI.pm autoloads most of its functions on an as-needed
+basis.  This speeds up the loading time by deferring the compilation
+phase.  However, if you are using mod_perl, FastCGI or another system
+that uses a persistent Perl interpreter, you will want to precompile
+the methods at initialization time.  To accomplish this, call the
+package function <b>compile()</b> like this:
+
+<blockquote><pre>
+use CGI ();
+CGI->compile(':all');
+</pre></blockquote>
+
+The arguments to <b>compile()</b> are a list of method names or sets,
+and are identical to those accepted by the use operator.
 
 <HR>
 <A NAME="debugging">
@@ -2428,6 +2520,12 @@ through this interface.  The methods are as follows:
   <DD>Returns the "magic cookie" maintained by Netscape 1.1 and higher in a raw
       state.  You'll probably want to use <a href="cookies">cookie()</a> instead,
       which gives you a high-level interface to the cookie functions.
+      Called with no parameters, raw_cookie() returns the entire
+      cookie structure, which may consist of several cookies appended
+      together (you can recover individual cookies by splitting on the
+      "; " sequence.  Called with the name of a cookie, returns the unescaped
+      value of the cookie as set by the server.  This may be useful for retrieving
+      cookies that your script did not set.
   <DT><a name="path_info">path_info()</a>
   <DD>Returns additional path information from the script URL.
        E.G. fetching <CODE>/cgi-bin/your_script/additional/stuff</CODE> will
@@ -3327,6 +3425,30 @@ CGI::Switch.  You'll have to use the object-oriented versions (or use
 the sfio version of Perl!)
 
 <p>
+
+If you use CGI.pm in many of your mod_perl scripts, you may want to
+preload CGI.pm and its methods at server startup time.  To do this,
+add the following line to httpd.conf:
+
+<blockquote><pre>
+PerlScript /home/httpd/conf/startup.pl
+</pre></blockquote>
+
+Create the file /home/httpd/conf/startup.pl and put in it all the
+modules you want to load.  Include CGI.pm among them and call its <a
+href="#compile">compile()</a> method to precompile its autoloaded
+methods.
+
+<blockquote><pre>
+#!/usr/local/bin/perl
+
+use CGI ();
+CGI->compile(':all');
+</pre></blockquote>
+
+Change the path to the startup script according to your preferences.
+
+<p>
 <A HREF="#contents">Table of contents</A>
 <HR>
 
@@ -3856,8 +3978,14 @@ Address bug reports and comments to:<BR>
 
 <H2><A NAME="new">Revision History</A></H2>
 
-<h3>Version 2.37</h3>
+<h3>Version 2.37, various beta versions</h3>
 <ol>
+  <li>No longer need separate -values and -labels arguments for
+      multi-valued form elements.
+  <li>Added better interface to raw cookies (fix courtesy Ken Fox, kfox@ford.com)
+  <li>Added param_fetch() function for direct access to parameter list.
+  <li>Fix to checkbox() to allow for multi-valued single checkboxes (weird problem).
+  <li>Added a compile() method for those who want to compile without importing.
   <li>Documented the import pragmas a little better.
   <li>Added a -compile switch to the use clause for the long-suffering
       mod_perl and Perl compiler users.
@@ -4383,6 +4511,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Sat Dec 20 10:56:08 EST 1997
+Last modified: Fri Jan 16 13:21:45 EST 1998
 <!-- hhmts end -->
 </BODY> </HTML>

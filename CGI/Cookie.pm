@@ -17,12 +17,13 @@ package CGI::Cookie;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::Cookie::VERSION='1.02';
+$CGI::Cookie::VERSION='1.03';
 
 use CGI qw/unescape escape/;
 
 # fetch a list of cookies from the environment and
-# return as a hash.
+# return as a hash.  the cookies are parsed as normal
+# escaped URL data.
 sub fetch {
     my $class = shift;
     my $raw_cookie = $ENV{HTTP_COOKIE} || $ENV{COOKIE};
@@ -35,6 +36,32 @@ sub fetch {
 	my(@values) = map unescape($_),split('&',$value);
 	$key = unescape($key);
 	$results{$key} = $class->new(-name=>$key,-value=>\@values);
+    }
+    return \%results unless wantarray;
+    return %results;
+}
+
+# fetch a list of cookies from the environment and
+# return as a hash.  the cookie values are not unescaped
+# or altered in any way.
+sub raw_fetch {
+    my $class = shift;
+    my $raw_cookie = $ENV{HTTP_COOKIE} || $ENV{COOKIE};
+    return () unless $raw_cookie;
+    my %results;
+    my($key,$value);
+
+    my(@pairs) = split("; ",$raw_cookie);
+    foreach (@pairs) {
+	if (/^([^=]+)=(.*)/) {
+	    $key = $1;
+	    $value = $2;
+	}
+	else {
+	    $key = $_;
+	    $value = '';
+	}
+	$results{$key} = $value;
     }
     return \%results unless wantarray;
     return %results;
@@ -263,6 +290,11 @@ can iterate through the cookies this way:
 In a scalar context, fetch() returns a hash reference, which may be more
 efficient if you are manipulating multiple cookies.
     
+CGI.pm uses the URL escaping methods to save and restore reserved characters
+in its cookies.  If you are trying to retrieve a cookie set by a foreign server,
+this escaping method may trip you up.  Use raw_fetch() instead, which has the
+same semantics as fetch(), but performs no unescaping.
+
 =head2 Manipulating Cookies
 
 Cookie objects have a series of accessor methods to get and set cookie
