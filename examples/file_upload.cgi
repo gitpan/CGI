@@ -20,7 +20,7 @@ print h1("File Upload Example"),
 @types = ('count lines','count words','count characters');
 
 # Start a multipart form.
-print start_multipart_form(),
+print start_multipart_form(-action=>self_url() . '?andy=foo&cindy=bar'),
     "Enter the file to process:",
     filefield('filename','',45),
     br,
@@ -32,9 +32,12 @@ print start_multipart_form(),
 # Process the form if there is a file name entered
 if ($file = param('filename')) {
     $tmpfile=tmpFileName($file);
+    $mimetype = uploadInfo($file)->{'Content-Type'};
     print hr(),
           h2($file),
-          h3($tmpfile);
+          h3($tmpfile),
+          h4("MIME Type:",em($mimetype));
+
     my($lines,$words,$characters,@words) = (0,0,0,0);
     while (<$file>) {
 	$lines++;
@@ -51,6 +54,8 @@ if ($file = param('filename')) {
 	print strong("No statistics selected.");
     }
 }
+
+# print cite("URL parameters: "),url_param();
 
 print hr(),
     a({href=>"../cgi_docs.html"},"CGI documentation"),

@@ -5,13 +5,18 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.36, 5/10/97, L. Stein
+Version 2.37b3, 8/29/97, L. Stein
 <p>
 
-<strong>WARNING:</strong> The overloaded double-quote ("") operator
-has been removed.  In previous versions, CGI objects were
-automatically interpolated as HTML into double-quoted strings.  This
-was useful for debugging, but broke in newer versions of Perl.
+<strong>This is a beta release.</strong> 2.36 is the official release.
+If there are no bugs reported in this beta release by September 5, the
+final will be released.
+
+<p>
+
+<strong>Windows NT Users:</strong> <a href="#windows">See below</a>
+for advice on using PerlIS build 307.
+
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
 fill-out forms on the fly and to parse their contents.  It provides a
@@ -104,7 +109,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.36?</A>
+  <LI><A HREF="#new">What's new in version 2.37?</A>
 </MENU>
 
 <HR>
@@ -112,52 +117,58 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm.tar.gz">Download full package (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGIpm.zip">Download full package (pkzip archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm.sit.hqx">Download full package (Macintosh stuffit archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b3.tar.gz">Download 2.37 beta (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm.tar.gz">Download 2.36 package (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGIpm.zip">Download 2.36 package (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm.sit.hqx">Download 2.35 package (Macintosh stuffit archive)</A></STRONG>
   <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
 </ul>
 
-<P>This package requires perl 5.001m or higher.  (Perl 5.003 is
-<strong>highly</strong> recommended because of a security hole in
-earlier versions of perl.)  To use CGI.pm
-simply install it in your perl library directory.  On most systems
-this will be <CODE>/usr/local/lib/perl5</CODE>, but check with the
-administrator of your system to be sure.  If you know the location of
-the directory, you can move the module directly: <pre>
-    cp CGI.pm /usr/local/lib/perl5/
-</pre>
-(This assumes that the perl library is located at <code>/usr/local/lib/perl5</code>.
-Windows users should of course use the "copy" command rather than "cp").
 <P>
-In most cases, though, you should have perl do the installation
-for you.  Move to the directory containing CGI.pm and type the
-following commands:
+
+This package requires perl 5.003 or higher.  In most cases, 
+you should have perl do the installation for you.  Move to the
+directory containing CGI.pm and type the following commands:
+
 <PRE>
    % perl Makefile.PL
    % make
    % make install
 </PRE>
+
 You may need to be root to do the last step.
+
 <p>
 This will create two new files in your Perl library.  <b>CGI.pm</b> is the
 main library file.  <b>Carp.pm</b> (in the subdirectory "CGI") contains
 some optional utility
 routines for writing nicely formatted error messages into your
 server logs.  See the Carp.pm man page for more details.
+
 <p>
+
 <strong>If you get error messages when you try to install</strong>,
 then you are either:
+
 <ol>
   <li> Running a Windows NT port of Perl (or another port) that
-      doesn't have the current MakeMaker program built into it.
+      doesn't have make or the MakeMaker program built into it.
   <li> Have an old version of perl.  In particular, version 5.000
       will complain that (nonexistent) .c and .o files are missing.  
 </ol>
-In either of these cases, don't panic.
-Just do a direct copy as shown above.  To install the CGI::Carp
-routines, you'll need to create a subdirectory called "CGI"
-in your perl library directory and copy ./CGI/Carp.pm into it.
+
+In either of these cases, don't panic.  Here's a recipe that will
+work (commands are given in MS-DOS form):
+
+<pre>
+  &gt; cd CGI.pm-2.37
+  &gt; copy CGI.pm C:\Perl\lib
+  &gt; mkdir C:\Perl\lib\CGI
+  &gt; copy CGI\*.pm C:\Perl\lib\CGI
+</pre>
+
+Modify this if your Perl library has a different location.
+
 <p>
 
 <STRONG>If you do not have sufficient privileges to install into
@@ -171,22 +182,13 @@ use lib '/usr/local/etc/httpd/cgi-bin';
 use CGI;
 </pre></blockquote>
 
-Users of pre-5.002 versions of perl (which includes NT perl) will have
-to use this form instead:
-<blockquote>
-<PRE>
-BEGIN {
-     unshift(@INC,'/usr/local/etc/httpd/cgi-bin');
-}
-use CGI;
-</PRE>
-</blockquote>
-
 Be sure to replace /usr/local/etc/httpd/cgi-bin with the true
 location of CGI.pm.
 
 <P>
+
 <A HREF="#non_unix">Notes on using CGI.pm in NT and other non-Unix platforms</A>
+
 <hr>
 
 <A NAME="query">
@@ -381,6 +383,13 @@ created.
 <P>
 If you don't specify a name space, this method assumes namespace "Q".
 
+<p>
+
+An optional second argument to <b>import_names</b>, if present and
+non-zero, will delete the contents of the namespace before loading
+it.  This may be useful for environments like mod_perl in which the
+script does not exit after processing a request.
+
 <P><STRONG>Warning</STRONG>: do not import into namespace 'main'.  This
 represents a major security risk, as evil people could then use this
 feature to redefine central variables such as @INC.
@@ -390,7 +399,9 @@ CGI.pm will exit with an error if you try to do this.
 version 2.20 <code>import()</code> has been changed to be consistent
 with other Perl modules.  Please change all occurrences of import() to
 import_names().
+
 <P>
+
 <A HREF="#contents">Table of contents</A>
 
 <HR>
@@ -428,6 +439,28 @@ it, use the <code>url()</code> method:
 <PRE>
    $my_self=$query-&gt;url
 </PRE>
+
+<H3>Mixing POST and URL Parameters</H3>
+
+<pre>
+   $color = $query-&gt;url_param('color');
+</pre>
+
+It is possible for a script to receive CGI parameters in the URL as
+well as in the fill-out form by creating a form that POSTs to a URL
+containing a query string (a "?" mark followed by arguments).  The
+<b>param()</b> method will always return the contents of the POSTed
+fill-out form, ignoring the URL's query string.  To retrieve URL
+parameters, call the <b>url_param()</b> method.  Use it in the same
+way as <b>param()</b>.  The main difference is that it allows you to
+read the parameters, but not set them.
+
+<p>
+
+Under no circumstances will the contents of the URL query string
+interfere with similarly-named CGI parameters in POSTed forms.  If you
+try to mix a URL query string with a form submitted with the GET
+method, the results will not be what you expect.
 
 <A HREF="#contents">Table of contents</A>
 
@@ -491,7 +524,13 @@ collide with a keyword (and in fact it does!) While Perl usually
 figures out when you're referring to a function and when you're
 referring to a string, you probably should put quotation marks around
 all string constants just to play it safe.
+
 <P>
+
+HTML/HTTP parameters that contain internal hyphens, such as <i>-Content-language</i>
+can be passed by putting quotes around them, or by using an underscore
+for the second hyphen, e.g. <cite>-Content_language</cite>.
+
 <A HREF="#contents">Table of contents</A>
 
 <HR>
@@ -553,7 +592,7 @@ expiration date.  The following forms are all valid for the
 	now                               immediately
 	+3M                               in three months
         +10y                              in ten years time
-	Thursday, 25-Apr-96 00:40:33 GMT  at the indicated time & date
+	Thu, 25-Apr-96 00:40:33 GMT  at the indicated time & date
 </pre>
 
 When you use <strong>-expires</strong>, the script also generates a
@@ -661,6 +700,7 @@ href="#nph">Using NPH Scripts</a> for more information.
 			    -meta=&gt;{'keywords'=&gt;'pharoah secret mummy',
                                     'copyright'=&gt;'copyright 1996 King Tut'},
 			    -style=>{'src'=>'/styles/style1.css'},
+                            -print_dtd=>1,
                             -BGCOLOR=&gt;'blue');
 
    <EM>old style</EM>
@@ -706,6 +746,20 @@ All parameters are optional:
       print $q-&gt;header(-Refresh=>'10; URL=http://www.capricorn.com');
       </pre>
       </blockquote>
+  <LI>A <strong>-dtd</strong> parameter to make start_html()
+      generate an SGML document type definition for the document.
+      This is used by SGML editors and high-end Web publishing systems
+      to determine the type of the document.  However, it breaks some
+      browsers, in particular AOL's.  The value of this parameter can
+      be one of:
+      <ol>
+	<li>A valid DTD (see <a
+	    href="http://ugweb.cs.ualberta.ca/~gerald/validate/lib/catalog">http://ugweb.cs.ualberta.ca/~gerald/validate/lib/catalog</a> for a list).  Example: <pre>-dtd=>'-//W3C//DTD HTML 3.2//EN'</pre>
+	<li>A true value that does not begin with "-//", in which case
+	    you will get the standard default DTD (valid for HTML 2.0).
+      </ol>
+      You can change the default DTD by calling
+      <strong>default_dtd()</strong> with the preferred value.
   <li>A <strong>-style</strong> parameter to define a cascading stylesheet.
       More information on this can be found in <a
       href="#stylesheets">Limited Support for Cascading Style Sheets</a>
@@ -2172,7 +2226,12 @@ optional attributes:
       when a cookie expires.  The cookie will be saved and returned to your
       script until this expiration date is reached if the user exits
       Netscape and restarts it.  If an expiration date isn't specified, the cookie
-      will remain active until the user quits Netscape.<p>
+      will remain active until the user quits Netscape.
+      <p>
+      Negative expiration times (e.g. "-1d") cause some browsers
+      to delete the cookie from its persistent store.  This is a
+      poorly documented feature.
+      <p>
   <dt>a domain
   <dd>This is a partial or complete domain name for which the cookie is 
       valid.  The browser will return the cookie to any host that matches
@@ -3024,9 +3083,6 @@ Known problems include:
       library.  I have received reports that WebSite Pro suffers from
       this problem.  This is a documented bug in the
       Netscape implementation of SSL and not a problem with CGI.pm.
-  <li>Microsoft IIS version 3.0 truncates file uploads greater than
-      57 K, regardless of whether or not you're using SSL.  Version 2.0
-      is not affected by this problem.
   <li>If you try to upload a <strong>directory</strong> path with Unix
       Netscape, the browser will hang until you hit the "stop" button.
       I haven't tried to figure this one out since I think it's dumb
@@ -3156,7 +3212,7 @@ sequence up by one each time the form is accessed:
    my($s) = $query-&gt;path_info=~/(\d+)/; # get sequence
    $s++;                                #bump it up
    # Trick Netscape into thinking it's loading a new script:
-   print $q-&gt;start_multipart_form(-action=&gt;$q-&gt;script_name . '/$s');
+   print $q-&gt;start_multipart_form(-action=&gt;$q-&gt;script_name . "/$s");
 </pre>
 
 <h4>You can't find the temporary file that CGI.pm creates</h4>
@@ -3198,26 +3254,40 @@ correct definition:
 
 Other notes follow:
 
-<H4>Windows NT</H4>
+<H4><a name="windows">Windows NT</a></H4>
 
 CGI.pm works well with WebSite, the EMWACS server, Purveyor and the
 Microsoft IIS server.  CGI.pm must be put in the perl5 library
 directory, and all CGI scripts that use it should be placed in cgi-bin
 directory.  You also need to associate the <CODE>.pl</CODE> suffix
 with perl5 using the NT file manager (Website, Purveyor), or install
-the Perl DLL library (IIS).  The home site for the NT port of Perl is:
+the correct script mapping registry keys for IIS.  There are two ports
+of Perl for Windows, one done by the ActiveWare company, and the other
+by Gurusamy Sarathy.  I have only tested CGI.pm with the former.  The
+home site for the ActiveWare port is:
 
 <blockquote>
-<a href="http://www.perl.hip.com/">http://www.perl.hip.com/</a>
+<a href="http://www.activeware.com/">http://www.activeware.com/</a>
 </blockquote>
 
 <p>
 
-The Microsoft IIS server is seriously broken with respect to
-the handling of <a href="#path_info">additional path information</a>.
-If you use the DLL version of Perl, IIS will attempt to execute the
-additional path information as a script.  If you use the normal
-version of Perl, the additional path information will contain
+The ActiveWare port comes in two parts.  The first part is a standard
+standalone Perl interpreter.  The second part is a small DLL library
+that implements a Perl ISAPI interface for IIS and other Web servers.
+As of build 307, the DLL library is <strong>seriously broken</strong>.
+It is seriously unreliable when used for any Perl CGI script, with or
+without CGI.pm.  Symptoms include truncated CGI parameters, missing
+parameters, scrambled output, and failed file uploads.  I strongly
+recommend that you use the standalone interpreter instead.
+
+<p>
+
+The Microsoft IIS server is broken with respect to the
+handling of <a href="#path_info">additional path information</a>.  If
+you use the DLL version of ActiveWare Perl, IIS will attempt to
+execute the additional path information as a script.  If you use the
+normal version of Perl, the additional path information will contain
 incorrect information.  This is not a bug in CGI.pm.
 
 <p>
@@ -3350,6 +3420,27 @@ Address bug reports and comments to:<BR>
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+
+<h3>Version 2.37</h3>
+<ol>
+  <li>import_names() now allows you to optionally clear out the
+      namespace before importing (for mod_perl users)
+  <li>Made it possible to have a popup menu or radio button with a value of "0".
+  <li>link() changed to Link() to avoid overriding native link function.
+  <li>Takes advantage of mod_perl's register_cleanup() function to
+      clear globals.
+  <li>&lt;LAYER&gt; and &lt;ILAYER&gt; added to :html3 functions.
+  <li>Fixed problems with private tempfiles and NT/IIS systems.
+  <li>No longer prints the DTD by default (I bet no one will
+      complain).
+  <li>Allow underscores to replace internal hyphens in parameter
+      names.
+  <li>url_param() method added for retrieving URL parameters even
+      when a fill-out form is POSTed.
+  <li>Got rid of warnings when radio_group() is called.
+  <li>Cookies now moved to their very own module.
+</ol>
+
 <h3>Version 2.36</h3>
 <ol>
   <li>Expanded JavaScript functionality
@@ -3365,7 +3456,7 @@ Address bug reports and comments to:<BR>
   <li>Cookie and HTTP date formats didn't meet spec.  Thanks to Mark
       Fisher (fisherm@indy.tce.com) for catching and fixing this.
 </ol>
-
+p
 <h3>Version 2.35</h3>
 <ol>
   <li>Robustified multipart file upload against incorrect syntax in POST.
@@ -3815,6 +3906,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Fri May  9 11:28:36 EDT 1997
+Last modified: Fri Aug 29 07:38:50 EDT 1997
 <!-- hhmts end -->
 </BODY> </HTML>

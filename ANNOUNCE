@@ -1,14 +1,14 @@
-CGI.pm version 2.36 is now available to play with.  
+CGI.pm version 2.37 is now available to play with.  
 New in this version:
 
-* Preliminary support for cascading style sheets
-* More flexible support for browser-side scripting
-* Fixes problems with cookie dates
-* Closes some security holes in the file upload mechanism
+* Bug fixes for NT and VMS
+* Better support for mod_perl
+* Cookies now in an independent module
+* New url_param() method
 
 Lincoln Stein
 
 ========================================================================
-Lincoln D. Stein                Whitehead Institute/MIT Genome Center
-lstein@genome.wi.mit.edu	Cambridge, MA 02142
+Lincoln D. Stein
+lstein@genome.wi.mit.edu
 ========================================================================
