@@ -98,6 +98,6 @@ perl(1), Apache(3), CGI(3)
 
 =head1 AUTHOR
 
-Doug MacEachern E<lt>dougm@osf.orgE<gt>, hacked over by Andreas König E<lt>a.koenig@mind.deE<gt>, modified by Lincoln Stein <lt>lstein@genome.wi.mit.edu<gt>
+Doug MacEachern E<lt>dougm@osf.orgE<gt>, hacked over by Andreas KE<ouml>nig E<lt>a.koenig@mind.deE<gt>, modified by Lincoln Stein <lt>lstein@genome.wi.mit.edu<gt>
 
 =cut

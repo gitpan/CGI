@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.22 1998/02/23 14:32:19 lstein Exp $';
-$CGI::VERSION='2.37027';
+$CGI::revision = '$Id: CGI.pm,v 1.24 1998/02/24 22:50:27 lstein Exp $';
+$CGI::VERSION='2.37029';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -1079,6 +1079,7 @@ sub header {
     my($type,$status,$cookie,$target,$expires,$nph,@other) = 
 	$self->rearrange([TYPE,STATUS,[COOKIE,COOKIES],TARGET,EXPIRES,NPH],@p);
 
+    $nph ||= $NPH;
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
@@ -1090,7 +1091,7 @@ sub header {
 
     # Maybe future compatibility.  Maybe not.
     my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
-    push(@header,$protocol . ' ' . ($status || '200 OK')) if $nph || $NPH;
+    push(@header,$protocol . ' ' . ($status || '200 OK')) if $nph;
 
     push(@header,"Status: $status") if $status;
     push(@header,"Window-Target: $target") if $target;
@@ -1098,7 +1099,7 @@ sub header {
     if ($cookie) {
 	my(@cookie) = ref($cookie) && ref($cookie) eq 'ARRAY' ? @{$cookie} : $cookie;
 	foreach (@cookie) {
-	    push(@header,"Set-Cookie: " . UNIVERSAL::isa($_,'CGI::Cookie') ? $_->as_string : $_);
+	    push(@header,"Set-Cookie: " . (UNIVERSAL::isa($_,'CGI::Cookie') ? $_->as_string : $_));
 	}
     }
     # if the user indicates an expiration time, then we need
@@ -1112,7 +1113,7 @@ sub header {
     push(@header,"Content-Type: $type");
 
     my $header = join($CRLF,@header)."${CRLF}${CRLF}";
-    if ($MOD_PERL) {
+    if ($MOD_PERL and not $nph) {
 	my $r = Apache->request;
 	$r->send_cgi_header($header);
 	return '';
@@ -1152,7 +1153,7 @@ sub redirect {
     unshift(@o,
 	 '-Status'=>'302 Moved',
 	 '-Location'=>$url,
-	 '-nph'=>($nph||$NPH));
+	 '-nph'=>$nph);
     unshift(@o,'-Target'=>$target) if $target;
     unshift(@o,'-Cookie'=>$cookie) if $cookie;
     return $self->header(@o);
@@ -2323,6 +2324,8 @@ END_OF_FUNC
 'raw_cookie' => <<'END_OF_FUNC',
 sub raw_cookie {
     my($self,$key) = self_or_CGI(@_);
+
+    require CGI::Cookie;
 
     if (defined($key)) {
 	$self->{'.raw_cookies'} = CGI::Cookie->raw_fetch

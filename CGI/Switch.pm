@@ -66,6 +66,6 @@ perl(1), Apache(3), CGI(3), CGI::XA(3)
 
 =head1 AUTHOR
 
-Andreas König E<lt>a.koenig@mind.deE<gt>
+Andreas KE<ouml>nig E<lt>a.koenig@mind.deE<gt>
 
 =cut
