@@ -5,7 +5,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.38, 3/22/98, L. Stein
+Version 2.39, 3/24/98, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -101,7 +101,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.38?</A>
+  <LI><A HREF="#new">What's new in version 2.39?</A>
 </MENU>
 
 <HR>
@@ -109,8 +109,8 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm-2.38.tar.gz">Download 2.38 (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.38.zip">Download 2.38 (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.39.tar.gz">Download 2.39 (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.39.zip">Download 2.39 (pkzip archive)</A></STRONG>
   <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package (Macintosh stuffit archive)</A></STRONG>  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
 </ul>
 
@@ -2297,6 +2297,18 @@ dashes.
       namespace.  If you want to compile without importing use the
       <a href="#compile">compile()</a> method instead.
       <p>
+  <dt><b>-autoload</b>
+  <dd>Overrides the autoloader so that any function in your program that is
+      not recognized is referred to CGI.pm for possible evaluation.
+      This allows you to use all the CGI.pm functions without adding
+      them to your symbol table, which is of concern for mod_perl
+      users who are worried about memory consumption.
+      <strong>Warning:</strong> when <em>-autoload</em> is in effect,
+      you cannot use "poetry mode" (functions without the
+      parenthesis).  Use <cite>hr()</cite> rather than
+      <cite>hr</cite>, or add something like <em>use subs qw/hr p
+      header/</em> to the top of your script.
+      <p>
   <dt><b>-nph</b>
   <dd>This makes CGI.pm produce a header appropriate for an NPH (no
       parsed header) script.  You may need to do other things as well
@@ -3978,6 +3990,12 @@ Address bug reports and comments to:<BR>
 
 <H2><A NAME="new">Revision History</A></H2>
 
+<h3>Version 2.39</h3>
+<ol>
+  <li>file uploads failing because of VMS patch; fixed.
+  <li>-dtd parameter was not being properly processed.
+</ol>
+
 <h3>Version 2.38</h3>
 
 I finally got tired of all the 2.37 betas and released 2.38.  The main
@@ -4519,6 +4537,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Sun Mar 22 22:05:29 EST 1998
+Last modified: Tue Mar 24 17:08:36 EST 1998
 <!-- hhmts end -->
 </BODY> </HTML>

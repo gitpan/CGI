@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.27 1998/03/23 03:09:59 lstein Exp $';
-$CGI::VERSION='2.38';
+$CGI::revision = '$Id: CGI.pm,v 1.29 1998/03/24 22:11:50 lstein Exp lstein $';
+$CGI::VERSION='2.39';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -1195,7 +1195,7 @@ sub start_html {
     $title = $self->escapeHTML($title || 'Untitled Document');
     $author = $self->escape($author);
     my(@result);
-    $dtd = $DEFAULT_DTD unless $dtd && $dtd !~ m|^-//|;
+    $dtd = $DEFAULT_DTD unless $dtd && $dtd =~ m|^-//|;
     push(@result,qq(<!DOCTYPE HTML PUBLIC "$dtd">)) if $dtd;
     push(@result,"<HTML><HEAD><TITLE>$title</TITLE>");
     push(@result,"<LINK REV=MADE HREF=\"mailto:$author\">") if defined $author;
@@ -2885,7 +2885,11 @@ sub readHeader {
     my($end);
     my($ok) = 0;
     my($bad) = 0;
-    my($CRLF) = "\015\012" if $OS eq 'VMS'; # inconsistency, inconsistency!
+
+    if ($CGI::OS eq 'VMS') {  # tssk, tssk: inconsistency alert!
+	local($CRLF) = "\015\012";
+    }
+
     do {
 	$self->fillBuffer($FILLUNIT);
 	$ok++ if ($end = index($self->{BUFFER},"${CRLF}${CRLF}")) >= 0;
@@ -3730,6 +3734,18 @@ This makes CGI.pm produce a header appropriate for an NPH (no
 parsed header) script.  You may need to do other things as well
 to tell the server that the script is NPH.  See the discussion
 of NPH scripts below.
+
+=item -autoload
+
+This overrides the autoloader so that any function in your program
+that is not recognized is referred to CGI.pm for possible evaluation.
+This allows you to use all the CGI.pm functions without adding them to
+your symbol table, which is of concern for mod_perl users who are
+worried about memory consumption.  I<Warning:> when
+I<-autoload> is in effect, you cannot use "poetry mode"
+(functions without the parenthesis).  Use I<hr()> rather
+than I<hr>, or add something like I<use subs qw/hr p header/> 
+to the top of your script.
 
 =item -no_debug
 
