@@ -28,8 +28,8 @@ $AUTOLOAD_DEBUG=0;
 #    3) print header(-nph=>1)
 $NPH=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.28 1996/12/01 19:46 lstein Exp $';
-$CGI::VERSION='2.28';
+$CGI::revision = '$Id: CGI.pm,v 2.29 1996/12/08 19:46 lstein Exp $';
+$CGI::VERSION='2.29';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -89,6 +89,7 @@ if ($needs_binmode) {
 	      ':standard' => [qw/:html2 :form :cgi/],
 	      ':all' => [qw/:html2 :html3 :netscape :form :cgi/]
 	 );
+
 
 # to import symbols into caller
 sub import {
@@ -384,7 +385,7 @@ sub init {
 # Turn a string into a filehandle
 sub to_filehandle {
     my $string = shift;
-    if ($string && ref($string) && (ref($string) eq '')) {
+    if ($string && !ref($string)) {
 	my($package) = caller(1);
 	my($tmp) = $string=~/[':]/ ? $string : "$package\:\:$string"; 
 	return $tmp if defined(fileno($tmp));
@@ -809,7 +810,7 @@ END_OF_FUNC
 ####
 'header' => <<'END_OF_FUNC',
 sub header {
-    my($self,@p) = self_or_CGI(@_);
+    my($self,@p) = self_or_default(@_);
     my(@header);
 
     my($type,$status,$cookie,$target,$expires,$nph,@other) = 
@@ -869,7 +870,7 @@ END_OF_FUNC
 ####
 'redirect' => <<'END_OF_FUNC',
 sub redirect {
-    my($self,@p) = self_or_CGI(@_);
+    my($self,@p) = self_or_default(@_);
     my($url,$target,$cookie,$nph,@other) = $self->rearrange([[URI,URL],TARGET,COOKIE,NPH],@p);
     $url = $url || $self->self_url;
     my(@o);
@@ -902,7 +903,7 @@ END_OF_FUNC
 ####
 'start_html' => <<'END_OF_FUNC',
 sub start_html {
-    my($self,@p) = &self_or_CGI(@_);
+    my($self,@p) = &self_or_default(@_);
     my($title,$author,$base,$xbase,$script,$meta,@other) = 
 	$self->rearrange([TITLE,AUTHOR,BASE,XBASE,SCRIPT,META],@p);
 
@@ -958,7 +959,7 @@ END_OF_FUNC
 #   A string containing a <ISINDEX> tag
 'isindex' => <<'END_OF_FUNC',
 sub isindex {
-    my($self,@p) = self_or_CGI(@_);
+    my($self,@p) = self_or_default(@_);
     my($action,@other) = $self->rearrange([ACTION],@p);
     $action = qq/ACTION="$action"/ if $action;
     my($other) = @other ? " @other" : '';
@@ -975,7 +976,7 @@ END_OF_FUNC
 #   $enctype ->encoding to use (URL_ENCODED or MULTIPART)
 'startform' => <<'END_OF_FUNC',
 sub startform {
-    my($self,@p) = self_or_CGI(@_);
+    my($self,@p) = self_or_default(@_);
 
     my($method,$action,$enctype,@other) = 
 	$self->rearrange([METHOD,ACTION,ENCTYPE],@p);
@@ -1004,7 +1005,7 @@ END_OF_FUNC
 # synonym for startform
 'start_multipart_form' => <<'END_OF_FUNC',
 sub start_multipart_form {
-    my($self,@p) = self_or_CGI(@_);
+    my($self,@p) = self_or_default(@_);
     if ($self->use_named_parameters || 
 	(defined($param[0]) && substr($param[0],0,1) eq '-')) {
 	my(%p) = @p;
@@ -1694,6 +1695,7 @@ END_OF_FUNC
 #   -expires -> expiry date in format Wdy, DD-Mon-YY HH:MM:SS GMT (optional)
 ####
 'cookie' => <<'END_OF_FUNC',
+# temporary, for debugging.
 sub cookie {
     my($self,@p) = self_or_default(@_);
     my($name,$value,$path,$domain,$secure,$expires) =
@@ -1715,8 +1717,16 @@ sub cookie {
     my(@values);
 
     # Pull out our parameters.
-    @values = map escape($_),
-           ref($value) && ref($value) eq 'ARRAY' ? @$value : ref($value) && (ref($value) eq 'HASH' ? %$value : $value);
+    if (ref($value)) {
+	if (ref($value) eq 'ARRAY') {
+	    @values = @$value;
+	} elsif (ref($value) eq 'HASH') {
+	    @values = %$value;
+	}
+    } else {
+	@values = ($value);
+    }
+    @values = map escape($_),@values;
 
     my(@constant_values);
     push(@constant_values,"domain=$domain") if $domain;
@@ -4592,8 +4602,11 @@ Thanks very much to:
 
 =item Stephen Dahmen (joyfire@inxpress.net)
 
-=item ...and many many more...
+=item Ed Jordan (ed@fidalgo.net)
 
+=item David Alan Pisoni (david@cnation.com)
+
+=item ...and many many more...
 
 for suggestions and bug fixes.
 

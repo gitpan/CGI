@@ -106,13 +106,19 @@ occur in the early compile phase will be seen.
 Nonfatal errors will still be directed to the log file only (unless redirected
 with carpout).
 
+=head1 CHANGE LOG
+
+1.05 carpout() added and minor corrections by Marc Hedlund
+     <hedlund@best.com> on 11/26/95.
+
+1.06 fatalsToBrowser() no longer aborts for fatal errors within
+     eval() statements.
+
 =head1 AUTHORS
 
 Lincoln D. Stein <lstein@genome.wi.mit.edu>.  Feel free to redistribute
 this under the Perl Artistic License.
 
-carpout() added and minor corrections by Marc Hedlund
-<hedlund@best.com> on 11/26/95.
 
 =head1 SEE ALSO
 
@@ -131,7 +137,7 @@ use Carp;
 
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
 $main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.05';
+$CGI::Carp::VERSION = '1.06';
 
 # fancy import routine detects and handles 'errorWrap' specially.
 sub import {
@@ -181,6 +187,7 @@ sub die {
     my $message = shift;
     my $time = scalar(localtime);
     my($file,$line,$id) = id(1);
+    return undef if $file=~/^\(eval/;
     $message .= " at $file line $line.\n" unless $message=~/\n$/;
     &fatalsToBrowser($message) if $WRAP;
     my $stamp = stamp;

@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.28, 12/01/96, L. Stein
+Version 2.29, 12/09/96, L. Stein
 <p>
 
 <strong>WARNING:</strong> As threatened, the <code>import()</code>
@@ -111,7 +111,7 @@ href="#import">importing CGI methods</a> for an explanation.)
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.28?</A>
+  <LI><A HREF="#new">What's new in version 2.29?</A>
 </MENU>
 
 <HR>
@@ -121,7 +121,8 @@ href="#import">importing CGI methods</a> for an explanation.)
 <ul>
   <li><STRONG><A HREF="CGI.pm.tar.gz">Download full package (gzip tar archive)</A></STRONG>
   <li><STRONG><A HREF="CGIpm.zip">Download full package (pkzip archive)</A></STRONG>
-  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</strong>
+  <li><STRONG><A HREF="CGI.pm.sit.hqx">Download full package (Macintosh stuffit archive)</A></STRONG>
+  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
 </ul>
 
 <P>This package requires perl 5.001m or higher.  (Perl 5.003 is
@@ -3031,17 +3032,9 @@ modifications you have made.
 <A NAME="mailingList">
 <H2>The CGI-perl mailing list</H2>
 </A>
-There is a mailing list for the discussion of CGI module development.
-This list is intended for <em>developers</em> to discuss further
-development of CGI and related modules and is not a general list for
-help writing CGI programs.  If you would like to contribute to the
-development of CGI.pm and the CGI modules, or if you think you've
-found a bug in CGI.pm, you're welcome to contribute.
-<p>
-Send e-mail to <a
-href="mailto:cgi-perl-request@webstorm.com">cgi-perl-request@webstorm.com</a>
-with a message body of "help".   This will give you further
-instructions on how to subscribe.
+
+The CGI Perl mailing list is defunct.  Please address your questions
+to comp.lang.perl.modules and to comp.lang.perl.misc.
 
 <H3>Bug Reports</H3>
 Address bug reports and comments to:<BR>
@@ -3050,6 +3043,15 @@ Address bug reports and comments to:<BR>
 
 <HR>
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.29</h3>
+<ol>
+  <li>Fixed cookie bugs
+  <li>Fixed problems that cropped up when useNamedParameters was set to 1.
+  <li>Prevent CGI::Carp::fatalsToBrowser() from crapping out when
+      encountering a die() within an eval().
+  <li>Fixed problems with filehandle initializers.
+</ol>
+
 <h3>Version 2.28</h3>
 <ol>
   <li>Added support for NPH scripts; also fixes problems with
@@ -3428,6 +3430,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Mon Dec  2 07:41:11 EST 1996
+Last modified: Mon Dec  9 14:38:39 EST 1996
 <!-- hhmts end -->
 </BODY> </HTML>
