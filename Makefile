@@ -10,7 +10,7 @@
 
 #	DISTNAME => q[CGI.pm]
 #	NAME => q[CGI]
-#	VERSION => q[2.20]
+#	VERSION => q[2.21]
 #	dist => { COMPRESS=>q[gzip -9f], SUFFIX=>q[gz] }
 #	linkext => { LINKTYPE=>q[] }
 
@@ -45,9 +45,9 @@ AR_STATIC_ARGS = cr
 NAME = CGI
 DISTNAME = CGI.pm
 NAME_SYM = CGI
-VERSION = 2.20
-VERSION_SYM = 2_20
-XS_VERSION = 2.20
+VERSION = 2.21
+VERSION_SYM = 2_21
+XS_VERSION = 2.21
 INST_LIB = ./blib/lib
 INST_ARCHLIB = ./blib/arch
 INST_EXE = ./blib/bin
@@ -614,9 +614,9 @@ TEST_VERBOSE=0
 TEST_TYPE=test_$(LINKTYPE)
 
 test :: $(TEST_TYPE)
-	@echo 'No tests defined for $(NAME) extension.'
 
 test_dynamic :: all
+	PERL_DL_NONLAZY=1 $(FULLPERL) -I$(INST_ARCHLIB) -I$(INST_LIB) -I$(PERL_ARCHLIB) -I$(PERL_LIB) test.pl
 
 test_ : test_dynamic
 

@@ -1,4 +1,4 @@
-CGI.pm version 2.20 is now available.  This is the "everything but the
+CGI.pm version 2.21 is now available.  This is the "everything but the
 kitchen sink" module for CGI programming in Perl 5.  New in this
 version:
 
@@ -28,7 +28,7 @@ Brenner's cgi-lib.pl to CGI.pm.
 * Many bug fixes, including fixes for binary file uploads under
   Windows/NT.
 
-CGI.pm 2.20 can be found at:
+CGI.pm 2.21 can be found at:
 
    http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 

@@ -21,8 +21,8 @@ require 5.001;
 # Set this to 1 to enable copious autoloader debugging messages
 $AUTOLOAD_DEBUG=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.20 1996/05/21 00:20:08 lstein Exp $';
-$CGI::VERSION='2.20';
+$CGI::revision = '$Id: CGI.pm,v 2.21 1996/05/31 07:25 lstein Exp $';
+$CGI::VERSION='2.21';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -64,7 +64,7 @@ if ($needs_binmode) {
 			 input select option/],
 	      ':html3'=>[qw/table caption th td super sub strike applet param embed/],
 	      ':netscape'=>[qw/blink frameset frame script font fontsize center/],
-	      ':form'=>[qw/textfield textarea filefield password hidden checkbox checkbox_group 
+	      ':form'=>[qw/textfield textarea filefield password_field hidden checkbox checkbox_group 
 		       submit reset defaults radio_group popup_menu button
 		       scrolling_list image_button start_form end_form 
 		       start_multipart_form isindex URL_ENCODED MULTIPART/],
@@ -460,14 +460,11 @@ END_OF_FUNC
 'HTML_FUNC' => <<'END_OF_FUNC',
 sub func_name { 
     shift if substr(ref($_[0]),0,3) eq 'CGI';
-    my($attributes,@param) = @_;
     my($attr) = '';
-    if (ref($attributes) && ref($attributes) eq 'HASH') {
-	$attr = CGI::make_attributes('',$attributes);
-    } else {
-	unshift(@param,$attributes) if $attributes;
+    if (ref($_[0]) && ref($_[0]) eq 'HASH') {
+	$attr = CGI::make_attributes('',shift);
     }
-    return @param ? "<func_name$attr>@param</func_name>" : 
+    return @_ ? "<func_name$attr>@_</func_name>" :
 	"<func_name$attr>";
 }
 END_OF_FUNC
@@ -797,8 +794,8 @@ END_OF_FUNC
 'start_html' => <<'END_OF_FUNC',
 sub start_html {
     my($self,@p) = self_or_default(@_);
-    my($title,$author,$base,$xbase,$script,@other) = 
-	$self->rearrange([TITLE,AUTHOR,BASE,XBASE,SCRIPT],@p);
+    my($title,$author,$base,$xbase,$script,$meta,@other) = 
+	$self->rearrange([TITLE,AUTHOR,BASE,XBASE,SCRIPT,META],@p);
 
     # strangely enough, the title needs to be escaped as HTML
     # while the author needs to be escaped as a URL
@@ -810,6 +807,9 @@ sub start_html {
     push(@result,"<BASE HREF=\"http://".$self->server_name.":".$self->server_port.$self->script_name."\">")
 	if $base && !$xbase;
     push(@result,"<BASE HREF=\"$xbase\">") if $xbase;
+    if ($meta && (ref($meta) eq 'HASH')) {
+	foreach (keys %$meta) { push(@result,qq(<META NAME="$_" CONTENT="$meta->{$_}">)); }
+    }
     push(@result,<<END) if $script;
 <SCRIPT>
 <!-- Hide script from HTML-compliant browsers
@@ -936,9 +936,10 @@ sub textfield {
 
     $current = defined($current) ? $self->escapeHTML($current) : '';
     $name = defined($name) ? $self->escapeHTML($name) : '';
-    my($s) = defined($size) ? qq/SIZE=$size/ : '';
-    my($m) = defined($maxlength) ? qq/MAXLENGTH=$maxlength/ : '';
-    return qq/<INPUT TYPE="text" NAME="$name" VALUE="$current" $s $m @other>/;
+    my($s) = defined($size) ? qq/ SIZE=$size/ : '';
+    my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
+    my($other) = join(" ",@other);
+    return qq/<INPUT TYPE="text" NAME="$name" VALUE="$current"$s$m$other>/;
 }
 END_OF_FUNC
 
@@ -963,9 +964,10 @@ sub filefield {
 	(defined($self->param($name)) ? $self->param($name) : $default);
 
     $name = defined($name) ? $self->escapeHTML($name) : '';
-    my($s) = defined($size) ? qq/SIZE=$size/ : '';
-    my($m) = defined($maxlength) ? qq/MAXLENGTH=$maxlength/ : '';
-    return qq/<INPUT TYPE="file" NAME="$name" VALUE="$current" $s $m @other>/;
+    my($s) = defined($size) ? qq/ SIZE=$size/ : '';
+    my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
+    my($other) = join(" ",@other);
+    return qq/<INPUT TYPE="file" NAME="$name" VALUE="$current"$s$m$other>/;
 }
 END_OF_FUNC
 
@@ -993,9 +995,10 @@ sub password_field {
 
     $name = defined($name) ? $self->escapeHTML($name) : '';
     $current = defined($current) ? $self->escapeHTML($current) : '';
-    my($s) = defined($size) ? qq/SIZE=$size/ : '';
-    my($m) = defined($maxlength) ? qq/MAXLENGTH=$maxlength/ : '';
-    return qq/<INPUT TYPE="password" NAME="$name" VALUE="$current" $s $m @other>/;
+    my($s) = defined($size) ? qq/ SIZE=$size/ : '';
+    my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
+    my($other) = join(" ",@other);
+    return qq/<INPUT TYPE="password" NAME="$name" VALUE="$current"$s$m$other>/;
 }
 END_OF_FUNC
 
@@ -1022,9 +1025,10 @@ sub textarea {
 
     $name = defined($name) ? $self->escapeHTML($name) : '';
     $current = defined($current) ? $self->escapeHTML($current) : '';
-    my($r) = $rows ? "ROWS=$rows" : '';
-    my($c) = $cols ? "COLS=$cols" : '';
-    return qq{<TEXTAREA NAME="$name" $r $c @other>$current</TEXTAREA>};
+    my($r) = $rows ? " ROWS=$rows" : '';
+    my($c) = $cols ? " COLS=$cols" : '';
+    my($other) = join(' ',@other);
+    return qq{<TEXTAREA NAME="$name"$r$c$other>$current</TEXTAREA>};
 }
 END_OF_FUNC
 
@@ -1051,12 +1055,13 @@ sub button {
     $script=$self->escapeHTML($script);
 
     my($name) = '';
-    $name = qq/NAME="$label"/ if $label;
+    $name = qq/ NAME="$label"/ if $label;
     $value = $value || $label;
     my($val) = '';
-    $val = qq/VALUE="$value"/ if $value;
-    $script = qq/ONCLICK="$script"/ if $script;
-    return qq/<INPUT TYPE="button" $name $val $script @other>/;
+    $val = qq/ VALUE="$value"/ if $value;
+    $script = qq/ ONCLICK="$script"/ if $script;
+    my($other) =join(" ",@other);
+    return qq/<INPUT TYPE="button"$name$val$script$other>/;
 }
 END_OF_FUNC
 
@@ -1083,8 +1088,9 @@ sub submit {
     $name = qq/NAME="$label"/ if $label;
     $value = $value || $label;
     my($val) = '';
-    $val = qq/VALUE="$value"/ if $value;
-    return qq/<INPUT TYPE="submit" $name $val @other>/;
+    $val = qq/ VALUE="$value"/ if $value;
+    my($other) = join(' ',@other);
+    return qq/<INPUT TYPE="submit"$name$val$other>/;
 }
 END_OF_FUNC
 
@@ -1101,9 +1107,9 @@ sub reset {
     my($self,@p) = self_or_default(@_);
     my($label,@other) = $self->rearrange([NAME],@p);
     $label=$self->escapeHTML($label);
-    my($value) = $label ? qq/VALUE="$label"/ : '';
-
-    return qq/<INPUT TYPE="reset" $value @other>/;
+    my($value) = $label ? qq/ VALUE="$label"/ : '';
+    my($other) = join(' ',@other);
+    return qq/<INPUT TYPE="reset"$value$other>/;
 }
 END_OF_FUNC
 
@@ -1127,8 +1133,9 @@ sub defaults {
 
     $label=$self->escapeHTML($label);
     $label = $label || "Defaults";
-    my($value) = qq/VALUE="$label"/;
-    return qq/<INPUT TYPE="submit" NAME=".defaults" $value @other>/;
+    my($value) = qq/ VALUE="$label"/;
+    my($other) = join(' ',@other);
+    return qq/<INPUT TYPE="submit" NAME=".defaults"$value$other>/;
 }
 END_OF_FUNC
 
@@ -1153,19 +1160,20 @@ sub checkbox {
 	$self->rearrange([NAME,[CHECKED,SELECTED,ON],VALUE,LABEL,[OVERRIDE,FORCE]],@p);
 
     if (!$override && $self->inited) {
-	$checked = $self->param($name) ? 'CHECKED' : '';
+	$checked = $self->param($name) ? ' CHECKED' : '';
 	$value = defined $self->param($name) ? $self->param($name) :
 	    (defined $value ? $value : 'on');
     } else {
-	$checked = defined($checked) ? 'CHECKED' : '';
+	$checked = defined($checked) ? ' CHECKED' : '';
 	$value = defined $value ? $value : 'on';
     }
     my($the_label) = defined $label ? $label : $name;
     $name = $self->escapeHTML($name);
     $value = $self->escapeHTML($value);
     $the_label = $self->escapeHTML($the_label);
+    my($other) = join(" ",@other);
     return <<END;
-<INPUT TYPE="checkbox" NAME="$name" VALUE="$value" $checked @other>$the_label
+<INPUT TYPE="checkbox" NAME="$name" VALUE="$value"$checked$other>$the_label
 END
 }
 END_OF_FUNC
@@ -1213,8 +1221,9 @@ sub checkbox_group {
     # Create the elements
     my(@elements);
     my(@values) = @$values ? @$values : $self->param($name);
+    my($other) = join(" ",@other);
     foreach (@values) {
-	$checked = $checked{$_} ? 'CHECKED' : '';
+	$checked = $checked{$_} ? ' CHECKED' : '';
 	$label = '';
 	unless (defined($nolabels) && $nolabels) {
 	    $label = $_;
@@ -1222,9 +1231,9 @@ sub checkbox_group {
 	    $label = $self->escapeHTML($label);
 	}
 	$_ = $self->escapeHTML($_);
-	push(@elements,qq/<INPUT TYPE="checkbox" NAME="$name" VALUE="$_" $checked @other>${label} ${break}/);
+	push(@elements,qq/<INPUT TYPE="checkbox" NAME="$name" VALUE="$_"$checked$other>${label} ${break}/);
     }
-    return @elements unless $columns;
+    return wantarray ? @elements : join('',@elements) unless $columns;
     return _tableize($rows,$columns,$rowheaders,$colheaders,@elements);
 }
 END_OF_FUNC
@@ -1310,8 +1319,9 @@ sub radio_group {
 
     my(@elements);
     my(@values) = @$values ? @$values : $self->param($name);
+    my($other) = join(" ",@other);
     foreach (@values) {
-	my($checkit) = $checked eq $_ ? 'CHECKED' : '';
+	my($checkit) = $checked eq $_ ? ' CHECKED' : '';
 	my($break) = $linebreak ? '<BR>' : '';
 	my($label)='';
 	unless (defined($nolabels) && $nolabels) {
@@ -1320,9 +1330,9 @@ sub radio_group {
 	    $label = $self->escapeHTML($label);
 	}
 	$_=$self->escapeHTML($_);
-	push(@elements,qq/<INPUT TYPE="radio" NAME="$name" VALUE="$_" $checkit @other>${label} ${break}/);
+	push(@elements,qq/<INPUT TYPE="radio" NAME="$name" VALUE="$_"$checkit$other>${label} ${break}/);
     }
-    return @elements unless $columns;
+    return wantarray ? @elements : join('',@elements) unless $columns;
     return _tableize($rows,$columns,$rowheaders,$colheaders,@elements);
 }
 END_OF_FUNC
@@ -1357,7 +1367,8 @@ sub popup_menu {
     }
 
     $name=$self->escapeHTML($name);
-    $result = qq/<SELECT NAME="$name" @other>\n/;
+    my($other) = join(" ",@other);
+    $result = qq/<SELECT NAME="$name"$other>\n/;
     foreach (@{$values}) {
 	my($selectit) = defined($selected) ? ($selected eq $_ ? 'SELECTED' : '' ) : '';
 	my($label) = $_;
@@ -1405,10 +1416,11 @@ sub scrolling_list {
 
     my(%selected) = $self->previous_or_default($name,$defaults,$override);
 
-    my($is_multiple) = $multiple ? 'MULTIPLE' : '';
-    my($has_size) = $size ? "SIZE=$size" : '';
+    my($is_multiple) = $multiple ? ' MULTIPLE' : '';
+    my($has_size) = $size ? " SIZE=$size" : '';
+    my($other) = join(" ",@other);
     $name=$self->escapeHTML($name);
-    $result = qq/<SELECT NAME="$name" $has_size $is_multiple @other>\n/;
+    $result = qq/<SELECT NAME="$name"$has_size$is_multiple$other>\n/;
     my(@values) = @$values ? @$values : $self->param($name);
     foreach (@values) {
 	my($selectit) = $selected{$_} ? 'SELECTED' : '';
@@ -1449,20 +1461,20 @@ sub hidden {
 	$do_override = $override;
     } else {
 	foreach ($default,$override,@other) {
-	    push(@value,$_) if defined($_) && ($_ ne '');
+	    push(@value,$_) if defined($_);
 	}
     }
 
     # use previous values if override is not set
-    my $prev = $self->param($name);
-    @value = $prev if !$do_override && defined($prev);
+    my @prev = $self->param($name);
+    @value = @prev if !$do_override && @prev;
 
     $name=$self->escapeHTML($name);
     foreach (@value) {
 	$_=$self->escapeHTML($_);
 	push(@result,qq/<INPUT TYPE="hidden" NAME="$name" VALUE="$_">/);
     }
-    return join("\n",@result);
+    return wantarray ? @result : join('',@result);
 }
 END_OF_FUNC
 
@@ -1482,9 +1494,10 @@ sub image_button {
     my($name,$src,$alignment,@other) =
 	$self->rearrange([NAME,SRC,ALIGN],@p);
 
-    my($align) = $alignment ? "ALIGN=\U$alignment" : '';
+    my($align) = $alignment ? " ALIGN=\U$alignment" : '';
+    my($other) = join(" ",@other);
     $name=$self->escapeHTML($name);
-    return qq/<INPUT TYPE="image" NAME="$name" SRC="$src" $align @other>/;
+    return qq/<INPUT TYPE="image" NAME="$name" SRC="$src"$align$other>/;
 }
 END_OF_FUNC
 
@@ -2099,11 +2112,14 @@ sub new {
     # We may hang on this read in that case. So we implement
     # a read timeout.  If nothing is ready to read
     # by then, we return.
-    return undef if wouldBlock($IN,$TIMEOUT);
+
+    # this guy is commented out because it has never worked
+    # correctly for Solaris-based servers.
+
+    # return undef if wouldBlock($IN,$TIMEOUT);
 
     # Netscape seems to be a little bit unreliable
-    # about providing boundary strings
-
+    # about providing boundary strings.
     if ($boundary) {
 	# Under the MIME spec, the boundary consists of the 
 	# characters "--" PLUS the Boundary string
@@ -2791,6 +2807,8 @@ of the document you are redirecting to.
    print $query->start_html(-title=>'Secrets of the Pyramids',
                             -author=>'fred@capricorn.org',
                             -base=>'true',
+			    -meta=>{'keywords'=>'pharoah secret mummy',
+                                    'copyright'=>'copyright 1996 King Tut'},
                             -BGCOLOR=>'blue');
 
    -or-
@@ -2805,24 +2823,36 @@ parameters are -title, -author and -base (see below for the
 explanation).  Any additional parameters you provide, such as the
 Netscape unofficial BGCOLOR attribute, are added to the <BODY> tag.
 
-Version 2.16 adds the argument -xbase, which you can use to provide
-an HREF for the <BASE> tag different from the current location, as
-in
+The argument B<-xbase> allows you to provide an HREF for the <BASE> tag
+different from the current location, as in
 
     -xbase=>"http://home.mcom.com/"
 
-JAVASCRIPTING:  Version 2.17 adds the B<-script>, B<-onLoad> and 
-B<-onUnload> parameters, 
-which are used to add Netscape JavaScript calls to your pages.  
-B<-script> should point to a block of
-text containing JavaScript function definitions.  This block will be
-placed within a <SCRIPT> block inside the HTML (not HTTP) header.  The
-block is placed in the header in order to give your page a fighting 
-chance of having all its JavaScript functions in place even if the user
-presses the stop button before the page has loaded completely.  CGI.pm
-attempts to format the script in such a way that JavaScript-naive
-browsers will not choke on the code: unfortunately there are some browsers,
-such as Chimera for Unix, that get confused by it nevertheless.
+All relative links will be interpreted relative to this tag.
+
+You add arbitrary meta information to the header with the B<-meta>
+argument.  This argument expects a reference to an associative array
+containing name/value pairs of meta information.  These will be turned
+into a series of header <META> tags that look something like this:
+
+    <META NAME="keywords" CONTENT="pharoah secret mummy">
+    <META NAME="description" CONTENT="copyright 1996 King Tut">
+
+There is no support for the HTTP-EQUIV type of <META> tag.  This is
+because you can modify the HTTP header directly with the B<header()>
+method.
+
+JAVASCRIPTING: The B<-script>, B<-onLoad> and B<-onUnload> parameters
+are used to add Netscape JavaScript calls to your pages.  B<-script>
+should point to a block of text containing JavaScript function
+definitions.  This block will be placed within a <SCRIPT> block inside
+the HTML (not HTTP) header.  The block is placed in the header in
+order to give your page a fighting chance of having all its JavaScript
+functions in place even if the user presses the stop button before the
+page has loaded completely.  CGI.pm attempts to format the script in
+such a way that JavaScript-naive browsers will not choke on the code:
+unfortunately there are some browsers, such as Chimera for Unix, that
+get confused by it nevertheless.
 
 The B<-onLoad> and B<-onUnload> parameters point to fragments of JavaScript
 code to execute when the page is respectively opened and closed by the

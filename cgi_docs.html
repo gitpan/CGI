@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.20, 5/22/96, L. Stein
+Version 2.21, 5/31/96, L. Stein
 <p>
 Mirrors of this document may be found at:
 <ul>
@@ -86,11 +86,10 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <BR><A HREF="examples/">More scripting examples</A>
 
 <p>
-
-(Users of CGI.pm earlier than 2.20 will notice that the syntax used in
-this example has changed.  Don't worry, the object-oriented syntax is
-still accepted.  Read <a href="#import">importing CGI methods</a> for
-an explanation.)
+(Users of CGI.pm before version 2.20 will notice that the syntax has
+changed a in this example from previous examples.  Don't worry, the
+object-oriented syntax is still accepted.  Read <a
+href="#import">importing CGI methods</a> for an explanation.)
 
 <A NAME="contents">
 <H2>Contents</H2>
@@ -116,7 +115,7 @@ an explanation.)
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.19?</A>
+  <LI><A HREF="#new">What's new in version 2.21?</A>
 </MENU>
 
 <HR>
@@ -602,6 +601,8 @@ correctly.
    print $query-&gt;start_html(-title=&gt;'Secrets of the Pyramids',
                             -author=&gt;'fred@capricorn.org',
                             -base=&gt;'true',
+			    -meta=&gt;{'keywords'=&gt;'pharoah secret mummy',
+                                    'copyright'=&gt;'copyright 1996 King Tut'},
                             -BGCOLOR=&gt;'blue');
 
    <EM>old style</EM>
@@ -624,6 +625,16 @@ All parameters are optional:
       print $query-&gt;start_html(-title=&gt;'Secrets of the Pyramids',
                                -xbase=&gt;'http://www.nile.eg/pyramid.html');
       </pre>
+  <LI>A <strong>-meta</strong> parameter to define one or more &lt;META&gt; tags.  Pass
+      this parameter a reference to an associative array containing key/value pairs.  Each
+      pair becomes a &lt;META&gt; tag in a format similar to this one.
+      <blockquote><pre>
+      &lt;META NAME="keywords" CONTENT="pharoah secret mummy"&gt;
+      &lt;META NAME="description" CONTENT="copyright 1996 King Tut"&gt;
+      </pre></blockquote>
+      There is no support for the HTTP-EQUIV type of &lt;META&gt; tag.  This is
+      because you can modify the HTTP header directly with the
+      <a href="#header">header</a> method.
   <LI>A <strong>-script</strong> parameter to define Netscape <a
       href="#javascripting">JavaScript</a> functions
       to incorporate into the HTML page.  This is the preferred way to
@@ -2715,6 +2726,20 @@ Address bug reports and comments to:<BR>
 
 <HR>
 <H2><A NAME="new">Revision History</A></H2>
+<H3>Version 2.21</H3>
+<ol>
+  <li>Added the <cite>-meta</cite> argument to <cite>start_html()</cite>.
+  <li>Fixed hidden fields (again).
+  <li>Radio_group() and checkbox_group() now return an appropriate scalar
+      value when called in a scalar context, rather than returning a numeric
+      value!
+  <li>Cleaned up the formatting of form elements to avoid unesthetic
+      extra spaces within the attributes.
+  <li>HTML elements now correctly include the closing tag when parameters
+      are present but null: em('')
+  <li>Added password_field() to the export list.
+</ol>
+
 <H3>Version 2.20</H3>
 <ol>
   <li>Dumped the SelfLoader because of problems with running with
@@ -3003,6 +3028,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Wed May 22 23:37:07 EDT 1996
+Last modified: Fri May 31 07:29:47 EDT 1996
 <!-- hhmts end -->
 </BODY> </HTML>

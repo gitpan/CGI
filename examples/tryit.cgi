@@ -1,6 +1,6 @@
 #!/usr/local/bin/perl
 
-use CGI qw(:standard);
+use CGI standard;
 
 print header;
 print start_html('A Simple Example'),

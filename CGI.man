@@ -73,7 +73,7 @@
 .nr % 0
 .rr F
 .\}
-.TH CGI 1 "perl " "22/May/96" "User Contributed Perl Documentation"
+.TH CGI 1 "perl " "31/May/96" "User Contributed Perl Documentation"
 .IX Title "CGI 1"
 .UC
 .IX Name "CGI - Simple Common Gateway Interface Class"
@@ -648,10 +648,12 @@ of the document you are redirecting to.
 .Sh "\s-1CREATING\s0 \s-1THE\s0 \s-1HTML\s0 \s-1HEADER\s0:"
 .IX Subsection "\s-1CREATING\s0 \s-1THE\s0 \s-1HTML\s0 \s-1HEADER\s0:"
 .PP
-.Vb 4
+.Vb 6
 \&   print $query->start_html(-title=>'Secrets of the Pyramids',
 \&                            -author=>'fred@capricorn.org',
 \&                            -base=>'true',
+\&                            -meta=>{'keywords'=>'pharoah secret mummy',
+\&                                    'copyright'=>'copyright 1996 King Tut'},
 \&                            -BGCOLOR=>'blue');
 .Ve
 .Vb 1
@@ -668,25 +670,38 @@ parameters are \-title, \-author and \-base (see below for the
 explanation).  Any additional parameters you provide, such as the
 Netscape unofficial \s-1BGCOLOR\s0 attribute, are added to the <\s-1BODY\s0> tag.
 .PP
-Version 2.16 adds the argument \-xbase, which you can use to provide
-an \s-1HREF\s0 for the <\s-1BASE\s0> tag different from the current location, as
-in
+The argument \fB\-xbase\fR allows you to provide an \s-1HREF\s0 for the <\s-1BASE\s0> tag
+different from the current location, as in
 .PP
 .Vb 1
 \&    -xbase=>"http://home.mcom.com/"
 .Ve
-\s-1JAVASCRIPTING\s0:  Version 2.17 adds the \fB\-script\fR, \fB\-onLoad\fR and 
-\fB\-onUnload\fR parameters, 
-which are used to add Netscape JavaScript calls to your pages.  
-\fB\-script\fR should point to a block of
-text containing JavaScript function definitions.  This block will be
-placed within a <\s-1SCRIPT\s0> block inside the \s-1HTML\s0 (not \s-1HTTP\s0) header.  The
-block is placed in the header in order to give your page a fighting 
-chance of having all its JavaScript functions in place even if the user
-presses the stop button before the page has loaded completely.  \s-1CGI\s0.pm
-attempts to format the script in such a way that JavaScript-naive
-browsers will not choke on the code: unfortunately there are some browsers,
-such as Chimera for Unix, that get confused by it nevertheless.
+All relative links will be interpreted relative to this tag.
+.PP
+You add arbitrary meta information to the header with the \fB\-meta\fR
+argument.  This argument expects a reference to an associative array
+containing name/value pairs of meta information.  These will be turned
+into a series of header <\s-1META\s0> tags that look something like this:
+.PP
+.Vb 2
+\&    <META NAME="keywords" CONTENT="pharoah secret mummy">
+\&    <META NAME="description" CONTENT="copyright 1996 King Tut">
+.Ve
+There is no support for the \s-1HTTP\s0\-\s-1EQUIV\s0 type of <\s-1META\s0> tag.  This is
+because you can modify the \s-1HTTP\s0 header directly with the \fBheader()\fR
+method.
+.PP
+\s-1JAVASCRIPTING\s0: The \fB\-script\fR, \fB\-onLoad\fR and \fB\-onUnload\fR parameters
+are used to add Netscape JavaScript calls to your pages.  \fB\-script\fR
+should point to a block of text containing JavaScript function
+definitions.  This block will be placed within a <\s-1SCRIPT\s0> block inside
+the \s-1HTML\s0 (not \s-1HTTP\s0) header.  The block is placed in the header in
+order to give your page a fighting chance of having all its JavaScript
+functions in place even if the user presses the stop button before the
+page has loaded completely.  \s-1CGI\s0.pm attempts to format the script in
+such a way that JavaScript-naive browsers will not choke on the code:
+unfortunately there are some browsers, such as Chimera for Unix, that
+get confused by it nevertheless.
 .PP
 The \fB\-onLoad\fR and \fB\-onUnload\fR parameters point to fragments of JavaScript
 code to execute when the page is respectively opened and closed by the
