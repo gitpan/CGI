@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.31, 2/8/97, L. Stein
+Version 2.32, 3/19/97, L. Stein
 <p>
 
 <strong>WARNING:</strong> The overloaded double-quote ("") operator
@@ -14,17 +14,14 @@ automatically interpolated as HTML into double-quoted strings.  This
 was useful for debugging, but broke in newer versions of Perl.
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
-fill-out forms on the fly and to parse their contents.  It is similar
-to <A HREF="http://www.bio.cam.ac.uk/web/form.html">
-<CODE>cgi-lib.pl</CODE></A>
-in some respects.  It provides a simple
-interface for parsing and interpreting query strings passed to CGI
-scripts.  However, it also offers a rich set of functions for creating
-fill-out forms. Instead of remembering the syntax for HTML form
-elements, you just make a series of perl function calls. An important
-fringe benefit of this is that the value of the previous query is used
-to initialize the form, so that the state of the form is preserved
-from invocation to invocation.
+fill-out forms on the fly and to parse their contents.  It provides a
+simple interface for parsing and interpreting query strings passed to
+CGI scripts.  However, it also offers a rich set of functions for
+creating fill-out forms. Instead of remembering the syntax for HTML
+form elements, you just make a series of perl function calls. An
+important fringe benefit of this is that the value of the previous
+query is used to initialize the form, so that the state of the form is
+preserved from invocation to invocation.
 
 <P>Everything is done through a ``CGI'' object.  When you create one
 of these objects it examines the environment for a query string,
@@ -685,6 +682,14 @@ All parameters are optional:
       print $query-&gt;start_html(-title=&gt;'Secrets of the Pyramids',
                                -xbase=&gt;'http://www.nile.eg/pyramid.html');
       </pre>
+  <LI>A <strong>-target</strong> parameter, if you want to have all links and fill
+      out forms on the page go to a different frame.  Example:
+      <pre>
+      print $query-&gt;start_html(-title=&gt;'Secrets of the Pyramids',
+                               -target=&gt;'answer_frame');
+      </pre>
+      <strong>-target</strong> can be used with either
+      <strong>-xbase</strong> or <strong>-base</strong>.
   <LI>A <strong>-script</strong> parameter to define Netscape <a
       href="#javascripting">JavaScript</a> functions
       to incorporate into the HTML page.  This is the preferred way to
@@ -2686,18 +2691,32 @@ the Web server.  It can be run in either of two modes:
 
 <ol>
   <li>Server launches a new Perl interpreter every time it needs to
-      interpret a Perl script.  This speeds CGI scripts somewhat
+      interpret a Perl script.  This speeds CGI scripts significantly
       because there's no overhead for launching a new Perl process.
   <li>A "fast" mode in which the server launches your script at
       initialization time. You can
-      load all your favorite modules at initialization time, greatly
-      speeding things up.
+      load all your favorite modules (like CGI.pm!) at initialization time,
+      greatly speeding things up.
 </ol>
 
-CGI.pm sort-of works with mod_perl.  The interface needs considerable
-cleaning up.  mod_perl comes with a Apache::CGI module that overrides
-several of CGI.pm's functions.  Here's how to convert your scripts to
-use method (1):
+As of 2.32, CGI.pm works with mod_perl, versions 0.95 and higher
+(fingers crossed!).  If you use Perl 5.003_92 or higher, and compiled
+it with the sfio (standard IO) library, you probably do not need to
+change your scripts at all.  They should run completely unmodified.
+This has been tested successfully.
+
+<p>
+
+If you use Perl 5.003_93 or higher, your scripts should also run
+unmodified even if you didn't compile with sfio, because mod_perl
+takes advantage of the tied filehandle interface present in that
+version of Perl.  However <em>this has not been tested</em> (I'm too
+lazy to have two versions of the Perl libraries installed).  If you
+find that this does not work as advertised, just use the
+<cite>CGI::Apache</cite> module as shown below.  This <em>has</em>
+been tested:
+
+<h4>Old Script</H4>
 
 <blockquote><pre>
 #!/usr/local/bin/perl
@@ -2714,10 +2733,9 @@ print header,
 <h4>New Script</h4>
 <blockquote><pre>
 #!/usr/bin/perl
-use Apache::CGI qw(:standard);
+use CGI::Apache qw(:standard);
 
-# Do time-consuming initialization up here.
-put header,
+print header,
     start_html("CGI Script"),
     h1("CGI Script"),
     "Not much to see here",
@@ -2727,14 +2745,18 @@ put header,
 }
 </pre></blockquote>
 
-The main thing to notice is that we replace all print() statements
-with put() statements.  This is because mod_perl doesn't use standard
-output to send data to the server.
+<strong>Important configuration note:</strong> When using CGI.pm with
+mod_perl be careful <strong>not</strong> to enable either the
+<tt>PerlSendHeader</tt> or <tt>PerlSetupEnv</tt> directives.  This is
+handled automatically by CGI.pm and by Apache::Registry.
 
 <p>
 
-I haven't yet experimented with the "fast" mode.  There's a bit of
-work on the programmer's interface that needs doing.
+Users of CGI::Switch can continue to use it to create scripts that can
+run under each of normal CGI, mod_perl CGI or the command line.
+Unfortunately the "simple" interface to the CGI.pm functions does not
+work with CGI::Switch.  You'll have to use the object-oriented
+versions (or use the sfio version of Perl!)
 
 <p>
 <A HREF="#contents">Table of contents</A>
@@ -3572,6 +3594,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Sat Feb 15 16:32:08 EST 1997
+Last modified: Wed Mar 19 22:27:07 EST 1997
 <!-- hhmts end -->
 </BODY> </HTML>

@@ -4,6 +4,8 @@ CGI.pm
 CGI/Carp.pm
 CGI/Fast.pm
 CGI/Push.pm
+CGI/Apache.pm
+CGI/Switch.pm
 MANIFEST
 Makefile.PL
 README

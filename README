@@ -1,4 +1,4 @@
-This is CGI.pm 2.21, an easy-to-use Perl5 library for writing World
+This is CGI.pm 2.32, an easy-to-use Perl5 library for writing World
 Wide Web CGI scripts.
 
 To install this module, cd to the directory that contains this README
@@ -37,12 +37,12 @@ techniques are in the directory "examples".
 Online documentation of for CGI.pm, and notifications of new versions
 can be found at:
 
-	http://www-genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
+	http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 
 Many examples of CGI scripts of various degrees of complexity can be
 found at:
 
-	http://www-genome.wi.mit.edu/WWW/examples/Ch9/
+	http://www.genome.wi.mit.edu/WWW/examples/Ch9/
 
 Have fun, and let me know how it turns out!
 

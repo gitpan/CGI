@@ -8,14 +8,14 @@ require 5.001;
 # documentation in manual or html file format (these utilities are part of the
 # Perl 5 distribution).
 
-# Copyright 1995,1996, Lincoln D. Stein.  All rights reserved.
+# Copyright 1995-1997 Lincoln D. Stein.  All rights reserved.
 # It may be used and modified freely, but I do request that this copyright
 # notice remain attached to the file.  You may modify this module as you 
 # wish, but if you redistribute a modified version, please attach a note
 # listing the modifications you have made.
 
 # The most recent version and complete docs are available at:
-#   http://www-genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
+#   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
 # Set this to 1 to enable copious autoloader debugging messages
@@ -28,19 +28,19 @@ $AUTOLOAD_DEBUG=0;
 #    3) print header(-nph=>1)
 $NPH=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.31 1997/1/31 7:54 lstein Exp $';
-$CGI::VERSION='2.31';
+$CGI::revision = '$Id: CGI.pm,v 2.32 1997/3/19 10:10 lstein Exp $';
+$CGI::VERSION='2.32';
 
 # OVERRIDE THE OS HERE IF CGI.pm GUESSES WRONG
 # $OS = 'UNIX';
 # $OS = 'MACINTOSH';
 # $OS = 'WINDOWS';
 # $OS = 'VMS';
+# $OS = 'OS2';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
 # $TempFile::TMPDIRECTORY = '/usr/tmp';
-
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -59,20 +59,25 @@ if ($OS=~/Win/i) {
     $OS = 'VMS';
 } elsif ($OS=~/Mac/i) {
     $OS = 'MACINTOSH';
+} elsif ($OS=~/os2/i) {
+    $OS = 'OS2';
 } else {
     $OS = 'UNIX';
 }
 
 # Some OS logic.  Binary mode enabled on DOS, NT and VMS
-$needs_binmode = $OS=~/^(WINDOWS|VMS)/;
+$needs_binmode = $OS=~/^(WINDOWS|VMS|OS2)/;
 
 # This is the default class for the CGI object to use when all else fails.
 $DefaultClass = 'CGI' unless defined $CGI::DefaultClass;
+# This is where to look for autoloaded routines.
+$AutoloadClass = $DefaultClass unless defined $CGI::AutoloadClass;
 
 # The path separator is a slash, backslash or semicolon, depending
 # on the paltform.
 $SL = {
     UNIX=>'/',
+    OS2=>'\\',
     WINDOWS=>'\\',
     MACINTOSH=>':',
     VMS=>'\\'
@@ -80,6 +85,13 @@ $SL = {
 
 # Turn on NPH scripts by default when running under IIS server!
 $NPH++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
+
+# Turn on special checking for Doug MacEachern's modperl
+if ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl/) {
+    $NPH++;
+    $| = 1;
+    $SEQNO = 1;
+}
 
 # This is really "\r\n", but the meaning of \n is different
 # in MacPerl, so we resort to octal here.
@@ -105,7 +117,7 @@ if ($needs_binmode) {
 		       submit reset defaults radio_group popup_menu button autoEscape
 		       scrolling_list image_button start_form end_form startform endform
 		       start_multipart_form isindex tmpFileName uploadInfo URL_ENCODED MULTIPART/],
-	      ':cgi'=>[qw/param path_info path_translated url self_url script_name cookie 
+	      ':cgi'=>[qw/param path_info path_translated url self_url script_name cookie dump
 		       raw_cookie request_method query_string accept user_agent remote_host 
 		       remote_addr referer server_name server_software server_port server_protocol
 		       virtual_host remote_ident auth_type http
@@ -116,7 +128,6 @@ if ($needs_binmode) {
 	      ':standard' => [qw/:html2 :form :cgi/],
 	      ':all' => [qw/:html2 :html3 :netscape :form :cgi/]
 	 );
-
 
 # to import symbols into caller
 sub import {
@@ -134,7 +145,7 @@ sub import {
     my @packages = ($self,@{"$self\:\:ISA"});
     foreach $sym (keys %EXPORT) {
 	my $pck;
-	my $def = $DefaultClass;
+	my $def = ${"$self\:\:AutoloadClass"} || $DefaultClass;
 	foreach $pck (@packages) {
 	    if (defined(&{"$pck\:\:$sym"})) {
 		$def = $pck;
@@ -163,6 +174,7 @@ sub new {
     my($class,$initializer) = @_;
     my $self = {};
     bless $self,ref $class || $class || $DefaultClass;
+    $CGI::DefaultClass->_reset_globals() if $MOD_PERL;
     $initializer = to_filehandle($initializer) if $initializer;
     $self->init($initializer);
     return $self;
@@ -231,10 +243,27 @@ sub self_or_default {
 	    ref($_[0]) &&
 	    (ref($_[0]) eq 'CGI' ||
 	     eval "\$_[0]->isaCGI()")) { # optimize for the common case
+	$CGI::DefaultClass->_reset_globals() 
+	    if defined($Q) && $MOD_PERL && $CGI::DefaultClass->_new_request();
 	$Q = $CGI::DefaultClass->new unless defined($Q);
 	unshift(@_,$Q);
     }
     return @_;
+}
+
+sub _new_request {
+    return undef unless (defined(Apache->seqno()) or eval { require Apache });
+    if (Apache->seqno() != $SEQNO) {
+	$SEQNO = Apache->seqno();
+	return 1;
+    } else {
+	return undef;
+    }
+}
+
+sub _reset_globals {
+    undef $Q;
+    undef @QUERY_PARAM;
 }
 
 sub self_or_CGI {
@@ -356,12 +385,18 @@ sub init {
       # If the method is POST, fetch the query from standard
       # input.
       if ($meth eq 'POST') {
-	  if ($ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|) {
+
+	  if (defined($ENV{'CONTENT_TYPE'}) 
+	      && 
+	      $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|) {
 	      my($boundary) = $ENV{'CONTENT_TYPE'}=~/boundary=(\S+)/;
 	      $self->read_multipart($boundary,$ENV{'CONTENT_LENGTH'});
+
 	  } else {
+
 	      $self->read_from_client(\*STDIN,\$query_string,$ENV{'CONTENT_LENGTH'},0)
 		  if $ENV{'CONTENT_LENGTH'} > 0;
+
 	  }
 	  # Some people want to have their cake and eat it too!
 	  # Uncomment this line to have the contents of the query string
@@ -404,6 +439,7 @@ sub init {
     $self->delete('.submit');
     $self->delete('.cgifields');
     $self->save_request unless $initializer;
+
 }
 
 
@@ -520,19 +556,21 @@ sub as_string {
     &dump(@_);
 }
 
-AUTOLOAD {
+sub AUTOLOAD {
     print STDERR "CGI::AUTOLOAD for $AUTOLOAD\n" if $CGI::AUTOLOAD_DEBUG;
     my($func) = $AUTOLOAD;
     my($pack,$func_name) = $func=~/(.+)::([^:]+)$/;
-    $pack = $CGI::DefaultClass
-	unless defined(${"$pack\:\:AUTOLOADED_ROUTINES"});
+    $pack = ${"$pack\:\:AutoloadClass"} || $CGI::DefaultClass
+                unless defined(${"$pack\:\:AUTOLOADED_ROUTINES"});
+
     my($sub) = \%{"$pack\:\:SUBS"};
     unless (%$sub) {
 	my($auto) = \${"$pack\:\:AUTOLOADED_ROUTINES"};
 	eval "package $pack; $$auto";
 	die $@ if $@;
     }
-    my($code)= $sub->{$func_name};
+    my($code) = $sub->{$func_name};
+
     $code = "sub $AUTOLOAD { }" if (!$code and $func_name eq 'DESTROY');
     if (!$code) {
 	if ($EXPORT{':any'} || 
@@ -543,13 +581,55 @@ AUTOLOAD {
 	    $code=~s/func_name/$func_name/mg;
 	}
     }
-    die "Undefined subroutine $AUTOLOAD" unless $code;
+    die "Undefined subroutine $AUTOLOAD\n" unless $code;
     eval "package $pack; $code";
     if ($@) {
 	$@ =~ s/ at .*\n//;
 	die $@;
     }
     goto &{"$pack\:\:$func_name"};
+}
+
+# PRIVATE SUBROUTINE
+# Smart rearrangement of parameters to allow named parameter
+# calling.  We do the rearangement if:
+# 1. The first parameter begins with a -
+# 2. The use_named_parameters() method returns true
+sub rearrange {
+    my($self,$order,@param) = @_;
+    return () unless @param;
+    
+    return @param unless (defined($param[0]) && substr($param[0],0,1) eq '-')
+	|| $self->use_named_parameters;
+
+    my $i;
+    for ($i=0;$i<@param;$i+=2) {
+	$param[$i]=~s/^\-//;     # get rid of initial - if present
+	$param[$i]=~tr/a-z/A-Z/; # parameters are upper case
+    }
+    
+    my(%param) = @param;                # convert into associative array
+    my(@return_array);
+    
+    my($key)='';
+    foreach $key (@$order) {
+	my($value);
+	# this is an awful hack to fix spurious warnings when the
+	# -w switch is set.
+	if (ref($key) && ref($key) eq 'ARRAY') {
+	    foreach (@$key) {
+		last if defined($value);
+		$value = $param{$_};
+		delete $param{$_};
+	    }
+	} else {
+	    $value = $param{$key};
+	    delete $param{$key};
+	}
+	push(@return_array,$value);
+    }
+    push (@return_array,$self->make_attributes(\%param)) if %param;
+    return (@return_array);
 }
 
 ###############################################################################
@@ -789,7 +869,7 @@ END_OF_FUNC
 ####
 'dump' => <<'END_OF_FUNC',
 sub dump {
-    my($self) = @_;
+    my($self) = self_or_default(@_);
     my($param,$value,@result);
     return '<UL></UL>' unless $self->param;
     push(@result,"<UL>");
@@ -818,7 +898,9 @@ sub save {
     my($self,$filehandle) = self_or_default(@_);
     my($param);
     my($package) = caller;
-    $filehandle = $filehandle=~/[':]/ ? $filehandle : "$package\:\:$filehandle";
+# Check that this still works!
+#    $filehandle = $filehandle=~/[':]/ ? $filehandle : "$package\:\:$filehandle";
+    $filehandle = to_filehandle($filehandle);
     foreach $param ($self->param) {
 	my($escaped_param) = &escape($param);
 	my($value);
@@ -927,6 +1009,7 @@ END_OF_FUNC
 # $base -> (optional) if set to true, will enter the BASE address of this document
 #          for resolving relative references (-base) 
 # $xbase -> (optional) alternative base at some remote location (-xbase)
+# $target -> (optional) target window to load all links into (-target)
 # $script -> (option) Javascript code (-script)
 # $meta -> (optional) Meta information tags
 # @other -> (optional) any other named parameters you'd like to incorporate into
@@ -935,8 +1018,8 @@ END_OF_FUNC
 'start_html' => <<'END_OF_FUNC',
 sub start_html {
     my($self,@p) = &self_or_default(@_);
-    my($title,$author,$base,$xbase,$script,$meta,@other) = 
-	$self->rearrange([TITLE,AUTHOR,BASE,XBASE,SCRIPT,META],@p);
+    my($title,$author,$base,$xbase,$script,$target,$meta,@other) = 
+	$self->rearrange([TITLE,AUTHOR,BASE,XBASE,SCRIPT,TARGET,META],@p);
 
     # strangely enough, the title needs to be escaped as HTML
     # while the author needs to be escaped as a URL
@@ -946,9 +1029,13 @@ sub start_html {
     push(@result,'<!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">');
     push(@result,"<HTML><HEAD><TITLE>$title</TITLE>");
     push(@result,"<LINK REV=MADE HREF=\"mailto:$author\">") if $author;
-    push(@result,"<BASE HREF=\"http://".$self->server_name.":".$self->server_port.$self->script_name."\">")
-	if $base && !$xbase;
-    push(@result,"<BASE HREF=\"$xbase\">") if $xbase;
+
+    if ($base || $xbase || $target) {
+	my $href = $xbase || $self->url();
+	my $t = $target ? qq/ TARGET="$target"/ : '';
+	push(@result,qq/<BASE HREF="$href"$t>/);
+    }
+
     if ($meta && ref($meta) && (ref($meta) eq 'HASH')) {
 	foreach (keys %$meta) { push(@result,qq(<META NAME="$_" CONTENT="$meta->{$_}">)); }
     }
@@ -2155,49 +2242,6 @@ sub nph {
 END_OF_FUNC
 
 # -------------- really private subroutines -----------------
-# Smart rearrangement of parameters to allow named parameter
-# calling.  We do the rearangement if:
-# 1. The first parameter begins with a -
-# 2. The use_named_parameters() method returns true
-'rearrange' => <<'END_OF_FUNC',
-sub rearrange {
-    my($self,$order,@param) = @_;
-    return () unless @param;
-    
-    return @param unless (defined($param[0]) && substr($param[0],0,1) eq '-')
-	|| $self->use_named_parameters;
-
-    my $i;
-    for ($i=0;$i<@param;$i+=2) {
-	$param[$i]=~s/^\-//;     # get rid of initial - if present
-	$param[$i]=~tr/a-z/A-Z/; # parameters are upper case
-    }
-    
-    my(%param) = @param;                # convert into associative array
-    my(@return_array);
-    
-    my($key)='';
-    foreach $key (@$order) {
-	my($value);
-	# this is an awful hack to fix spurious warnings when the
-	# -w switch is set.
-	if (ref($key) && ref($key) eq 'ARRAY') {
-	    foreach (@$key) {
-		last if defined($value);
-		$value = $param{$_};
-		delete $param{$_};
-	    }
-	} else {
-	    $value = $param{$key};
-	    delete $param{$key};
-	}
-	push(@return_array,$value);
-    }
-    push (@return_array,$self->make_attributes(\%param)) if %param;
-    return (@return_array);
-}
-END_OF_FUNC
-
 'previous_or_default' => <<'END_OF_FUNC',
 sub previous_or_default {
     my($self,$name,$defaults,$override) = @_;
@@ -2276,6 +2320,7 @@ sub read_multipart {
     my(%header,$body);
     while (!$buffer->eof) {
 	%header = $buffer->readHeader;
+
 	# In beta1 it was "Content-disposition".  In beta2 it's "Content-Disposition"
 	# Sheesh.
 	my($key) = $header{'Content-disposition'} ? 'Content-disposition' : 'Content-Disposition';
@@ -2472,7 +2517,6 @@ sub readBody {
 }
 END_OF_FUNC
 
-
 # This will read $bytes or until the boundary is hit, whichever happens
 # first.  After the boundary is hit, we return undef.  The next read will
 # skip over the boundary and begin reading again;
@@ -2543,7 +2587,7 @@ sub fillBuffer {
 							 \$self->{BUFFER},
 							 $bytesToRead,
 							 $bufferLength);
-    
+
     # An apparent bug in the Netscape Commerce server causes the read()
     # to return zero bytes repeatedly without blocking if the
     # remote user aborts during a file transfer.  I don't know how
@@ -2567,6 +2611,7 @@ sub eof {
     my($self) = @_;
     return 1 if (length($self->{BUFFER}) == 0)
 		 && ($self->{LENGTH} <= 0);
+    undef;
 }
 END_OF_FUNC
 
@@ -2587,7 +2632,7 @@ unless ($TMPDIRECTORY) {
 }
 
 $TMPDIRECTORY  = "." unless $TMPDIRECTORY;
-$SEQUENCE="CGItemp$$0000";
+$SEQUENCE="CGItemp${$}0000";
 
 # cute feature, but overload implementation broke it
 # %OVERLOAD = ('""'=>'as_string');
@@ -3104,6 +3149,7 @@ expect all their scripts to be NPH.
    print $query->start_html(-title=>'Secrets of the Pyramids',
 			    -author=>'fred@capricorn.org',
 			    -base=>'true',
+			    -target=>'_blank',
 			    -meta=>{'keywords'=>'pharaoh secret mummy',
 				    'copyright'=>'copyright 1996 King Tut'},
 			    -BGCOLOR=>'blue');
@@ -3116,7 +3162,7 @@ expect all their scripts to be NPH.
 
 This will return a canned HTML header and the opening <BODY> tag.  
 All parameters are optional.   In the named parameter form, recognized
-parameters are -title, -author and -base (see below for the
+parameters are -title, -author, -base, -xbase and -target (see below for the
 explanation).  Any additional parameters you provide, such as the
 Netscape unofficial BGCOLOR attribute, are added to the <BODY> tag.
 
@@ -3127,6 +3173,13 @@ different from the current location, as in
 
 All relative links will be interpreted relative to this tag.
 
+The argument B<-target> allows you to provide a default target frame
+for all the links and fill-out forms on the page.  See the Netscape
+documentation on frames for details of how to manipulate this.
+
+    -target=>"answer_window"
+
+All relative links will be interpreted relative to this tag.
 You add arbitrary meta information to the header with the B<-meta>
 argument.  This argument expects a reference to an associative array
 containing name/value pairs of meta information.  These will be turned
@@ -3499,7 +3552,7 @@ machine, the filename will follow Unix conventions:
 
 	/path/to/the/file
 
-On an MS-DOS/Windows machine, the filename will follow DOS conventions:
+On an MS-DOS/Windows and OS/2 machines, the filename will follow DOS conventions:
 
 	C:\PATH\TO\THE\FILE.MSW
 
@@ -3533,6 +3586,10 @@ an associative array containing all the document headers.
        unless ($type eq 'text/html') {
 	  die "HTML FILES ONLY!";
        }
+
+If you are using a machine that recognizes "text" and "binary" data
+modes, be sure to understand when and how to use them (see the Camel book).  
+Otherwise you may find that binary files are corrupted during file uploads.
 
 JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur>
 and B<-onSelect> parameters are recognized.  See textfield()
@@ -4812,7 +4869,7 @@ for suggestions and bug fixes.
 
 This module has grown large and monolithic.  Furthermore it's doing many
 things, such as handling URLs, parsing CGI input, writing HTML, etc., that
-should be done in separate modules.  It should be discarded in favor of
+are also done in the LWP modules. It should be discarded in favor of
 the CGI::* modules, but somehow I continue to work on it.
 
 Note that the code is truly contorted in order to avoid spurious
@@ -4821,7 +4878,8 @@ warnings when programs are run with the B<-w> switch.
 =head1 SEE ALSO
 
 L<CGI::Carp>, L<URI::URL>, L<CGI::Request>, L<CGI::MiniSvr>,
-L<CGI::Base>, L<CGI::Form>
+L<CGI::Base>, L<CGI::Form>, L<CGI::Apache>, L<CGI::Switch>,
+L<CGI::Push>, L<CGI::Fast>
 
 =cut
 
