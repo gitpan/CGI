@@ -8,7 +8,7 @@ require 5.00307;
 # documentation in manual or html file format (these utilities are part of the
 # Perl 5 distribution).
 
-# Copyright 1995-1997 Lincoln D. Stein.  All rights reserved.
+# Copyright 1995-1998 Lincoln D. Stein.  All rights reserved.
 # It may be used and modified freely, but I do request that this copyright
 # notice remain attached to the file.  You may modify this module as you 
 # wish, but if you redistribute a modified version, please attach a note
@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.15 1998/01/30 01:45:29 lstein Exp $';
-$CGI::VERSION='2.37021';
+$CGI::revision = '$Id: CGI.pm,v 1.17 1998/02/02 19:33:27 lstein Exp $';
+$CGI::VERSION='2.37023';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -474,6 +474,7 @@ sub unescape {
 sub escape {
     shift if ref($_[0]) || $_[0] eq $DefaultClass;
     my $toencode = shift;
+    return undef unless defined($toencode);
     $toencode=~s/([\x00-\x20"#%;<>?{}|\\\\^~`\[\]\x7F-\xFF])/uc sprintf("%%%02x",ord($1))/eg; #"
     return $toencode;
 }
@@ -540,7 +541,7 @@ sub _make_tag_func {
 	    my(\$tag,\$untag) = ("\U<$tagname\E\$attr>","\U</$tagname>\E");
 	    return \$tag unless \@_;
 	    my \@result = map { "\$tag\$_\$untag" } (ref(\$_[0]) eq 'ARRAY') ? \@{\$_[0]} : "\@_";
-	    return wantarray ? \@result : join('',\@result);
+	    return "\@result";
          }
 }
 }
@@ -597,7 +598,8 @@ sub _compile {
     my($pack,$func_name);
     {
 	local($1,$2); # this fixes an obscure variable suicide problem.
-	($pack,$func_name) = $func=~/(.+)::([^:]+)$/;
+	$func=~/(.+)::([^:]+)$/;
+	($pack,$func_name) = ($1,$2);
 	$pack=~s/::SUPER$//;	# fix another obscure problem
 	$pack = ${"$pack\:\:AutoloadClass"} || $CGI::DefaultClass
 	    unless defined(${"$pack\:\:AUTOLOADED_ROUTINES"});
@@ -1090,12 +1092,12 @@ sub header {
     push(@header,$protocol . ' ' . ($status || '200 OK')) if $nph || $NPH;
 
     push(@header,"Status: $status") if $status;
-    push(@header,"Window-target: $target") if $target;
+    push(@header,"Window-Target: $target") if $target;
     # push all the cookies -- there may be several
     if ($cookie) {
 	my(@cookie) = ref($cookie) && ref($cookie) eq 'ARRAY' ? @{$cookie} : $cookie;
 	foreach (@cookie) {
-	    push(@header,"Set-cookie: " . $_->as_string);
+	    push(@header,"Set-Cookie: " . $_->as_string);
 	}
     }
     # if the user indicates an expiration time, then we need
@@ -1106,7 +1108,7 @@ sub header {
     push(@header,"Date: " . expires(0,'http')) if $expires || $cookie;
     push(@header,"Pragma: no-cache") if $self->cache();
     push(@header,@other);
-    push(@header,"Content-type: $type");
+    push(@header,"Content-Type: $type");
 
     my $header = join($CRLF,@header)."${CRLF}${CRLF}";
     if ($MOD_PERL) {
@@ -2633,11 +2635,10 @@ sub read_multipart {
 	%header = $buffer->readHeader;
 	die "Malformed multipart POST\n" unless %header;
 
-	my($key) = $header{'Content-disposition'} ? 'Content-disposition' : 'Content-Disposition';
-	my($param)= $header{$key}=~/ name="?([^\";]*)"?/;
+	my($param)= $header{'Content-Disposition'}=~/ name="?([^\";]*)"?/;
 
 	# Bug:  Netscape doesn't escape quotation marks in file names!!!
-	my($filename) = $header{$key}=~/ filename="?([^\";]*)"?/;
+	my($filename) = $header{'Content-Disposition'}=~/ filename="?([^\";]*)"?/;
 
 	# add this parameter to our list
 	$self->add_parameter($param);
@@ -2655,7 +2656,12 @@ sub read_multipart {
 	  # If we get here, then we are dealing with a potentially large
 	  # uploaded form.  Save the data to a temporary file, then open
 	  # the file for reading.
-	  last UPLOADS if $DISABLE_UPLOADS;
+
+	  # skip the file if uploads disabled
+	  if ($DISABLE_UPLOADS) {
+	      while (defined($data = $buffer->read)) { }
+	      last UPLOADS;
+	  }
 
 	  $tmpfile = new TempFile;
 	  $tmp = $tmpfile->as_string;
@@ -2673,29 +2679,15 @@ sub read_multipart {
 	  # back up to beginning of file
 	  seek($filehandle,0,0);
 	  $CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
-      }
-	
-	# skip the file if uploads disabled
-	if ($DISABLE_UPLOADS) {
-	    while (defined($data = $buffer->read))
-	    { }
-	}
 
-	push(@{$self->{$param}},$filehandle);
-	
-	# Under Unix, it would be safe to let the temporary file
-	# be deleted immediately.  However, I fear that other operating
-	# systems are not so forgiving.  Therefore we save a reference
-	# to the temporary file in the CGI object so that the file
-	# isn't unlinked until the CGI object itself goes out of
-	# scope.  This is a bit hacky, but it has the interesting side
-	# effect that one can access the name of the tmpfile by
-	# asking for $query->{$query->param('foo')}, where 'foo'
-	# is the name of the file upload field.
-	$self->{'.tmpfiles'}->{$filename}= {
-	    name=>$tmpfile,
-	    info=>{%header}
-	}
+	  # Save some information about the uploaded file where we can get
+	  # at it later.
+	  $self->{'.tmpfiles'}->{$filename}= {
+	      name => $tmpfile,
+	      info => {%header},
+	  };
+	  push(@{$self->{$param}},$filehandle);
+      }
     }
 }
 END_OF_FUNC
@@ -2898,7 +2890,9 @@ sub readHeader {
     my $token = '[-\w!\#$%&\'*+.^_\`|{}~]';
     $header=~s/$CRLF\s+/ /og;		# merge continuation lines
     while ($header=~/($token+):\s+([^$CRLF]*)/mgox) {
-	$return{$1}=$2;
+	my ($field_name,$field_value) = ($1,$2); # avoid taintedness
+	$field_name =~ s/\b(\w)/uc($1)/eg; #canonicalize
+	$return{$field_name}=$field_value;
     }
     return %return;
 }
@@ -3678,11 +3672,10 @@ The current list of pragmas is as follows:
 
 =item -any
 
-When you I<use CGI -any>, then any method that the
-query object doesn't recognize will be interpreted as a new HTML tag.
-This allows you to support the next I<ad hoc> Netscape or
-Microsoft HTML extension.  This lets you go wild with new and
-unsupported tags:
+When you I<use CGI -any>, then any method that the query object
+doesn't recognize will be interpreted as a new HTML tag.  This allows
+you to support the next I<ad hoc> Netscape or Microsoft HTML
+extension.  This lets you go wild with new and unsupported tags:
 
    use CGI qw(-any);
    $q=new CGI;
@@ -3693,12 +3686,12 @@ to be interpreted as an HTML tag, use it with care or not at
 all.
 
 =item -compile
+
 This causes the indicated autoloaded methods to be compiled up front,
-rather than deferred to later.  This is useful for scripts that
-run for an extended period of time under FastCGI or mod_perl,
-and for those destined to be crunched by Malcom Beattie's Perl
-compiler.  Use it in conjunction with the methods or method familes
-you plan to use.
+rather than deferred to later.  This is useful for scripts that run
+for an extended period of time under FastCGI or mod_perl, and for
+those destined to be crunched by Malcom Beattie's Perl compiler.  Use
+it in conjunction with the methods or method familes you plan to use.
 
    use CGI qw(-compile :standard :html3);
 
@@ -3740,7 +3733,7 @@ upload, even if it is confidential information. On Unix systems,
 the -private_tempfiles pragma will cause the temporary file to be unlinked as soon
 as it is opened and before any data is written into it,
 eliminating the risk of eavesdropping.
-
+n
 =back
 
 =head1 GENERATING DYNAMIC DOCUMENTS
@@ -4140,13 +4133,14 @@ and values of the associative array become the HTML tag's attributes:
    print a({-href=>'fred.html',-target=>'_new'},
       "Open a new frame");
 
-   # <A HREF="fred.html",TARGET="_new">Open a new frame</A>
+	    <A HREF="fred.html",TARGET="_new">Open a new frame</A>
    
 You may dispense with the dashes in front of the attribute names if
 you prefer:
 
    print img {src=>'fred.gif',align=>'LEFT'};
-   #  <IMG ALIGN="LEFT" SRC="fred.gif">
+
+	   <IMG ALIGN="LEFT" SRC="fred.gif">
 
 Sometimes an HTML tag attribute has no argument.  For example, ordered
 lists can be marked as COMPACT.  The syntax for this is an argument that
@@ -4187,6 +4181,32 @@ This is extremely useful for creating tables.  For example:
               td(['Onions'   , 'yes','yes', 'yes'])
            ]
         );
+
+=head2 HTML SHORTCUTS AND LIST INTERPOLATION
+
+Consider this bit of code:
+
+   print blockquote(em('Hi'),'mom!'));
+
+It will ordinarily return the string that you probably expect, namely:
+
+   <BLOCKQUOTE><EM>Hi</EM> mom!</BLOCKQUOTE>
+
+Note the space between the element "Hi" and the element "mom!".
+CGI.pm puts the extra space there using array interpolation, which is
+controlled by the magic $" variable.  Sometimes this extra space is
+not what you want, for example, when you are trying to align a series
+of images.  In this case, you can simply change the value of $" to an
+empty string.
+
+   {
+      local($") = '';
+      print blockquote(em('Hi'),'mom!'));
+    }
+
+I suggest you put the code in a block as shown here.  Otherwise the
+change to $" will affect all subsequent code until you explicitly
+reset it.
 
 =head2 NON-STANDARD HTML SHORTCUTS
 
