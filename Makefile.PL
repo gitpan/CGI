@@ -3,10 +3,9 @@ use ExtUtils::MakeMaker;
 # the contents of the Makefile that is written.
 WriteMakefile(
     'INSTALLDIRS' => 'perl',
-    'NAME'	=> 'CGI3',
-    'DISTNAME'  => 'CGI3.pm',
-    'VERSION_FROM'   => 'CGI3.pm',
-    'PMLIBDIRS'    => ['CGI3'],
+    'NAME'	=> 'CGI',
+    'DISTNAME'  => 'CGI.pm',
+    'VERSION_FROM'   => 'CGI.pm',
     'linkext'   => { LINKTYPE=>'' },	# no link needed
     'dist'      => {'COMPRESS'=>'gzip -9f', 'SUFFIX' => 'gz',
 	            'ZIP'=>'/usr/bin/zip','ZIPFLAGS'=>'-rl'}
