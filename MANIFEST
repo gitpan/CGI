@@ -1,0 +1,15 @@
+CGI.c
+CGI.man
+CGI.pm
+MANIFEST
+Makefile
+Makefile.PL
+README
+cgi_docs.html
+example_scripts/clickable_image.cgi
+example_scripts/file_upload.cgi
+example_scripts/internal_links.cgi
+example_scripts/python.cgi
+example_scripts/save_state.cgi
+example_scripts/tryit.cgi
+example_scripts/wilogo.gif

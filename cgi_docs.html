@@ -1,0 +1,1774 @@
+<HTML> <HEAD>
+<TITLE>CGI.pm - a Perl5 CGI Library</TITLE>
+<BASE HREF="http://www-genome.wi.mit.edu/ftp/distribution/software/WWW/cgi_docs.html">
+</HEAD>
+
+<BODY>
+<H1><IMG SRC="/www/wilogo.gif" ALT="[logo]">
+CGI.pm - a Perl5 CGI Library</H1>
+Version 2.1, 11/25/95, L. Stein<BR>
+<STRONG>Warning:</STRONG>
+Users of hidden fields in older versions
+<A HREF="#hidden_fields_warning">read this.</A>
+
+<H2>Abstract</H2> This perl 5 library uses objects to create Web
+fill-out forms on the fly and to parse their contents.  It is similar
+to <A HREF="http://www.bio.cam.ac.uk/web/form.html">
+<CODE>cgi-lib.pl</CODE></A>
+in some respects.  It provides a simple
+interface for parsing and interpreting query strings passed to CGI
+scripts.  However, it also offers a rich set of functions for creating
+fill-out forms. Instead of remembering the syntax for HTML form
+elements, you just make a series of perl function calls. An important
+fringe benefit of this is that the value of the previous query is used
+to initialize the form, so that the state of the form is preserved
+from invocation to invocation.
+
+<P>Everything is done through a ``CGI'' object.  When you create one
+of these objects it examines the environment for a query string,
+parses it, and stores the results. You can then ask the CGI object to
+return or modify the query values.  CGI objects handle POST and GET
+methods correctly, and correctly distinguish between scripts called
+from &lt;ISINDEX&gt; documents and form-based documents. In fact you
+can debug your script from the command line without worrying about
+setting up environment variables.
+
+<P>A script to create a fill-out form that remembers its state each
+time it's invoked is very easy to write with CGI.pm:
+
+<PRE>
+use CGI;
+$query = new CGI;
+print $query-&gt;header;
+
+print $query-&gt;startform;
+print "What's your name? ",$query-&gt;textfield('name');
+
+print "&lt;P&gt;What's the combination? ",
+        $query-&gt;checkbox_group(-name=&gt'words',
+                               -values=&gt;['eenie','meenie','minie','moe']);
+
+print "&lt;P&gt;What's your favorite color? ",
+        $query-&gt;popup_menu(-name=&gt;'color',
+                           -values=&gt;['red','green','blue','chartreuse']);
+
+print "&lt;P&gt;",$query-&gt;submit;
+print $query-&gt;endform;
+
+print "&lt;HR&gt;\n";
+if ($query-&gt;param) {
+    print "Your name is &lt;EM&gt;",$query-&gt;param('name'),"&lt;/EM&gt;\n";
+    print "&lt;P&gt;The keywords are: &lt;EM&gt;",join(", ",$query-&gt;param('words')),"&lt;/EM&gt;\n";
+    print "&lt;P&gt;Your favorite color is &lt;EM&gt;",$query-&gt;param('color'),"&lt;/EM&gt;\n";
+}
+</PRE>
+
+<A HREF="tryit.cgi">Select this link to try the script</A>
+<BR><A HREF="more_examples/">More scripting examples</A>
+
+<A NAME="contents">
+<H2>Contents</H2>
+</A>
+<MENU>
+  <LI><A HREF="#installation">Installation</A>
+  <LI><A HREF="#query">Creating a new CGI query object</A>
+  <LI><A HREF="#saving">Saving the state of the form</A>
+  <LI><A HREF="#named_param">CGI Functions that Take Multiple Arguments</A>
+  <LI><A HREF="#header">Creating the HTTP header</A>
+  <LI><A HREF="#html">HTML shortcuts</A>
+  <LI><A HREF="#forms">Creating forms</A>
+  <LI><A HREF="#debugging">Debugging</A>
+  <LI><A HREF="#environment">Environment variables</A>
+  <LI><A HREF="#advanced">Advanced techniques</A>
+  <LI><A HREF="#non_unix">Using CGI.pm on non-Unix Platforms</A>
+  <LI><A HREF="#future">Future prospects</A>
+  <LI><A HREF="#distribution">Distribution information</A>
+  <LI><A HREF="#new">What's new in version 2.00?</A>
+</MENU>
+
+<HR>
+<A NAME="installation">
+<H2>Installation</H2>
+</A>
+<STRONG><A HREF="CGI.pm.tar.Z">Download CGI.pm and its documentation (tar archive)</A></STRONG>
+or <A HREF="CGI.pm">download the module only.</A>
+
+<P>To use this package,
+install it in your perl library path.  On most systems this will be
+<CODE>/usr/local/lib/perl5</CODE>, but check with the administrator
+of your system to be sure.
+<P>
+Thanks to Andreas Koenig and his MakeMaker
+program, CGI.pm can now install itself in the right place if
+you're using a Unix system.  Move
+to the directory containing CGI.pm and type the following commands:
+<PRE>
+   % perl Makefile.PL
+   % make
+   % make install
+</PRE>
+You may need to be root to do the last step.
+<P>
+To use CGI.pm in your scripts, place the following statement at the
+top of your perl CGI programs:
+<PRE>
+use CGI;
+</PRE>
+<STRONG>If you do not have sufficient privileges to install into
+/usr/local/lib/perl5</STRONG>, you can still use CGI.pm.  Place it
+in some convenient place, for example, in
+<CODE>/usr/local/etc/httpd/cgi-bin</CODE> and preface your CGI
+scripts with a preamble something like the following:
+
+<PRE>
+BEGIN {
+     unshift@INC,'/usr/local/etc/httpd/cgi-bin');
+}
+use CGI;
+</PRE>
+Be sure to replace /usr/local/etc/httpd/cgi-bin with the location of
+CGI.pm.
+<P>
+<A HREF="#non_unix">Notes on using CGI.pm on non-Unix platforms</A>
+
+<HR>
+<A NAME="query">
+<H2>Creating a new query object</H2>
+</A>
+<PRE>
+    $query = new CGI
+</PRE>
+
+This will parse the input (from both POST and GET methods) and store
+it into a perl5 object called $query.
+
+<P>An alternative form of the new() method allows you to read the
+contents of the form from a previously-opened file handle:
+<PRE>
+    $query = new CGI(FILEHANDLE)
+</PRE>
+The filehandle can contain a URL-encoded query string, or can be
+a series of newline delimited TAG=VALUE pairs.  This is compatible
+with the save() method.  <EM>This lets you save the state of
+a form to a file and reload it later!</EM>.
+See <A HREF="#advanced">advanced techniques</A> for more information.
+
+<A NAME="keywords">
+<H3>Fetching A List Of Keywords From The Query</H3>
+</A>
+<PRE>
+    @keywords = $query-&gt;keywords
+</PRE>
+If the script was invoked as the result of an &lt;ISINDEX&gt; search, the
+parsed keywords can be obtained with the keywords() method.  This method
+will return the keywords as a perl array.
+
+<A NAME="parameters">
+<H3>Fetching The Names Of All The Parameters Passed To Your
+Script</H3>
+</A>
+<PRE>
+    @names = $query-&gt;param
+</PRE>
+If the script was invoked with a parameter list
+(e.g. "name1=value1&amp;name2=value2&amp;name3=value3"), the param()
+method will return the parameter names as a list.  For backwards
+compatability, this method will work even if the
+script was invoked as an &lt;ISINDEX&gt; script: in this case there
+will be a single parameter name returned named 'keywords'.
+
+<A NAME="values"><H3>Fetching The Value(S) Of A Named Parameter</H3>
+</A>
+<PRE>
+   @values = $query-&gt;param('foo');
+             -or-
+   $value = $query-&gt;param('foo');
+</PRE>
+Pass the param() method a single argument to fetch the value of the
+named parameter. If the parameter is multivalued (e.g. from multiple
+selections in a scrolling list), you can ask to receive an array.  Otherwise
+the method will return a single value.
+<P>
+As of version 1.50 of this library, the array of parameter names returned
+will be in the same order in which the browser sent them.  Although
+this is not guaranteed to be identical to the order in which the
+parameters were defined in the fill-out form, this is usually the
+case.
+
+<A NAME="setting">
+<H3>Setting The Value(s) Of A Named Parameter</H3>
+</A>
+<PRE>
+   $query-&gt;param('foo','an','array','of','values');
+</PRE>
+This sets the value for the named parameter 'foo' to one or more
+values.  These values will be used to initialize form elements, if
+you so desire.  Note that this is the correct way to change the value
+of a form field from its current setting.
+
+<A NAME="deleting">
+<H3>Deleting a Named Parameter Entirely</H3>
+</A>
+<PRE>
+   $query-&gt;delete('foo');
+</PRE>
+This deletes a named parameter entirely.  This is useful when you
+want to reset the value of the parameter so that it isn't passed
+down between invocations of the script.
+
+<A NAME="importing">
+<H3>Importing parameters into a namespace</H3>
+</A>
+<PRE>
+   $query-&gt;import_names('R');
+   print "Your name is $R::name\n"
+   print "Your favorite colors are @R::colors\n";
+</PRE>
+This imports all parameters into the given name space.  For example,
+if there were parameters named 'foo1', 'foo2' and 'foo3', after
+executing <CODE>$query-&gt;import('R')</CODE>, the variables
+<CODE>@R::foo1, $R::foo1, @R::foo2, $R::foo2,</CODE> etc. would
+conveniently spring into existence.  Since CGI has no way of
+knowing whether you expect a multi- or single-valued parameter,
+it creates two variables for each parameter.  One is an array,
+and contains all the values, and the other is a scalar containing
+the first member of the array.  Use whichever one is appropriate.
+For keyword (a+b+c+d) lists, the variable @R::keywords will be
+created.
+<P>
+If you don't specify a name space, this method assumes namespace "Q".
+
+<P><STRONG>Warning</STRONG>: do not import into namespace 'main'.  This
+represents a major security risk, as evil people could then use this
+feature to redefine central variables such as @INC.
+CGI.pm will exit with an error if you try to do this.
+<P>
+<EM>Note</EM>: this method used to be called import() (and CGI.pm still
+recognizes this method call).  However the official method name has been
+changed to import_names() for compatability with the CGI:: modules.
+<P>
+<A HREF="#contents">Table of contents</A>
+
+<HR>
+<A NAME="saving">
+<H2>Saving the Current State of a Form</H2>
+
+<H3>Saving the State to a File</H3>
+</A>
+<PRE>
+   $query-&gt;save(FILEHANDLE)
+</PRE>
+This writes the current query out to the file handle of your choice.
+The file handle must already be open and be writable, but other than
+that it can point to a file, a socket, a pipe, or whatever.  The contents
+of the form are written out as TAG=VALUE pairs, which can be reloaded
+with the new() method at some later time.  See <A HREF="#advanced">
+advanced techniques</A> for more information.
+
+<H3><A NAME="self_referencing">
+Saving the State in a Self-Referencing URL</A></H3>
+<PRE>
+   $my_url=$query-&gt;self_url
+</PRE>
+This call returns a URL that, when selected, reinvokes this script with
+all its state information intact.  This is most useful when you want to
+jump around within a script-generated document using internal anchors, but
+don't want to disrupt the current contents of the form(s).  See <A HREF="#advanced">
+advanced techniques</A> for an example.
+<P>
+<A HREF="#contents">Table of contents</A>
+
+<HR>
+<H3><A NAME="named_param">
+    Calling CGI Functions that Take Multiple Arguments</A>
+</H3>
+
+In versions of CGI.pm prior to 2.0, it could get difficult to remember
+the proper order of arguments in CGI function calls that accepted five
+or six different arguments.  As of 2.0, there's a better way to pass
+arguments to the various CGI functions.  In this style, you pass a
+series of name=&gt;argument pairs, like this:
+
+<PRE>
+   $field = $query-&gt;radio_group(-name=&gt;'OS',
+                                -values=&gt;[Unix,Windows,Macintosh],
+                                -default=&gt;'Unix');
+</PRE>
+The advantages of this style are that you don't have to remember the
+exact order of the arguments, and if you leave out a parameter, iit
+will usually default to some reasonable value.  If you provide
+a parameter that the method doesn't recognize, it will usually do
+something useful with it, such as incorporating it into the HTML
+tag as an attribute.  For example if Netscape decides next week to add a new
+JUSTIFICATION parameter to the text field tags, you can start using
+the feature without waiting for a new version of CGI.pm:
+
+<PRE>
+   $field = $query-&gt;textfield(-name=&gt;'State',
+                              -default=&gt;'gaseous',
+                              -justification=&gt;'RIGHT');
+</PRE>
+
+This will result in an HTML tag that looks like this:
+
+<PRE>
+   &lt;INPUT TYPE="textfield" NAME="State" VALUE="gaseous"
+          JUSTIFICATION="RIGHT"&gt;
+</PRE>
+
+Parameter names are case insensitive: you can use -name, or -Name or
+-NAME.  You don't have to use the hyphen if you don't want to.  After
+creating a CGI object, call the <STRONG><CODE>
+use_named_parameters()</CODE></STRONG> method with
+a nonzero value.  This will tell CGI.pm that you intend to use named
+parameters exclusively:
+
+<PRE>
+   $query = new CGI;
+   $query-&gt;use_named_parameters(1);
+   $field = $query-&gt;radio_group('name'=&gt;'OS',
+                                'values'=&gt;['Unix','Windows','Macintosh'],
+                                'default'=&gt;'Unix');
+</PRE>
+
+Actually, CGI.pm only looks for a hyphen in the first parameter.  So
+you can leave it off subsequent parameters if you like.  Something to
+be wary of is the potential that a string constant like "values" will
+collide with a keyword (and in fact it does!) While Perl usually
+figures out when you're referring to a function and when you're
+referring to a string, you probably should put quotation marks around
+all string constants just to play it safe.
+<P>
+<A HREF="#contents">Table of contents</A>
+
+<HR>
+<H2><A NAME="header">
+Creating the HTTP Header</A>
+</H2>
+
+<H3><A NAME="standard_header">
+Creating the Standard Header for a Virtual Document</A>
+</H3>
+<PRE>
+   print $query-&gt;header('image/gif');
+</PRE>
+This prints out the required HTTP Content-type: header and the requisite
+blank line beneath it.  If no parameter is specified, it will default to
+'text/html'.
+<P>
+An extended form of this method allows you to specify a status code
+and a message to pass back to the browser:
+<PRE>
+   print $query-&gt;header(-type=&gt;'image/gif',
+                        -status=&gt;'204 No Response');
+</PRE>
+This presents the browser with a status code of 204 (No response).
+Properly-behaved browsers will take no action, simply remaining on the
+current page.  (This is appropriate for a script that does some
+processing but doesn't need to display any results, or for a script
+called when a user clicks on an empty part of a clickable image map.)
+<P>
+You can add any number of HTTP headers, including ones that aren't
+implemented, using named parameters:
+<PRE>
+   print $query-&gt;header(-type=&gt;'image/gif',
+                        -status=&gt;'402 Payment Required',
+                        -Cost=&gt;'$0.02');
+</PRE>
+
+<A NAME="redirect">
+<H3>Creating the Header for a Redirection Request</H3>
+</A>
+<PRE>
+   print $query-&gt;redirect('http://somewhere.else/in/the/world');
+</PRE>
+This generates a redirection request for the remote browser.  It will
+immediately go to the indicated URL.  You should exit soon after this.
+Nothing else will be displayed.
+<P>
+You can add your own headers to this as in the header() method.
+<P>
+<A HREF="#contents">Table of contents</A>
+
+<HR>
+<A NAME="html">
+<H2>HTML Shortcuts</H2>
+</A>
+
+<H3>Creating an HTML Header</H3>
+<PRE>
+   <EM>named parameter style</EM>
+   print $query-&gt;start_html(-title=&gt;'Secrets of the Pyramids',
+                            -author=&gt;'fred@capricorn.org',
+                            -base=&gt;'true',
+                            -BGCOLOR=&gt;"#00A0A0"');
+
+   <EM>old style</EM>
+   print $query-&gt;start_html('Secrets of the Pyramids',
+                            'fred@capricorn.org','true',
+                            'BGCOLOR="#00A0A0"')
+</PRE>
+This will return a canned HTML header and the opening &lt;BODY&gt; tag.  
+All parameters are optional:
+<UL>
+  <LI>The title (-title)
+  <LI>The author's e-mail address (will create a &lt;LINK REV="MADE"&gt; tag if present (-author)
+  <LI>A true flag if you want to include a &lt;BASE&gt; tag in the header (-base).
+       This
+       helps resolve relative addresses to absolute ones when the document is moved, 
+       but makes the document hierarchy non-portable.  Use with care!
+  <LI>Any additional attributes you want to incorporate into the &lt;BODY&gt;
+       tag (as many as you like).  This is a good way to incorporate Netscape
+       specific extensions, such as background color and wallpaper pattern.
+       (The example above sets the page background to a vibrant blue.)
+</UL>
+
+<H3>Ending an HTML Document</H3>
+<PRE>
+  print $query-&gt;end_html
+</PRE>
+This ends an HTML document by printing the &lt;/BODY&gt;&lt;/HTML&gt; tags.
+<P>
+<A HREF="#contents">Table of contents</A>
+
+<HR>
+<A NAME="forms">
+<H2>Creating Forms</H2>
+</A>
+<EM>General note 1.</EM> The various form-creating methods all return
+strings to the caller.  These strings will contain the HTML code
+that will create the requested form element.  You are responsible for
+actually printing out these strings.  It's set up this way so that you
+can place formatting tags around the form elements.
+<P>
+<EM>General note 2.</EM> The default values that you specify for the
+forms are only used the <STRONG>first</STRONG> time the script is invoked.  If there
+are already values present in the query string, they are used, even if
+blank.  If you want to change the value of a field from its previous
+value, call the <STRONG>param()</STRONG> method to set it.  If you want to reset the fields
+to their defaults, you can:
+<OL>
+  <LI>Create a special <VAR>defaults</VAR> button using the <STRONG>defaults()</STRONG> method.
+  <LI>Create a hypertext link that calls your script without any parameters.
+</OL>
+<EM>General note 3.</EM> You can put multiple forms on the same page if you
+wish.  However, be warned that it isn't always easy to preserve state information
+for more than one form at a time. See <A HREF="#advanced">advanced techniques</A>
+for some hints.
+
+<EM>General note 4</EM>By popular demand, the text and labels that you
+provide for form elements are escaped according to HTML rules.  This means
+that you can safely use "&lt;CLICK ME&gt;" as the label for a button. However,
+this behavior may interfere with your ability to incorporate special HTML
+character sequences, such as &amp;Aacute; (&Aacute;) into your fields.  If
+you wish to turn of automatic escaping, call the <CODE>autoEscape()</CODE>
+method with a false value immediately after creating the CGI object:
+
+<PRE>
+     $query = new CGI;
+     $query-&gt;autoEscape(undef);
+</PRE>
+
+You can turn autoescaping back on at any time with <CODE>$query-&gt;autoEscape('yes')</CODE>
+
+<H3>Form Elements</H3>
+<MENU>
+  <LI><A HREF="#startform">Opening a form</A>
+  <LI><A HREF="#textfield">Text entry fields</A>
+  <LI><A HREF="#textarea">Big text entry fields</A>
+  <LI><A HREF="#password">Password fields</A>
+  <LI><A HREF="#upload">File upload fields</A>
+  <LI><A HREF="#menu">Popup menus</A>
+  <LI><A HREF="#scrolling_list">Scrolling lists</A>
+  <LI><A HREF="#checkbox_group">Checkbox groups</A>
+  <LI><A HREF="#checkbox">Individual checkboxes</A>
+  <LI><A HREF="#radio">Radio button groups</A>
+  <LI><A HREF="#submit">Submission buttons</A>
+  <LI><A HREF="#reset">Reset buttons</A>
+  <LI><A HREF="#defaults">Reset to defaults button</A>
+  <LI><A HREF="#hidden">Hidden fields</A>
+  <LI><A HREF="#image">Clickable Images</A>
+  <LI><A HREF="#escape">Autoescaping HTML</A>
+</MENU>
+<A HREF="#contents">Up to table of contents</A>
+<A NAME="isindex">
+<H3>Creating An Isindex Tag</H3>
+</A>
+<PRE>
+   print $query-&gt;isindex($action);
+</PRE>
+<STRONG>isindex()</STRONG> without any arguments returns an
+&lt;ISINDEX&gt; tag that designates your script as the URL to call.
+If you want the browser to call a different URL to handle the search,
+pass isindex() the URL you want to be called.
+
+<A NAME="startform">
+<H3>Starting And Ending A Form</H3>
+</A>
+<PRE>
+   print $query-&gt;startform($method,$action,$encoding);
+     <VAR>...various form stuff...</VAR>
+   print $query-&gt;endform;
+</PRE>
+<STRONG>startform()</STRONG> will return a &lt;FORM&gt; tag with the
+optional method, action and form encoding that you specify.
+<STRONG>endform()</STRONG> returns a &lt;/FORM&gt; tag.
+
+<P>
+The form encoding is a new feature introduced in version 1.57 in order
+to support the "file upload" feature of Netscape 2.0.  The form encoding
+tells the browser how to package up the contents of the form in order
+to transmit it across the Internet.  There are
+two types of encoding that you can specify:
+
+<DL>
+  <DT> <STRONG>application/x-www-form-urlencoded</STRONG>
+  <DD> This is the type of encoding used by all browsers prior to
+       Netscape 2.0.  It is compatible with many CGI scripts and is
+       suitable for short fields containing text data.  For your
+       convenience, CGI.pm stores the name of this encoding
+       type in <CODE>$CGI::URL_ENCODED</CODE>.
+  <DT> <STRONG>multipart/form-data</STRONG>
+  <DD> This is the newer type of encoding introduced by Netscape 2.0.
+       It is suitable for forms that contain very large fields or that
+       are intended for transferring binary data.  Most importantly,
+       it enables the "file upload" feature of Netscape 2.0 forms.  For
+       your convenience, CGI.pm stores the name of this encoding type
+       in <CODE>$CGI::MULTIPART</CODE>
+       <P>
+       Forms that use this type of encoding are not easily interpreted
+       by CGI scripts unless they use CGI.pm or another library that
+       knows how to handle them.  Unless you are using the file upload
+       feature, there's no particular reason to use this type of encoding.
+</DL>
+For compatability, the startform() method uses the older form of
+encoding by default.  If you want to use the newer form of encoding
+by default, you can call <A HREF="#multipart">start_multipart_form()</A>
+instead of <CODE>startform()</CODE>.
+
+<A NAME="multipart">
+<H3>Starting a Form that Uses the Netscape 2.0 "File Upload" Feature</H3>
+</A>
+<PRE>
+   print $query-&gt;start_multipart_form($method,$action,$encoding);
+     <VAR>...various form stuff...</VAR>
+   print $query-&gt;endform;
+</PRE>
+This has exactly the same usage as <CODE>startform()</CODE>, but
+it specifies form encoding type <CODE>multipart/form-data</CODE>
+as the default.
+
+<A NAME="textfield">
+<H3>Creating A Text Field</H3>
+</A>
+<PRE>
+  <EM>Named parameter style</EM>
+  print $query-&gt;textfield(-name=&gt;'field_name',
+	                    -default=&gt;'starting value',
+	                    -size=&gt;50,
+	                    -maxlength=&gt;80);
+
+   <EM>Old style</EM>
+  print $query-&gt;textfield('foo','starting value',50,80);
+</PRE>
+<STRONG>textfield()</STRONG> will return a text input field.
+<UL>
+  <LI>The first parameter (-name) is the required name for the field.
+  <LI>The optional second parameter (-default) is the starting value
+       for the field contents.
+  <LI>The optional third parameter (-size) is the size of the field in
+       characters.
+  <LI>The optional fourth parameter (-maxlength) is the
+       maximum number of characters the field
+       will accomodate.
+</UL>
+As with all these methods, the field will be initialized with its 
+previous contents from earlier invocations of the script.
+When the form is processed, the value of the text field can be
+retrieved with:
+<PRE>
+      $value = $query-&gt;param('foo');
+</PRE>
+
+<A NAME="textarea">
+<H3>Creating A Big Text Field</H3>
+</A>
+<PRE>
+   <EM>Named parameter style</EM>
+   print $query-&gt;textarea(-name=&gt;'foo',
+	 		  -default=&gt;'starting value',
+	                  -rows=&gt;10,
+	                  -columns=&gt;50);
+
+   <EM>Old style</EM>
+   print $query-&gt;textarea('foo','starting value',10,50);
+</PRE>
+<STRONG>textarea()</STRONG> is just like textfield(), but it allows you to specify
+rows and columns for a multiline text entry box.  You can provide
+a starting value for the field, which can be long and contain
+multiple lines.
+
+<A NAME="password">
+<H3>Creating A Password Field</H3>
+</A>
+<PRE>
+   <EM>Named parameter style</EM>
+   print $query-&gt;password_field(-name=&gt;'secret',
+				-value=&gt;'starting value',
+				-size=&gt;50,
+				-maxlength=&gt;80);
+
+   <EM>Old style</EM>
+   print $query-&gt;password_field('secret','starting value',50,80);
+</PRE>
+<STRONG>password_field()</STRONG> is identical to textfield(), except that its contents 
+will be starred out on the web page.
+
+<A NAME="upload">
+<H3>Creating a File Upload Field</H3>
+</A>
+<PRE>
+    <EM>Named parameters style</EM>
+    print $query-&gt;filefield(-name=&gt;'uploaded_file',
+	                    -default=&gt;'starting value',
+	                    -size=&gt;50,
+	 		    -maxlength=&gt;80);
+
+    <EM>Old style</EM>
+    print $query-&gt;filefield('uploaded_file','starting value',50,80);
+</PRE>
+<STRONG>filefield()</STRONG> will return a form field that prompts the user
+to upload a file.
+<UL>
+  <LI>The first parameter (-name) is the required name for the field.
+  <LI>The optional second parameter (-default) is the starting value
+       for the file name.
+       This field is currently ignored by Netscape 2.0 beta, but there's
+       always hope!
+  <LI>The optional third parameter (-size) is the size of the field in
+       characters.
+  <LI>The optional fourth parameter (-maxlength) is the
+       maximum number of characters the field
+       will accomodate.
+</UL>
+
+filefield() will return a file upload field for use with
+Netscape 2.0 browsers.  Netscape will prompt the remote
+user to select a file to transmit over the Internet to the
+server.  Other browsers currently ignore this
+field.
+<P>
+In order to take full advantage of the file upload
+facility you must use the new <A HREF="#multipart">multipart
+form encoding scheme</A>.  You can do this either
+by calling <A HREF="#startform">startform()</A>
+and specify an encoding type of <CODE>$CGI::MULTIPART</CODE>
+or by using the new <A HREF="#multipart">start_multipart_form()</A>
+method.  If you don't use multipart encoding, then you'll be
+able to retreive the name of the file selected by the remote
+user, but you won't be able to access its contents.
+<P>
+When the form is processed, you can retrieve the entered filename
+by calling param().
+<PRE>
+       $filename = $query-&gt;param('uploaded_file');
+</PRE>
+Under Netscape 2.0beta1 the filename that gets returned is the full
+local filename
+on the <STRONG>remote user's</STRONG> machine.  If the remote
+user is on a Unix machine, the filename will follow Unix conventions:
+<PRE>
+	/path/to/the/file
+</PRE>
+On an MS-DOS/Windows machine, the filename will follow DOS conventions:
+<PRE>
+	C:\PATH\TO\THE\FILE.MSW
+</PRE>
+On a Macintosh machine, the filename will follow Mac conventions:
+<PRE>
+	HD 40:Desktop Folder:Sort Through:Reminders
+</PRE>
+Netscape 2.0beta2 changes this behavior and only returns the name
+of the file itself.  Who knows what the behavior of the release
+browser will be.
+<P>
+The filename returned is also a file handle.  You can read the contents
+of the file using standard Perl file reading calls:
+<PRE>
+	# Read a text file and print it out
+	while (&lt;$filename&gt;) {
+	   print;
+        }
+
+        # Copy a binary file to somewhere safe
+        open (OUTFILE,"&gt;&gt;/usr/local/web/users/feedback");
+	while ($bytesread=read($filename,$buffer,1024)) {
+	   print OUTFILE $buffer;
+        }
+</PRE>
+You can have several file upload fields in the same form, and even
+give them the same name if you like (in the latter case <CODE>param()</CODE>
+will return a list of file names).
+<P>
+<A HREF="#upload_caveats">Caveats and potential problems in
+the file upload feature.</A>
+
+<A NAME="menu">
+<H3>Creating A Popup Menu</H3>
+</A>
+<PRE>
+  <EM>Named parameter style</EM>
+  print $query-&gt;popup_menu(-name=&gt;'menu_name',
+			    -values=&gt;['eenie','meenie','minie'],
+	                    -default=&gt;'meenie',
+	                    -labels=&gt;{'eenie'=&gt;'one','meenie'=&gt;'two',
+                                      'minie'=&gt;'three'});
+  
+  <EM>Old style</EM>
+  print $query-&gt;popup_menu('menu_name',
+                              ['eenie','meenie','minie'],'meenie',
+                              {'eenie'=&gt;'one','meenie'=&gt;'two','minie'=&gt;'three'});
+</PRE>
+
+<STRONG>popup_menu()</STRONG> creates a menu.
+<UL>
+  <LI>The required first argument (-name) is the menu's name.
+  <LI>The required second argument (-values) is an array
+       <EM>reference</EM> containing the list
+       of menu items in the menu.  You can pass the method an anonymous 
+       array, as shown in the example, or a reference to a named array,
+       such as <TT>\@foo</TT>
+  <LI>The optional third parameter (-default) is the name of the
+       default menu choice.  
+       If not specified, the first item will be the default.  The value of 
+       the previous choice will be maintained across queries.
+  <LI>The optional fourth parameter (-labels) allows you
+       to pass a reference to an associative array containing user-visible
+       labels for one or more of the menu items.  You can use this when you
+       want the user to see one menu string, but have the browser return your
+       program a different one.  If you don't specify this, the value string
+       will be used instead ("eenie", "meenie" and "minie" in this example).
+</UL>
+When the form is processed, the selected value of the popup menu can
+be retrieved using:
+<PRE>
+     $popup_menu_value = $query-&gt;param('menu_name');
+</PRE>
+<A NAME="scrolling_list">
+<H3>Creating A Scrolling List</H3>
+</A>
+<PRE>
+   <EM>Named parameter style</EM>
+   print $query-&gt;scrolling_list(-name=&gt;'list_name',
+                                -values=&gt;['eenie','meenie','minie','moe'],
+                                -default=&gt;['eenie','moe'],
+	                        -size=&gt;5,
+	                        -multiple=&gt;'true',
+                                -labels=&gt;\%labels);
+
+   <EM>Old style</EM>
+   print $query-&gt;scrolling_list('list_name',
+                                ['eenie','meenie','minie','moe'],
+                                ['eenie','moe'],5,'true',
+                                \%labels);
+
+</PRE>
+<STRONG>scrolling_list()</STRONG> creates a scrolling list.
+<UL>
+  <LI>The first and second arguments (-name,-values)are the list name
+       and values, 
+       respectively.  As in the popup menu, the second argument should 
+       be an array reference.
+  <LI>The optional third argument (-default)can be either a reference
+       to a list
+       containing the values to be selected by default, or can be a 
+       single value to select.  If this argument is missing or undefined,
+       then nothing is selected when the list first appears.
+  <LI>The optional fourth argument (-size) is the display size of the list.
+  <LI>The optional fifth argument (-multiple) can be set to true to allow multiple
+       simultaneous selections.
+  <LI>The option sixth argument (-labels) can be used to assign user-visible labels
+       to the list items different from the ones used for the values as above.
+       In this example we assume that an associative array <CODE>%labels</CODE>
+       has already been created.
+</UL>
+When this form is processed, all selected list items will be returned as
+a list under the parameter name 'list_name'.  The values of the
+selected items can be retrieved with:
+<PRE>
+     @selected = $query-&gt;param('list_name');
+</PRE>
+
+<A NAME="checkbox_group">
+<H3>Creating A Group Of Related Checkboxes</H3>
+</A>
+<PRE>
+   <EM>Named parameter style</EM>
+   print $query-&gt;checkbox_group(-name=&gt;'group_name',
+                                -values=&gt;['eenie','meenie','minie','moe'],
+                                -default=&gt;['eenie','moe'],
+	                        -linebreak=&gt;'true',
+	                        -labels=&gt;\%labels);
+
+   <EM>Old Style</EM>
+   print $query-&gt;checkbox_group('group_name',
+                                ['eenie','meenie','minie','moe'],
+                                ['eenie','moe'],'true',\%labels);
+
+   <EM>HTML3 Browsers Only</EM>
+   print $query-&gt;checkbox_group(-name=&gt;'group_name',
+                                -values=&gt;['eenie','meenie','minie','moe'],
+                                -rows=>2,-columns=>2);
+</PRE>
+<STRONG>checkbox_group()</STRONG> creates a list of checkboxes that are related
+  by the same name.
+<UL>
+  <LI>The first and second arguments (-name and -values) are the checkbox
+       name and values, 
+       respectively.  As in the popup menu, the second argument should 
+       be an array reference.  These values are used for the user-readable
+       labels printed next to the checkboxes as well as for the values
+       passed to your script in the query string.
+  <LI>The optional third argument (-default) can be either a
+       reference to a list
+       containing the values to be checked by default, or can be a 
+       single value to checked.  If this argument is missing or undefined,
+       then nothing is selected when the list first appears.
+  <LI>The optional fourth argument (-linebreak) can be set to true to
+       place line breaks
+       between the checkboxes so that they appear as a vertical list.
+       Otherwise, they will be strung together on a horizontal line.
+       When the form is procesed, all checked boxes will be returned as
+       a list under the parameter name 'group_name'.  The values of the
+       "on" checkboxes can be retrieved with:
+  <LI>The optional fifth argument (-labels) is a reference to an associative array
+       of checkbox labels.  This allows you to use different strings for
+       the user-visible button labels and the values sent to your script.  In
+       this example we assume that an associative array <CODE>%labels</CODE>
+       has previously been created.
+  <LI><STRONG>Browsers that understand HTML3 tables</STRONG>
+       (such as Netscape) can take advantage of the optional 
+       parameters <STRONG>-rows</STRONG>, and <STRONG>-columns</STRONG>.
+       These parameters cause
+       checkbox_group() to return an HTML3 compatible table containing
+       the checkbox group formatted with the specified number of rows
+       and columns.  You can provide just the -columns parameter if you
+       wish; checkbox_group will calculate the correct number of rows
+       for you.
+       <P>
+       To include row and column headings in the returned table, you
+       can use the <STRONG>-rowheader</STRONG> and <STRONG>-colheader</STRONG>
+       parameters.  Both
+       of these accept a pointer to an array of headings to use.
+       The headings are just decorative.  They don't reorganize the
+       interpetation of the checkboxes -- they're still a single named
+       unit.
+       <P>
+       When viewed with browsers that don't understand HTML3 tables, the
+       -rows and -columns parameters will leave you
+       with a group of buttons that may be awkwardly formatted but
+       still useable. However, if you add row
+       and/or column headings, the resulting text will be very hard to
+       read.
+</UL>
+When the form is processed, the list of checked buttons in the group
+can be retrieved like this:
+<PRE>
+     @turned_on = $query-&gt;param('group_name');
+</PRE>
+
+<A NAME="checkbox">
+<H3>Creating A Standalone Checkbox</H3>
+</A>
+<PRE>
+   <EM>Named parameter list</EM>
+   print $query-&gt;checkbox(-name=&gt;'checkbox_name',
+			   -checked=&gt;'checked',
+		           -value=&gt;'TURNED ON',
+		           -label=&gt;'Turn me on');
+
+   <EM>Old style</EM>
+   print $query-&gt;checkbox('checkbox_name',1,'TURNED ON','Turn me on');
+</PRE>
+<STRONG>checkbox()</STRONG> is used to create an isolated checkbox that isn't logically
+related to any others.
+<UL>
+  <LI>The first parameter (<STRONG>-name</STRONG>is the required name
+       for the checkbox.  It
+       will also be used for the user-readable label printed next to
+       the checkbox.
+  <LI>The optional second parameter (<STRONG>-checked</STRONG>specifies
+       that the checkbox is turned on by default.  Aliases for this
+       parameter are <STRONG>-selected</STRONG> and <STRONG>-on</STRONG>.
+  <LI>The optional third parameter (<STRONG>-value</STRONG>specifies
+       the value of the checkbox
+       when it is checked.  If not provided, the word "on" is assumed.
+  <LI>The optional fourth parameter (<STRONG>-label</STRONG>assigns a
+       user-visible label to the button.
+       If not provided, the checkbox's name will be used.
+</UL>
+The value of the checkbox can be retrieved using:
+<PRE>
+     $turned_on = $query-&gt;param('checkbox_name');
+</PRE>
+
+<A NAME="radio">
+<H3>Creating A Radio Button Group</H3>
+</A>
+<PRE>
+   <EM>Named parameter style</EM>
+   print $query-&gt;radio_group(-name=&gt;'group_name',
+			     -values=&gt;['eenie','meenie','minie'],
+                             -default=&gt;'meenie',
+			     -linebreak=&gt;'true',
+			     -labels=&gt;\%labels);
+
+   <EM>Old style</EM>
+   print $query-&gt;radio_group('group_name',['eenie','meenie','minie'],
+                                          'meenie','true',\%labels);
+
+   <EM>HTML3-compatible browsers only</EM>
+   print $query->radio_group(-name=>'group_name',
+                                -values=>['eenie','meenie','minie','moe'],
+	                        -rows=2,-columns=>2);
+</PRE>
+
+<STRONG>radio_group()</STRONG> creates a set of logically-related radio buttons.
+  Turning one member of the group on turns the others off.
+<UL>
+  <LI>The first argument (<STRONG>-name</STRONG>is the name of the
+       group and is required.
+  <LI>The second argument (<STRONG>-values</STRONG>is the list of
+       values for the radio buttons.
+       The values and the labels that appear on the page are identical.
+       Pass an array <EM>reference</EM> in the second argument, either using 
+       an anonymous array, as shown, or by referencing a named array as 
+       in <CODE>\@foo</CODE>.
+  <LI>The optional third parameter (<STRONG>-default</STRONG>is the
+       value of the default button to
+       turn on. If not specified, the first item will be the default.  Specify
+       some nonexistent value, such as "-" if you don't want any button
+       to be turned on.
+  <LI>The optional fourth parameter (<STRONG>-linebreak</STRONG>can be
+       set to 'true' to put
+       line breaks between the buttons, creating a vertical list.
+  <LI>The optional fifth parameter (<STRONG>-labels</STRONG>specifies
+       an associative array containing labels to be printed next to
+       each the button.  If not provided the button value will be
+       used instead.  This example assumes that the associative array
+       <CODE>%labels</CODE> has already been defined.
+  <LI><STRONG>Browsers that understand HTML3 tables</STRONG>
+       (such as Netscape) can take advantage of the optional 
+       parameters <STRONG>-rows</STRONG>, and <STRONG>-columns</STRONG>.
+       These parameters cause
+       radio_group() to return an HTML3 compatible table containing
+       the radio cluster formatted with the specified number of rows
+       and columns.  You can provide just the -columns parameter if you
+       wish; radio_group will calculate the correct number of rows
+       for you.
+       <P>
+       To include row and column headings in the returned table, you
+       can use the <STRONG>-rowheader</STRONG> and <STRONG>-colheader</STRONG>
+       parameters.  Both
+       of these accept a pointer to an array of headings to use.
+       The headings are just decorative.  They don't reorganize the
+       interpetation of the radio buttons -- they're still a single named
+       unit.
+       <P>
+       When viewed with browsers that don't understand HTML3 tables, the
+       -rows and -columns parameters will leave you
+       with a group of buttons that may be awkwardly formatted but
+       still useable. However, if you add row
+       and/or column headings, the resulting text will be very hard to
+       read.
+</UL>
+When the form is processed, the selected radio button can
+be retrieved using:
+<PRE>
+       $which_radio_button = $query-&gt;param('group_name');
+</PRE>
+
+<A NAME="submit"><H3>
+Creating A Submit Button</H3>
+</A>
+<PRE>
+   <EM>Named parameter style</EM>
+   print $query-&gt;submit(-name=&gt;'button_name',
+		        -value=&gt;'value');
+
+  <EM>Old style</EM>
+  print $query-&gt;submit('button_name','value');
+</PRE>
+<STRONG>submit()</STRONG> will create the query submission button.  Every form
+    should have one of these.
+<UL>
+  <LI>The first argument (<STRONG>-name</STRONG>is optional.
+       You can give the button a
+       name if you have several submission buttons in your form and
+       you want to distinguish between them.  The name will also be
+       used as the user-visible label.
+  <LI>The second argument (<STRONG>-value</STRONG>is also optional.
+       This gives the button
+       a value that will be passed to your script in the query string.
+       You can figure out which button was pressed by using different
+       values for each one:
+</UL>
+<PRE>
+    $which_one = $query-&gt;param('button_name');
+</PRE>
+
+<A NAME="reset">
+<H3>Creating A Reset Button</H3>
+</A>
+<PRE>
+  print $query-&gt;reset
+</PRE>
+<STRONG>reset()</STRONG> creates the "reset" button.  It undoes whatever
+changes the user has recently made to the form, but does <STRONG>not</STRONG>
+ necessarily reset the form all the way to the defaults.  See <STRONG>defaults()</STRONG>
+ for that.  It takes the optional label for the button ("Reset" by default).
+
+<A NAME="defaults">
+<H3>Creating A Defaults Button</H3>
+</A>
+<PRE>
+  print $query-&gt;defaults('button_label')
+</PRE>
+<STRONG>defaults()</STRONG> creates "reset to defaults" button.
+It takes the optional label for the button ("Defaults" by default).
+When the user presses this button, the form will automagically
+be cleared entirely and set to the defaults you specify in your
+script, just as it was the first time it was called.
+
+<A NAME="hidden">
+<H3>Creating A Hidden Field</H3>
+</A>
+<PRE>
+   <EM>Named parameter style</EM>
+   print $query-&gt;hidden(-name=&gt;'hidden_name',
+                        -default=&gt;['value1','value2'...]);
+
+   <EM>Old style</EM>
+   print $query-&gt;hidden('hidden_name','value1','value2'...);
+</PRE>
+<STRONG>hidden()</STRONG> produces a text field that can't be seen by the user.  It
+is useful for passing state variable information from one invocation
+of the script to the next.
+<UL>
+  <LI>The first argument (<STRONG>-name</STRONG>) is required and
+       specifies the name of this field.
+  <LI>The second and subsequent arguments specify the value for the hidden field.
+       This is a quick and dirty way of passing perl arrays through forms.  If
+       you use the named parameter style, you must provide the parameter
+       <STRONG>-default</STRONG> and an array reference here.
+</UL>
+<STRONG><A NAME="hidden_fields_warning">
+<IMG SRC="/icons/caution.xbm" ALT="[CAUTION]">
+As of version 2.0 I have changed the behavior of hidden fields
+once again.  Read this if you use hidden fields.</A></STRONG>
+<P>
+Hidden fields used to behave differently from all other fields: the
+provided default values always overrode the "sticky" values.  This was the
+behavior people seemed to expect, however it turns out to make it harder
+to write state-maintaining forms such as shopping cart programs.  Therefore
+I have made the behavior consistent with other fields.
+<P>
+Just like all the other form elements, the value of a
+hidden field is "sticky".  If you want to replace a hidden field with
+some other values after the script has been called once you'll have to
+do it manually before writing out the form element:
+<PRE>
+     $query-&gt;param('hidden_name','new','values','here');
+     print $query-&gt;hidden('hidden_name');
+</PRE>
+
+Fetch the value of a hidden field this way:
+<PRE>
+    $hidden_value = $query-&gt;param('hidden_name');
+            -or (for values created with arrays)-
+    @hidden_values = $query-&gt;param('hidden_name');
+</PRE>
+
+<A NAME="image">
+<H3>Creating a Clickable Image Button</H3>
+</A>
+<PRE>
+   <EM>Named parameter style</EM>
+   print $query-&gt;image_button(-name=&gt;'button_name',
+                              -src=&gt;'/images/NYNY.gif',
+                              -align=&gt;'MIDDLE');	
+
+   <EM>Old style</EM>
+   print $query-&gt;image_button('button_name','/source/URL','MIDDLE');
+
+</PRE>
+<STRONG>image_button()</STRONG> produces an inline image that acts as
+a submission button.  When selected, the form is submitted and the
+clicked (x,y) coordinates are submitted as well.
+<UL>
+  <LI>The first argument(<STRONG>-name</STRONG> is required and
+       specifies the name of this
+       field.
+  <LI>The second argument (<STRONG>-src</STRONG>specifies the URL of
+       the image to display.  It
+       must be one of the types supported by inline images (e.g. GIF), but
+       can be any local or remote URL.
+  <LI>The third argument (<STRONG>-align</STRONG>is anything you might
+       want to use in the ALIGN attribute, such as
+       TOP, BOTTOM, LEFT, RIGHT or MIDDLE.  This field is optional.
+</UL>
+
+When the image is clicked, the results are passed to your script in two
+parameters named "button_name.x" and "button_name.y", where "button_name"
+is the name of the image button.
+<PRE>
+    $x = $query-&gt;param('button_name.x');
+    $y = $query-&gt;param('button_name.y');
+</PRE>
+
+<H3><A NAME="escape">Controlling HTML Autoescaping</A></H3>
+By default, if you use a special HTML character such as &gt;, &lt;
+or &amp; as the label or value of a button, it will be escaped
+using the appropriate HTML escape sequence (e.g. &amp;gt;).  This
+lets you use anything at all for the text of a form field without
+worrying about breaking the HTML document.  However, it may also
+interfere with your ability to use special characters, such as
+&Aacute; as default contents of fields.  You can turn this
+feature on and off with the method <CODE>autoEscape()</CODE>.
+<P>
+Use
+<PRE>
+    $query-&gt;autoEscape(undef);
+</PRE>
+to turn automatic HTML escaping off, and
+<PRE>
+    $query-&gt;autoEscape('true');
+</PRE>
+to turn it back on.
+
+<HR>
+<A NAME="debugging">
+<H2>Debugging</H2>
+</A>
+If you are running the script
+from the command line or in the perl debugger, you can pass the script
+a list of keywords or parameter=value pairs on the command line or 
+from standard input (you don't have to worry about tricking your
+script into reading from environment variables).
+You can pass keywords like this:
+<PRE>
+   my_script.pl keyword1 keyword2 keyword3
+</PRE>
+<EM>or this:</EM>
+<PRE>
+   my_script.pl keyword1+keyword2+keyword3
+</PRE>
+<EM>or this:</EM>
+<PRE>
+   my_script.pl name1=value1 name2=value2
+</PRE>
+<EM>or this:</EM>
+<PRE>
+   my_script.pl name1=value1&amp;name2=value2
+</PRE>
+or even by sending newline-delimited parameters to standard input:
+<PRE>
+   % my_script.pl
+   first_name=fred
+   last_name=flintstone
+   occupation='granite miner'
+   ^D
+</PRE>
+<P>When debugging, you can use quotation marks and the backslash
+character to escape spaces and other funny characters in exactly
+the way you would in the shell (which isn't surprising since CGI.pm
+uses "shellwords.pl" internally).  This lets you do this sort of thing:
+<PRE>
+    my_script.pl 'name 1'='I am a long value' "name 2"=two\ words
+</PRE>
+
+<A HREF="#contents">Table of contents</A>
+
+<A NAME="dumping">
+<H3>Dumping Out All The Name/Value Pairs</H3>
+</A>
+The <STRONG>dump()</STRONG> method produces a string consisting of all the query's
+name/value pairs formatted nicely as a nested list.  This is useful
+for debugging purposes:
+<PRE>
+   print $query-&gt;dump
+</PRE>   
+   Produces something that looks like this:
+<PRE>
+   &lt;UL&gt;
+   &lt;LI&gt;name1
+       &lt;UL&gt;
+       &lt;LI&gt;value1
+       &lt;LI&gt;value2
+       &lt;/UL&gt;
+   &lt;LI&gt;name2
+       &lt;UL&gt;
+       &lt;LI&gt;value1
+       &lt;/UL&gt;
+   &lt;/UL&gt;
+</PRE>
+You can achieve the same effect by incorporating the CGI object directly
+into a string, as in:
+<PRE>
+   print "&lt;H2&gt;Current Contents:&lt;/H2&gt;\n$query\n";
+</PRE>
+
+<HR>
+<A NAME="environment">
+<H2>Fetching Environment Variables</H2>
+</A>
+Some of the more useful environment variables can be fetched
+through this interface.  The methods are as follows:
+<DL>
+  <DT>accept()   
+  <DD>Return a list of MIME types that the remote browser
+       accepts. If you give this method a single argument
+       corresponding to a MIME type, as in
+       <CODE>$query-&gt;accept('text/html')</CODE>, it will return a
+       floating point value corresponding to the browser's
+       preference for this type from 0.0 (don't want) to 1.0.
+       Glob types (e.g. text/*) in the browser's accept list
+       are handled correctly.
+  <DT>auth_type()
+  <DD>Return the authorization type, if protection is active.  Example "Basic".
+  <DT>path_info() 
+  <DD>Returns additional path information from the script URL.
+       E.G. fetching <CODE>/cgi-bin/your_script/additional/stuff</CODE> will
+       result in <CODE>$query-&gt;path_info()</CODE> returning
+       <CODE>"/additional/stuff"</CODE>
+  <DT>path_translated()  
+  <DD>As per path_info() but returns the additional
+       path information translated into a physical path, e.g.
+       <CODE>"/usr/local/etc/httpd/htdocs/additional/stuff"</CODE>.
+  <DT>referer()
+  <DD>Return the URL of the page the browser was viewing
+       prior to fetching your script.  Not available for all
+       browsers.
+  <DT>remote_addr()
+  <DD>Return the dotted IP address of the remote host.
+  <DT>remote_ident()
+  <DD>Return the identity-checking information from the remote host.  Only
+       available if the remote host has the identd daemon turned on.
+  <DT>remote_host() 
+  <DD>Returns either the remote host name or IP address.
+       if the former is unavailable.
+  <DT>remote_user()
+  <DD>Return the name given by the remote user during password authorization.
+  <DT>script_name()
+  <DD>Return the script name as a partial URL, for self-refering
+       scripts.
+  <DT>server_name()
+  <DD>Return the name of the WWW server the script is running under.
+  <DT>server_port()
+  <DD>Return the communications port the server is using.
+  <DT>user_agent()
+  <DD>Returns the identity of the remote user's browser software,
+       e.g. "Mozilla/1.1N (Macintosh; I; 68K)"
+</DL>
+<A HREF="#contents">Table of contents</A>
+
+<HR>
+<A NAME="advanced">
+<H2>Advanced Techniques</H2>
+</A>
+<H3>A Script that Saves Some Information to a File and Restores It</H3>
+This script will save its state to a file of the user's choosing when the
+"save" button is pressed, and will restore its state when the "restore" button
+is pressed.  Notice that <EM>it's very important to check the file name</EM>
+for shell metacharacters so that the script doesn't inadvertently open up a
+command or overwrite someone's file.  For this to work, the script's current
+directory must be writable by "nobody".
+<PRE>
+#!/usr/local/bin/perl
+
+use CGI;
+$query = new CGI;
+
+print $query-&gt;header;
+print $query-&gt;start_html("Save and Restore Example");
+print "&lt;H1&gt;Save and Restore Example&lt;/H1&gt;\n";
+
+# Here's where we take action on the previous request
+&save_parameters($query)              if $query-&gt;param('action') eq 'save';
+$query = &restore_parameters($query)  if $query-&gt;param('action') eq 'restore';
+
+# Here's where we create the form
+print $query-&gt;startform;
+print "Popup 1: ",$query-&gt;popup_menu('popup1',['eenie','meenie','minie']),"\n";
+print "Popup 2: ",$query-&gt;popup_menu('popup2',['et','lux','perpetua']),"\n";
+print "&lt;P&gt;";
+print "Save/restore state from file: ",$query-&gt;textfield('savefile','state.sav'),"\n";
+print "&lt;P&gt;";
+print $query-&gt;submit('action','save'),$query-&gt;submit('action','restore');
+print $query-&gt;submit('action','usual query');
+print $query-&gt;endform;
+
+# Here we print out a bit at the end
+print $query-&gt;end_html;
+
+sub save_parameters {
+    local($query) = @_;
+    local($filename) = &clean_name($query-&gt;param('savefile'));
+    if (open(FILE,"&gt;$filename")) {
+	$query-&gt;save(FILE);
+	close FILE;
+	print "&lt;STRONG&gt;State has been saved to file $filename&lt;/STRONG&gt;\n";
+    } else {
+	print "&lt;STRONG&gt;Error:&lt;/STRONG&gt; couldn't write to file $filename: $!\n";
+    }
+}
+
+sub restore_parameters {
+    local($query) = @_;
+    local($filename) = &clean_name($query-&gt;param('savefile'));
+    if (open(FILE,$filename)) {
+	$query = new CGI(FILE);  # Throw out the old query, replace it with a new one
+	close FILE;
+	print "&lt;STRONG&gt;State has been restored from file $filename&lt;/STRONG&gt;\n";
+    } else {
+	print "&lt;STRONG&gt;Error:&lt;/STRONG&gt; couldn't restore file $filename: $!\n";
+    }
+    return $query;
+}
+
+
+# Very important subroutine -- get rid of all the naughty
+# metacharacters from the file name. If there are, we
+# complain bitterly and die.
+sub clean_name {
+   local($name) = @_;
+   unless ($name=~/^[\w\.-]+$/) {
+      print "&lt;STRONG&gt;$name has naughty characters.  Only ";
+      print "alphanumerics are allowed.  You can't use absolute names.&lt;/STRONG&gt;";
+      die "Attempt to use naughty characters";
+   }
+   return $name;
+}
+</PRE>
+
+<H3>A Script that Uses Self-Referencing URLs to Jump to Internal Links</H3>
+(Without losing form information).
+<P>Many people have experienced problems with internal links on pages that have
+forms.  Jumping around within the document causes the state of the form to be
+reset.  A partial solution is to use the self_url() method to generate a link
+that preserves state information.  This script illustrates how this works.
+<PRE>
+#!/usr/local/bin/perl
+
+use CGI;
+$query = new CGI;
+
+# We generate a regular HTML file containing a very long list
+# and a popup menu that does nothing except to show that we
+# don't lose the state information.
+print $query-&gt;header;
+print $query-&gt;start_html("Internal Links Example");
+print "&lt;H1&gt;Internal Links Example&lt;/H1&gt;\n";
+
+print "&lt;A NAME=\"start\"&gt;&lt;/A&gt;\n"; # an anchor point at the top
+
+# pick a default starting value;
+$query-&gt;param('amenu','FOO1') unless $query-&gt;param('amenu');
+
+print $query-&gt;startform;
+print $query-&gt;popup_menu('amenu',[('FOO1'..'FOO9')]);
+print $query-&gt;submit,$query-&gt;endform;
+
+# We create a long boring list for the purposes of illustration.
+$myself = $query-&gt;self_url;
+print "&lt;OL&gt;\n";
+for (1..100) {
+    print qq{&lt;LI&gt;List item #$_&lt;A HREF="$myself#start"&gt;Jump to top&lt;/A&gt;\n};
+}
+print "&lt;/OL&gt;\n";
+
+print $query-&gt;end_html;
+</PRE>
+
+<H3>Multiple forms on the same page</H3>
+There's no particular trick to this.  Just remember to close one form before
+you open another one.  You can reuse the same query object or create a new one.
+Either technique works.
+<P>
+There is, however, a problem with maintaining the states of multiple forms.  Because
+the browser only sends your script the parameters from the form in which the submit
+button was pressed, the state of all the other forms will be lost.  One way to get
+around this, suggested in this example, is to use hidden fields to pass as much
+information as possible regardless of which form the user submits.
+<PRE>
+#!/usr/local/bin/perl
+use CGI;
+
+$query=new CGI;
+print $query-&gt;header;
+print $query-&gt;html_header('Multiple forms');
+print "&lt;H1&gt;Multiple forms&lt;/H1&gt;\n";
+
+# form 1
+print "&lt;HR&gt;\n";
+print $query-&gt;startform;
+print $query-&gt;textfield('text1'),$query-&gt;submit('submit1');
+print $query-&gt;hidden('text2');  # pass information from the other form
+print $query-&gt;endform;
+print "&lt;HR&gt;\n";
+
+# form 2
+print $query-&gt;startform;
+print $query-&gt;textfield('text2'),$query-&gt;submit('submit2');
+print $query-&gt;hidden('text1');  # pass information from the other form
+print $query-&gt;endform;
+print "&lt;HR&gt;\n";
+
+</PRE>
+
+<HR>
+<H2>
+<A NAME=upload_caveats>
+Potential Problems with the File Upload Feature
+</A>
+</H2>
+First of all, because the file upload feature is so new,
+this code is has not been tested as much as I'd like.
+A complicating factor is that this code was tested with
+beta versions of the Netscape browser.  It's possible that
+the format of the uploaded files will change somewhat,
+breaking this library (but don't worry, a new version
+of the library will appear if this happens).
+<P>
+Another potential problem with the file upload feature is that
+it potentially involves sending more data to the CGI script
+than the script can hold in main memory.  For this reason
+CGI.pm creates temporary files in
+either the <CODE>/usr/tmp</CODE> or the <CODE>/tmp</CODE>
+directory.  If neither of these These temporary files
+have names like <CODE>CGItemp125421</CODE>, and should be
+deleted automatically.
+<P>
+<H3>Frequent Problems</H3>
+<H4>You can't retrieve the name of the uploaded file
+using the param() method</H4>
+Most likely the remote user isn't using version 2.0 (or higher)
+of Netscape.  Alternatively she just isn't filling in the form
+completely.
+<H4>You can read the name of the uploaded file, but can't
+retrieve the data</H4>
+First check that you've told CGI.pm to
+use the new <A HREF="#multipart">multipart/form-data</A>
+scheme.  If it still isn't working, there may be a problem
+with the temporary files that CGI.pm needs to create in
+order to read in the (potentially very large) uploaded files.
+Internally, CGI.pm tries to create temporary files with
+names similar to <CODE>CGITemp123456</CODE> in a temporary
+directory.  To find a suitable directory it first looks
+for <CODE>/usr/tmp</CODE> and then for <CODE>/tmp</CODE>.
+If it can't find either of these directories, it tries
+for the current directory, which is usually the same
+directory that the script resides in.  
+<P>
+If you're on a non-Unix system you may need to modify
+CGI.pm to point at a suitable temporary directory. This
+directory must be
+writable by the user ID under which the server runs (usually
+"nobody") and must have sufficient capacity to handle large
+file uploads.  Open up CGI.pm, and find the line:
+<PRE>
+      package TempFile;
+      foreach ('/usr/tmp','/tmp') {
+         do {$TMPDIRECTORY = $_; last} if -w $_;
+      }
+</PRE>
+Modify the foreach() line to contain a series of one or more
+directories to store temporary files in.
+<HR>
+
+<H3><A NAME="non_unix">Using CGI.pm on non-Unix Platforms</A></H3>
+
+<H4>Windows NT</H4>
+CGI.pm has been tried under Windows NT using the WebSite Web server, and
+miraculously enough, it works!  No modifications of source code are necessary.
+<P>
+CGI.pm must be put in the perl5 library directory, and all CGI scripts that
+use it should be placed in WebSite's <CODE>cgi-shl</CODE> directory.  You also
+need to associate the <CODE>.pl</CODE> suffix with perl5 using the NT
+file manager.
+
+<H4>VMS</H4>
+CGI.pm is known to work with the VMS version of Perl5 and the VMS
+port of the CERN server.  However, a source code modification is
+required in order to accomodate the fact that the "\n" character
+in VMS Perl appears to expand to a carriage return/linefeed pair.
+<P>
+Find the line:
+<PRE>   $CRLF="\r\n"
+</PRE>
+and change it to:
+<PRE>   $CRLF="\n";
+</PRE>
+This should do the trick.
+
+<H4>Macintosh</H4>
+Alas, the Perl5 port for the Macintosh does not yet support any
+perl CGI scripts. In recent tests, CGI.pm did not work correctly
+with MacHTTP,
+apparently due to a failure of the MacHTTP CGI compatability
+routines in the Perl5 environment.  This failure probably applies to
+WebStar as well, but that server has not been tested.
+
+<HR>
+<A NAME="future">
+<H2>Future Prospects for this Library</H2>
+</A>
+This library is a precursor to the full featured CGI, URL,
+and HTML modules being developed as part of the Perl CGI
+developer's effort.  Although those modules supersede much of
+the functionality of this one, I am continuing to maintain
+and improve this library in order to maintain compatability
+with CGI scripts that rely on it and to satisfy people who
+are looking for an easy-to-use introduction to the world
+of CGI scripting.
+<P>The current version of CGI.pm can be found at:
+<PRE>  <A HREF="http://www-genome.wi.mit.edu/ftp/pub/software/WWW">
+http://www-genome.wi.mit.edu/ftp/pub/software/WWW/</A>
+</PRE>
+<P>
+You are encouraged to look at these other Web-related modules:
+<DL>
+  <DT> <A HREF="ftp://ftp.acoates.com/acoates/perl/">HTML.pm</A>
+  <DD> A module that simplifies the creation of HTML documents
+       programatically.
+
+  <DT> <A HREF="http://www-genome.wi.mit.edu/ftp/pub/software/WWW/CGIperl/">
+       CGI::Base,CGI::Form,CGI::MiniSrv,CGI::Request and CGI::URI::URL</A>
+  <DD> Modules for parsing script input, manipulating URLs, creating
+       forms and even launching a miniature Web server.
+
+  <DT> <A HREF="http://www.ics.uci.edu/pub/websoft/libwww-perl/">
+       libwww-perl</A>
+  <DD> Modules for fetching Web resources from within Perl, writing
+       Web robots, and much more.
+</DL>
+You might also be interested in two packages for creating graphics
+on the fly:
+<DL>
+  <DT> <A HREF="GD.html">GD.html</A>
+  <DD> A module for creating GIF images on the fly, using Tom Boutell's
+       <A HREF="http://siva.cshl.org/gd/gd.html">gd</A> graphics library.
+  <DT> <A HREF="../utilities/">qd.pl</A>
+  <DD> A library for creating Macintosh PICT files on the fly (which
+       can be converted to GIF or JPEG using NetPBM).
+</DL>
+<P>
+For a collection of CGI scripts of various levels of complexity,
+see the companion pages for my book
+<A HREF="http://www-genome.wi.mit.edu/WWW">How to Set Up and
+Maintain a World Wide Web Site</A>
+
+<HR>
+<A NAME="distribution">
+<H2>Distribution Information:</H2>
+</A>
+This code is copyright 1995 by Lincoln Stein and the Whitehead 
+Institute for Biomedical Research.  It may be used and modified 
+freely.  I request, but do not require, that this credit appear
+in the code.
+
+<H3>Bug Reports</H3>
+Address bug reports and comments to:<BR>
+<A
+HREF="/~lstein">lstein@genome.wi.mit.edu</A>
+<P><A HREF="#contents">Up to table of contents</A>
+
+<HR>
+<H2><A NAME="new">Revision History: v1.3-&gt;v2.0</A></H2>
+
+<H3>Version 2.01</H3>
+<OL>
+  <LI>Added -rows and -columns to the radio and checkbox groups.
+       No doubt this will cause much grief because it seems to
+       promise a level of meta-organization that it doesn't
+       actually provide.
+  <LI>Fixed a bug in the redirect() method -- it was not truly
+       HTTP/1.0 compliant.
+</OL>
+
+<H3>Version 2.0</H3>
+The changes seemed to touch every line of code, so I decided
+to bump up the major version number.
+<OL>
+  <LI> Support for <A HREF="#named_param">named parameter
+       style method calls.</A>  This turns out to be a
+       big win for extending CGI.pm when Netscape adds
+       new HTML "features".
+  <LI> Changed behavior of hidden fields back to the correct
+       "sticky" behavior.
+       <A HREF="#hidden_fields_warning">This is going to
+       break some programs,</A> but it is for the best in
+       the long run.
+  <LI> Netscape 2.0b2 broke the file upload feature.  CGI.pm now
+       handles both 2.0b1 and 2.0b2-style uploading.  It will
+       probably break again in 2.0b3.
+  <LI> There were still problems with library being unable to
+       distinguish between a form being loaded for the first time,
+       and a subsequent loading with all fields blank.  We now
+       forcibly create a default name for the Submit button (if not
+       provided) so that there's always at least one parameter.
+  <LI> More workarounds to prevent annoying spurious warning messages
+       when run under the -w switch.  -w is seriously broken in
+       perl 5.001!
+</OL>
+
+<H3>Version 1.57</H3>
+<OL>
+  <LI> Support for the Netscape 2.0 "File upload" field.
+  <LI> The handling of defaults for selected items in scrolling lists
+       and multiple checkboxes is now consistent.
+</OL>
+<H3>Version 1.56</H3>
+<OL>
+  <LI> Created true "pod" documentation for the module.
+  <LI> Cleaned up the code to avoid many of the spurious
+       "use of uninitialized variable" warnings when running
+       with the -w switch.
+  <LI> Added the <CODE>autoEscape()</CODE> method.
+  <LI> Added string interpolation of the CGI object.
+  <LI> Added the ability to pass additional parameters to
+       the &lt;BODY&gt; tag.
+  <LI> Added the ability to specify the status code in the
+       HTTP header.
+</OL>
+
+<H3>Bug fixes in version 1.55</H3>
+<OL>
+  <LI> Every time self_url() was called, the parameter list
+       would grow.  This was a bad "feature".
+  <LI> Documented the fact that you can pass "-" to
+       radio_group() in order to prevent any button from
+       being highlighted by default.
+</OL>
+<H3>Bug fixes in version 1.54</H3>
+<OL>
+  <LI> The user_agent() method is now documented;
+  <LI> A potential security hole in import() is now plugged.
+  <LI> Changed name of import() to import_names() for compatability
+       with CGI:: modules.
+</OL>
+<H3>Bug fixes in version 1.53</H3>
+<OL>
+  <LI> Fixed several typos in the code that were causing the following
+       subroutines to fail in some circumstances
+       <OL>
+	 <LI> checkbox()
+	 <LI> hidden()
+       </OL>
+  <LI> No features added
+</OL>
+<H3>New features added in version 1.52</H3>
+<OL>
+  <LI> Added backslashing, quotation marks, and other shell-style
+       escape sequences to the parameters passed in during debugging
+       off-line.
+  <LI> Changed the way that the hidden() method works so that the
+       default value always overrides the current one.
+  <LI> Improved the handling of sticky values in forms.  It's now less
+       likely that sticky values will get stuck.
+  <LI> If you call server_name(), script_name() and several other
+       methods when running offline, the methods now create "dummy"
+       values to work with.
+</OL>
+<H3>Bugs fixed in version 1.51</H3>
+<OL>
+  <LI> param() when called without arguments was returning an array of
+       length 1 even when there were no parameters to be had.  Bad bug!
+       Bad!
+  <LI> The HTML code generated would break if input fields contained
+       the forbidden characters &quot;&gt;&lt or &amp;.  You can now use these characters
+       freely.
+</OL>
+<H3>New features added in version 1.50</H3>
+<OL>
+  <LI> import() method allows all the parameters to be
+       imported into a namespace in one fell swoop.
+  <LI> Parameters are now returned in the same order in which they
+       were defined.
+</OL>
+<H3>Bugs fixed in version 1.45</H3>
+<OL>
+  <LI> delete() method didn't work correctly.  This is now fixed.
+  <LI> reset() method didn't allow you to set the name of the button.  Fixed.
+</OL>
+<H3>Bugs fixed in version 1.44</H3>
+<OL>
+  <LI>self_url() didn't include the path information.  This is now
+       fixed.
+</OL>
+<H3>New features added in version 1.43</H3>
+<OL>
+  <LI>Added the delete() method.
+</OL>
+<H3>New features added in version 1.42</H3>
+<OL>
+  <LI>The image_button() method to create clickable images.
+  <LI>A few bug fixes involving forms embedded in &lt;PRE&gt; blocks.
+</OL>
+<H3>New features added in version 1.4</H3>
+<OL>
+<LI>New header shortcut methods
+     <UL>
+       <LI>redirect() to create HTTP redirection messages.
+       <LI>start_html() to create the HTML title, complete with
+	    the recommended &lt;LINK&gt; tag that no one ever remembers
+            to include.
+       <LI>end_html() for completeness' sake.
+     </UL>
+
+<LI>A new save() method that allows you to write out the state of an
+     script to a file or pipe.
+
+<LI>An improved version of the new() method that allows you to restore the
+     state of a script from a file or pipe.  With (2) this gives
+     you dump and restore capabilities!  (Wow, you can put a
+     "121,931 customers served" banner at the bottom of your pages!)
+
+<LI> A self_url() method that allows you to create state-maintaining
+     hypertext links.  In addition to allowing you to maintain the
+     state of your scripts between invocations, this lets you work
+     around a problem that some browsers have when jumping to
+     internal links in a document that contains a form -- the form 
+     information gets lost.
+
+<LI>The user-visible labels in checkboxes, radio buttons, popup menus
+     and scrolling lists have now been decoupled from the values
+     sent to your CGI script.  Your script can know a checkbox
+     by the name of "cb1" while the user knows it by a more
+     descriptive name. I've also added some parameters that were
+     missing from the text fields, such as MAXLENGTH.
+
+<LI>A whole bunch of methods have been added to get at environment
+     variables involved in user verification and other obscure
+     features.
+</OL>
+
+<H3>Bug fixes</H3>
+<OL>
+  <LI>The problems with the hidden fields have (I hope at last) been
+       fixed.
+
+  <LI>You can create multiple query objects and they will all be
+       initialized correctly.  This simplifies the creation of
+       multiple forms on one page.
+
+  <LI>The URL unescaping code works correctly now.
+</OL>
+<HR>
+<A HREF="#contents">Table of Contents</A>
+<ADDRESS>Lincoln D. Stein, lstein@genome.wi.mit.edu<br>
+<a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
+<P>Last modified September 27, 1995.<P>
+<!-- hhmts start -->
+<!-- hhmts end -->
+</BODY> </HTML>
