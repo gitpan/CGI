@@ -108,6 +108,7 @@ sub new {
 
 sub as_string {
     my $self = shift;
+    return "" unless $self->name;
 
     my(@constant_values,$domain,$path,$expires,$secure);
 

@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.19 1998/02/09 18:56:04 lstein Exp lstein $';
-$CGI::VERSION='2.37026';
+$CGI::revision = '$Id: CGI.pm,v 1.22 1998/02/23 14:32:19 lstein Exp $';
+$CGI::VERSION='2.37027';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -116,7 +116,7 @@ $IIS++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 
 # Turn on special checking for Doug MacEachern's modperl
 if (defined($ENV{'GATEWAY_INTERFACE'}) && 
-    ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl/)) 
+    ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl\//)) 
 {
     $| = 1;
     require Apache;
@@ -386,6 +386,10 @@ sub init {
       if ($meth eq 'POST') {
 	  $self->read_from_client(\*STDIN,\$query_string,$content_length,0)
 	      if $content_length > 0;
+	  # Some people want to have their cake and eat it too!
+	  # Uncomment this line to have the contents of the query string
+	  # APPENDED to the POST data.
+	  # $query_string .= (length($query_string) ? '&' : '') . $ENV{'QUERY_STRING'} if defined $ENV{'QUERY_STRING'};
 	  last METHOD;
       }
 
@@ -396,11 +400,6 @@ sub init {
       $query_string = read_from_cmdline() unless $NO_DEBUG;
   }
 
-    # Some people want to have their cake and eat it too!
-    # Uncomment this line to have the contents of the query string
-    # APPENDED to the POST data.
-    # $query_string .= (length($query_string) ? '&' : '') . $ENV{'QUERY_STRING'} if defined $ENV{'QUERY_STRING'};
-	  
     # We now have the query string in hand.  We do slightly
     # different things for keyword lists and parameter lists.
     if ($query_string ne '') {
@@ -1099,7 +1098,7 @@ sub header {
     if ($cookie) {
 	my(@cookie) = ref($cookie) && ref($cookie) eq 'ARRAY' ? @{$cookie} : $cookie;
 	foreach (@cookie) {
-	    push(@header,"Set-Cookie: " . $_->as_string);
+	    push(@header,"Set-Cookie: " . UNIVERSAL::isa($_,'CGI::Cookie') ? $_->as_string : $_);
 	}
     }
     # if the user indicates an expiration time, then we need
@@ -1617,7 +1616,8 @@ sub checkbox {
     
     $value = defined $value ? $value : 'on';
 
-    if (!$override && $self->{'.fieldnames'}->{$name}) {
+    if (!$override && ($self->{'.fieldnames'}->{$name} || 
+		       defined $self->param($name))) {
 	$checked = grep($_ eq $value,$self->param($name)) ? ' CHECKED' : '';
     } else {
 	$checked = $checked ? ' CHECKED' : '';
@@ -2124,9 +2124,9 @@ sub expire_calc {
     # If you don't supply one of these forms, we assume you are
     # specifying the date yourself
     my($offset);
-    if (!$time || ($time eq 'now')) {
+    if (!$time || (lc($time) eq 'now')) {
         $offset = 0;
-    } elsif ($time=~/^([+-]?\d+)([mhdMy]?)/) {
+    } elsif ($time=~/^([+-]?(?:\d+|\d*\.\d*))([mhdMy]?)/) {
         $offset = ($mult{$2} || 1)*$1;
     } else {
         return $time;
