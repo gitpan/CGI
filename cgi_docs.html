@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.24, 8/20/96, L. Stein
+Version 2.25, 9/10/96, L. Stein
 <p>
 
 <strong>WARNING:</strong> As threatened, the <code>import()</code>
@@ -110,7 +110,7 @@ href="#import">importing CGI methods</a> for an explanation.)
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.24?</A>
+  <LI><A HREF="#new">What's new in version 2.25?</A>
 </MENU>
 
 <HR>
@@ -2914,6 +2914,14 @@ Address bug reports and comments to:<BR>
 
 <HR>
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.25</h3>
+<ol>
+  <li>Fixed bug that caused bad redirection on destination URLs with arguments.
+  <li>Fixed bug involving use_named_parameters() followed by start_multipart_form()
+  <li>Fixed bug that caused incorrect determination of binmode for Macintosh.
+  <li>Spelling fixes on documentation.
+</ol>
+
 <H3>Version 2.24</H3>
 <ol>
   <li>Fixed bug that caused generation of lousy HTML for some form elements
@@ -3250,6 +3258,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Wed Aug 21 10:44:43 EDT 1996
+Last modified: Tue Sep 10 22:22:06 MET DST 1996
 <!-- hhmts end -->
 </BODY> </HTML>

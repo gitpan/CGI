@@ -21,8 +21,8 @@ require 5.001;
 # Set this to 1 to enable copious autoloader debugging messages
 $AUTOLOAD_DEBUG=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.24 1996/08/20 12:48 lstein Exp $';
-$CGI::VERSION='2.24';
+$CGI::revision = '$Id: CGI.pm,v 2.25 1996/09/10 15:45 lstein Exp $';
+$CGI::VERSION='2.25';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -34,7 +34,7 @@ $OS = 'UNIX';
 # $OS = 'VMS';
 
 # Some OS logic.  Binary mode enabled on DOS, NT and VMS
-$needs_binmode = $OS=~/WINDOWS|NT|VMS/;
+$needs_binmode = $OS=~/^(WINDOWS|NT|VMS)/;
 
 # This is the default class for the CGI object to use when all else fails.
 $DefaultClass = 'CGI' unless defined $CGI::DefaultClass;
@@ -143,7 +143,7 @@ sub param {
     return $self->all_parameters unless @p;
     my($name,$value,@other);
 
-    # For compatability between old calling style and use_named_parameters() style, 
+    # For compatibility between old calling style and use_named_parameters() style, 
     # we have to special case for a single parameter present.
     if (@p > 1) {
 	($name,$value,@other) = $self->rearrange([NAME,[DEFAULT,VALUE,VALUES]],@p);
@@ -559,7 +559,7 @@ sub keywords {
 }
 END_OF_FUNC
 
-# These are some tie() interfaces for compatability
+# These are some tie() interfaces for compatibility
 # with Steve Brenner's cgi-lib.pl routines
 'ReadParse' => <<'END_OF_FUNC',
 sub ReadParse {
@@ -790,7 +790,7 @@ sub header {
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
-	next unless my($header,$value) = /(\S+)=(.+)/;
+	next unless my($header,$value) = /([^\s=]+)=(.+)/;
 	substr($header,1,1000)=~tr/A-Z/a-z/;
 	($value)=$value=~/^"(.*)"$/;
 	$_ = "$header: $value";
@@ -952,7 +952,7 @@ sub startform {
     $enctype = $enctype || &URL_ENCODED;
     $action = $action ? qq/ACTION="$action"/ : '';
     my($other) = @other ? " @other" : '';
-    return qq/<FORM METHOD="$method" $action ENCTYPE=$enctype$other>\n/;
+    return qq/<FORM METHOD="$method" $action ENCTYPE="$enctype"$other>\n/;
 }
 END_OF_FUNC
 
@@ -971,9 +971,16 @@ END_OF_FUNC
 'start_multipart_form' => <<'END_OF_FUNC',
 sub start_multipart_form {
     my($self,@p) = self_or_CGI(@_);
-    my($method,$action,$enctype,@other) = 
-	$self->rearrange([METHOD,ACTION,ENCTYPE],@p);
-    $self->startform($method,$action,$enctype || &MULTIPART,@other);
+    if ($self->use_named_parameters || 
+	(defined($param[0]) && substr($param[0],0,1) eq '-')) {
+	my(%p) = @p;
+	$p{'-enctype'}=&MULTIPART;
+	return $self->startform(%p);
+    } else {
+	my($method,$action,@other) = 
+	    $self->rearrange([METHOD,ACTION],@p);
+	return $self->startform($method,$action,&MULTIPART,@other);
+    }
 }
 END_OF_FUNC
 
@@ -2549,7 +2556,7 @@ error log (or to the output stream of your choice).  This avoids long
 hours of groping through the error and access logs, trying to figure
 out which CGI script is generating  error messages.  If you choose,
 you can even have fatal error messages echoed to the browser to avoid
-the annoying and unimformative "Server Error" message.
+the annoying and uninformative "Server Error" message.
 
 =head1 DESCRIPTION
 
@@ -2765,10 +2772,10 @@ You can also retrieve the unprocessed query string with query_string():
 
     $the_string = $query->query_string;
 
-=head2 COMPATABILITY WITH CGI-LIB.PL
+=head2 COMPATIBILITY WITH CGI-LIB.PL
 
 To make it easier to port existing programs that use cgi-lib.pl
-the compatability routine "ReadParse" is provided.  Porting is
+the compatibility routine "ReadParse" is provided.  Porting is
 simple:
 
 OLD VERSION
@@ -2869,7 +2876,7 @@ all string constants just to play it safe.
 
 header() returns the Content-type: header.  You can provide your own
 MIME type if you choose, otherwise it defaults to text/html.  An
-optional second paramer specifies the status code and a human-readable
+optional second parameter specifies the status code and a human-readable
 message.  For example, you can specify 204, "No response" to create a
 script that tells the browser to do nothing at all.  If you want to
 add additional fields to the header, just tack them on to the end:
@@ -2935,7 +2942,7 @@ of the document you are redirecting to.
    print $query->start_html(-title=>'Secrets of the Pyramids',
                             -author=>'fred@capricorn.org',
                             -base=>'true',
-			    -meta=>{'keywords'=>'pharoah secret mummy',
+			    -meta=>{'keywords'=>'pharaoh secret mummy',
                                     'copyright'=>'copyright 1996 King Tut'},
                             -BGCOLOR=>'blue');
 
@@ -2963,7 +2970,7 @@ argument.  This argument expects a reference to an associative array
 containing name/value pairs of meta information.  These will be turned
 into a series of header <META> tags that look something like this:
 
-    <META NAME="keywords" CONTENT="pharoah secret mummy">
+    <META NAME="keywords" CONTENT="pharaoh secret mummy">
     <META NAME="description" CONTENT="copyright 1996 King Tut">
 
 There is no support for the HTTP-EQUIV type of <META> tag.  This is
@@ -3149,7 +3156,7 @@ to handle them.
 
 =back
 
-For compatability, the startform() method uses the older form of
+For compatibility, the startform() method uses the older form of
 encoding by default.  If you want to use the newer form of encoding
 by default, you can call B<start_multipart_form()> instead of
 B<startform()>.
@@ -3480,7 +3487,7 @@ The optional sixth argument is a pointer to an associative array
 containing long user-visible labels for the list items (-labels).
 If not provided, the values will be displayed.
 
-When this form is procesed, all selected list items will be returned as
+When this form is processed, all selected list items will be returned as
 a list under the parameter name 'list_name'.  The values of the
 selected items can be retrieved with:
 
@@ -3561,7 +3568,7 @@ To include row and column headings in the returned table, you
 can use the B<-rowheader> and B<-colheader> parameters.  Both
 of these accept a pointer to an array of headings to use.
 The headings are just decorative.  They don't reorganize the
-interpetation of the checkboxes -- they're still a single named
+interpretation of the checkboxes -- they're still a single named
 unit.
 
 =back
@@ -4033,7 +4040,7 @@ saved on the server's side of the connection.
 
 It's possible for CGI.pm scripts to write into several browser
 panels and windows using Netscape's frame mechanism.  
-There are three techniques for defining new frames programatically:
+There are three techniques for defining new frames programmatically:
 
 =over 4
 
@@ -4151,6 +4158,8 @@ the a nice HTML dump shown above:
 Some of the more useful environment variables can be fetched
 through this interface.  The methods are as follows:
 
+=over 4
+
 =item B<accept()>
 
 Return a list of MIME types that the remote browser
@@ -4227,6 +4236,8 @@ name!
 
 Returns the method used to access your script, usually
 one of 'POST', 'GET' or 'HEAD'.
+
+=back
 
 =head1 CREATING HTML ELEMENTS:
 
