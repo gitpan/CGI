@@ -1,10 +1,12 @@
 #!/usr/local/bin/perl -w
 
+use lib qw(t/lib);
+
 # Test ability to retrieve HTTP request info
 ######################### We start with some black magic to print on failure.
 use lib '../blib/lib','../blib/arch';
 
-BEGIN {$| = 1; print "1..27\n"; }
+BEGIN {$| = 1; print "1..28\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use Config;
 use CGI (':standard','keywords');
@@ -30,6 +32,11 @@ my $CRLF = "\015\012";
 # Thanks to Peter Prymmer for this
 
 if ($^O eq 'VMS') { $CRLF = "\n"; }
+
+# Web servers on EBCDIC hosts are typically set up to do an EBCDIC -> ASCII
+# translation hence CRLF is used as \r\n within CGI.pm on such machines.
+
+if (ord("\t") != 9) { $CRLF = "\r\n"; }
 
 # Web servers on EBCDIC hosts are typically set up to do an EBCDIC -> ASCII
 # translation hence CRLF is used as \r\n within CGI.pm on such machines.
@@ -99,3 +106,5 @@ test(25,redirect('http://somewhere.else') eq "Status: 302 Moved${CRLF}Location: 
 my $h = redirect(-Location=>'http://somewhere.else',-Type=>'text/html');
 test(26,$h eq "Status: 302 Moved${CRLF}Location: http://somewhere.else${CRLF}Content-Type: text/html; charset=ISO-8859-1${CRLF}${CRLF}","CGI::redirect() 2");
 test(27,redirect(-Location=>'http://somewhere.else/bin/foo&bar',-Type=>'text/html') eq "Status: 302 Moved${CRLF}Location: http://somewhere.else/bin/foo&bar${CRLF}Content-Type: text/html; charset=ISO-8859-1${CRLF}${CRLF}","CGI::redirect() 2");
+
+test(28,escapeHTML('CGI') eq 'CGI','escapeHTML(CGI) failing again');

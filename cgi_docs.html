@@ -7,7 +7,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.77, 8/7/2001, L. Stein
+Version 2.78, 9/25/2001, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -1067,6 +1067,8 @@ All parameters are optional:
       &lt;META NAME="description" CONTENT="copyright 1996 King Tut"&gt;
       </pre></blockquote>
       To create an HTTP-EQUIV tag, use the <B>-head</B> argument as described below.
+  <li>The <b>-encoding</b> argument can be used to specify the character set for
+       XHTML.  It defaults to UTF-8 if not specified.
   <li>A <strong>-lang</strong>> argument is used to incorporate a language attribute into
       the &lt;HTM&gt;> tag.  The default if not specified is "en-US" for US English.  For example:
 <blockquote><pre>
@@ -4687,6 +4689,18 @@ you.
 
 <H2><A NAME="new">Revision History</A></H2>
 
+<h3>Version 2.78</h3>
+<ol>
+  <li>Added ability to change encoding in &lt;?xml&gt; assertion.
+  <li>Fixed the old escapeHTML('CGI') ne "CGI" bug
+  <li>In accordance with XHTML requirements, there are no longer any
+      minimized attributes, such as "checked".
+  <li>Patched bug which caused file uploads of exactly 4096 bytes to
+      be truncated to 4094 (thanks to Kevin Mahony)
+  <li>New tests and fixes to CGI::Pretty (thanks to Michael Schwern).
+</ol>
+
+
 <h3>Version 2.77</h3>
 <ol>
   <li>No new features, but released in order to fix an apparent CPAN bug.
@@ -5611,6 +5625,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Tue Aug  7 08:28:23 EDT 2001
+Last modified: Tue Sep 25 22:14:37 EDT 2001
 <!-- hhmts end -->
 </BODY> </HTML>
