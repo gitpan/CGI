@@ -7,7 +7,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.74, 9/13/2000, L. Stein
+Version 2.75, 2/2/2001, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -81,7 +81,8 @@ examples from <cite>The Official Guide to CGI.pm</cite></a>
 <H2><A NAME="contents">Contents</A></H2>
 
 <MENU>
-  <LI><A HREF="#installation">Downloading &amp; Installation</A>
+  <LI><A HREF="#download">Downloading</A>
+  <LI><A HREF="#installation">Installation</A>
   <LI><a href="#functionvsoo">Function-Oriented vs Object-Oriented Use</a>
   <LI><A HREF="#query">Creating a new CGI query object</A>
   <LI><A HREF="#saving">Saving the state of the form</A>
@@ -116,7 +117,31 @@ examples from <cite>The Official Guide to CGI.pm</cite></a>
 
 <HR>
 
-<H2><A NAME="installation">Downloading &amp; Installation</A></H2>
+<h2><a name="download">Downloads</a></h2>
+
+<ul>
+  <li><STRONG><A HREF="CGI.pm.tar.gz">Download gzip tar archive (Unix)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm.zip">Download pkzip archive (Windows)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm.sit">Download sit archive  (Macintosh)</A></STRONG>
+  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
+  <li><strong><a href="old">Archive of Old Versions</a></strong>
+</ul>
+
+<p>
+
+<h3><font color="red">CGI.pm Version 3.01</font></h3>
+
+Version 3.0 of CGI.pm provides a modularized design and significant
+performance enhancements, courtesy David James.  Please try and report
+any bugs or misfeatures to <a href="mailto:lstein@cshl.org">me</a>.
+
+<ul>
+  <li><a href="CGI.pm-3.01.tar.gz">Download 3.01</a></li>
+</ul>
+
+<p>
+
+<H2><A NAME="installation">Installation</A></H2>
 
 <ul>
   <li><STRONG><A HREF="CGI.pm.tar.gz">Download gzip tar archive (Unix)</A></STRONG>
@@ -133,17 +158,6 @@ href="http://stein.cshl.org/WWW/software/CGI/">http://stein.cshl.org/WWW/softwar
 
 <P>
 
-<h2><font color="red">Beta Test Version</font></h2>
-
-There is a beta of version 3.0X available, courtesy David James.
-Please try and report any bugs or misfeatures to <a
-href="mailto:lstein@cshl.org">me</a>.
-
-<ul>
-  <li><a href="CGI.pm-3.01.tar.gz">Download 3.01 BETA</a></li>
-</ul>
-
-<p>
 
 This package requires perl 5.004 or higher.  Earlier versions of Perl
 may work, but CGI.pm has not been tested with them.  If you're really
@@ -1056,7 +1070,7 @@ All parameters are optional:
   <li>A <strong>-lang</strong>> argument is used to incorporate a language attribute into
       the &lt;HTM&gt;> tag.  The default if not specified is "en-US" for US English.  For example:
 <blockquote><pre>
-    print $q->header(-lang=>'fr-CA');
+    print $q->start_html(-lang=>'fr-CA');
 </pre></blockquote>
   <LI>A <strong>-dtd</strong> parameter to make start_html()
       generate an SGML document type definition for the document.
@@ -1078,23 +1092,23 @@ All parameters are optional:
   <li>A <strong>-head</strong> parameter to define other arbitrary elements
       of the &lt;HEAD&gt; section.  For example:
       <pre>
-      print header(-head=&gt;Link({-rel=&gt;'next',
-                   -href=&gt;'http://www.capricorn.com/s2.html'}));
+      print start_html(-head=&gt;Link({-rel=&gt;'next',
+                       -href=&gt;'http://www.capricorn.com/s2.html'}));
 
       </pre>
       or even
       <pre>
-      print header(-head=&gt;[ Link({-rel=&gt;'next',
-			             -href=&gt;'http://www.capricorn.com/s2.html'}),
-			       Link({-rel=&gt;'previous',
-				     -href=&gt;'http://www.capricorn.com/s1.html'})
+      print start_html(-head=&gt;[ Link({-rel=&gt;'next',
+			                 -href=&gt;'http://www.capricorn.com/s2.html'}),
+			           Link({-rel=&gt;'previous',
+				         -href=&gt;'http://www.capricorn.com/s1.html'})
 			      ]
 		      );
       </pre>
       To create an HTTP-EQUIV tag, use something like this:
       <pre>
-      print header(-head=&gt;meta({-http_equiv=&gt;'Content-Type',
-                                   -content=&gt;'text/html'}))
+      print start_html(-head=&gt;meta({-http_equiv=&gt;'Content-Type',
+                                       -content=&gt;'text/html'}))
       </pre>
   <LI>A <strong>-script</strong> parameter to define Netscape <a
       href="#javascripting">JavaScript</a> functions
@@ -4255,7 +4269,7 @@ want it to be automatically deleted when CGI.pm exits.
 
 <h2><a name="push">Server Push</a></h2>
 
-<p> CGI.pm provides three simple functions for producing multipart
+<p> CGI.pm provides four simple functions for producing multipart
 documents of the type needed to implement server push.  To import
 these into your namespace, you must import the ":push" set.  You are
 also advised to put the script into NPH mode and to set $| to 1 to
@@ -4268,20 +4282,26 @@ avoid buffering problems.  </p>
 use CGI qw/:push -nph/;
 $| = 1;
 print multipart_init(-boundary=&gt;'----------------here we go!');
-while (1) {
+foreach (0 .. 4) {
    print multipart_start(-type=&gt;'text/plain'),
-         "The current time is ",scalar(localtime),"\n",
-         multipart_end;
+         "The current time is ",scalar(localtime),"\n";
+   if ($_ < 4) {
+      print multipart_end;
+   } else {
+      print multipart_final;
+   }
    sleep 1;
 }
 </pre></blockquote>
 
 <p> This script initializes server push by calling
-<cite>multipart_init()</cite>.  It then enters an infinite loop in
+<cite>multipart_init()</cite>.  It then enters a loop in
 which it begins a new multipart section by calling
 <cite>multipart_start()</cite>, prints the current local time, and
 ends a multipart section with <cite>multipart_end()</cite>.  It then
-sleeps a second, and begins again.</p>
+sleeps a second, and begins again. On the final iteration, it ends the
+multipart section with <cite>multipart_final()</cite> rather than with
+<cite>multipart_end()</cite>. </p>
 
 <dl>
   <dt>multipart_init()
@@ -4305,11 +4325,24 @@ multipart_start(-type=&gt;$type)
   multipart_end()
       </pre></blockquote>
       End a part.  You must remember to call multipart_end() once for each
-      multipart_start().
+      multipart_start(), except at the end of the last part of the multipart
+      document when multipart_final() should be called instead of
+      multipart_end().
+      <p>
+  <dt>multipart_final()
+  <dd><blockquote><pre>
+  multipart_final()
+      </pre></blockquote>
+      End all parts.
+      You should call multipart_final() rather than multipart_end() at the
+      end of the last part of the multipart document.
 </dl>
 
 Users interested in server push applications should also have a look
 at the CGI::Push module.
+
+<p>Only Netscape Navigator supports server push.  Internet Explorer browsers
+do not.</p>
 
 <p>
 <A HREF="#contents">Table of contents</A>
@@ -4645,10 +4678,25 @@ you.
 
 <H2><A NAME="new">Revision History</A></H2>
 
-<h3>Version 2.74</h3>
-<p>
-September 13, 2000
+<h3>Version 2.75</h3>
 <ol>
+  <li>Fixed bug in server push boundary strings (CGI.pm and CGI::Push).
+  <li>Fixed bug that occurs when uploading files with funny characters in the name
+  <li>Fixed non-XHTML-compliant attributes produced by textfield()
+  <li>Added EPOC support, courtesy Olaf Flebbe
+  <li>Fixed minor XHTML bugs.
+  <li>Made escape() and unescape() symmetric with respect to EBCDIC, courtesy
+      Roca, Ignasi &lt;ignasi.roca@fujitsu.siemens.es&gt;
+  <li>Removed uninitialized variable warning from CGI::Cookie,
+      provided by Atipat Rojnuckarin &lt;rojnuca@yahoo.com&gt;
+  <li>Fixed bug in CGI::Pretty that causes it to print partial end tags when
+      the $INDENT global is changed.
+  <li>Single quotes are changed to character entity &#39; for
+      compatibility with URLs.
+</ol>
+
+<h3>Version 2.74</h3> <p> September
+13, 2000 <ol>
   <li>Quashed one-character bug that caused CGI.pm to fail on file uploads.
 </ol>
 
@@ -4859,6 +4907,7 @@ This is the release version of 2.57.
   <li>Untainted tainted tempfile name so that script doesn't fail on terminal unlink.
   <li>Made picking of upload tempfile name more intelligent so that doesn't fail in case of name collision.
   <li>Fixed handling of expire times when passed an absolute timestamp.
+  <li>Changed dump() to Dump() to avoid name clashes.
 </ol>
 <h3>Version 2.49</h3>
 <ol>
@@ -5527,6 +5576,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Wed Sep 13 12:30:45 EDT 2000
+Last modified: Fri Feb  2 10:40:28 EST 2001
 <!-- hhmts end -->
 </BODY> </HTML>
