@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.17 1998/02/02 19:33:27 lstein Exp $';
-$CGI::VERSION='2.37023';
+$CGI::revision = '$Id: CGI.pm,v 1.17 1998/02/02 19:33:27 lstein Exp lstein $';
+$CGI::VERSION='2.37024';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -1192,7 +1192,7 @@ sub start_html {
     $dtd = $DEFAULT_DTD unless $dtd && $dtd !~ m|^-//|;
     push(@result,qq(<!DOCTYPE HTML PUBLIC "$dtd">)) if $dtd;
     push(@result,"<HTML><HEAD><TITLE>$title</TITLE>");
-    push(@result,"<LINK REV=MADE HREF=\"mailto:$author\">") if $author;
+    push(@result,"<LINK REV=MADE HREF=\"mailto:$author\">") if defined $author;
 
     if ($base || $xbase || $target) {
 	my $href = $xbase || $self->url();
@@ -1207,8 +1207,8 @@ sub start_html {
     push(@result,ref($head) ? @$head : $head) if $head;
 
     # handle the infrequently-used -style and -script parameters
-    push(@result,$self->_style($style)) if $style;
-    push(@result,$self->_script($script)) if $script;
+    push(@result,$self->_style($style)) if defined $style;
+    push(@result,$self->_script($script)) if defined $script;
 
     # handle -noscript parameter
     push(@result,<<END) if $noscript;
@@ -2005,9 +2005,16 @@ sub self_url {
     my($self) = self_or_default(@_);
     my($query_string) = $self->query_string;
     my $protocol = $self->protocol();
-    my $name = "$protocol://" . $self->virtual_host;
-    $name .= ":" . $self->server_port
-	unless $self->server_port == 80;
+    my $name = "$protocol://";
+    if (my $vh = http('host')) {
+	$name .= $vh;
+    } else {
+	$name .= server_name();
+	my $port = $self->server_port;
+	$name .= ":" . $port
+	    unless (lc($protocol) eq 'http' && $port == 80)
+		|| (lc($protocol) eq 'https' && $port == 443);
+    }
     $name .= $self->script_name;
     $name .= $self->path_info if $self->path_info;
     return $name if $query_string eq '';
@@ -2583,9 +2590,9 @@ END_OF_FUNC
 'get_fields' => <<'END_OF_FUNC',
 sub get_fields {
     my($self) = @_;
-    return $self->hidden('-name'=>'.cgifields',
-			 '-values'=>[keys %{$self->{'.parametersToAdd'}}],
-			 '-override'=>1);
+    return $self->CGI::hidden('-name'=>'.cgifields',
+			      '-values'=>[keys %{$self->{'.parametersToAdd'}}],
+			      '-override'=>1);
 }
 END_OF_FUNC
 
