@@ -18,28 +18,15 @@ require 5.003;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-
 $CGI::revision = '$Id: CGI.pm,v 1.3 1997/08/29 11:29:33 lstein Exp lstein $';
-$CGI::VERSION='2.37b4';
+$CGI::VERSION='2.37b5';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
 # $TempFile::TMPDIRECTORY = '/usr/tmp';
 
-# OVERRIDE THE OS HERE IF CGI.pm GUESSES WRONG
-# $OS = 'UNIX';
-# $OS = 'MACINTOSH';
-# $OS = 'WINDOWS';
-# $OS = 'VMS';
-# $OS = 'OS2';
 
-# Set this to 1 to enable NPH scripts
-# or: 
-#    1) use CGI qw(:nph)
-#    2) $CGI::nph(1)
-#    3) print header(-nph=>1)
-$NPH = 0;
-
+# >>>>> Here are some globals that you might want to adjust <<<<<<
 sub initialize_globals {
     # Set this to 1 to enable copious autoloader debugging messages
     $AUTOLOAD_DEBUG = 0;
@@ -48,6 +35,13 @@ sub initialize_globals {
     # or use default_dtd('text of DTD to use');
     $DEFAULT_DTD = '-//IETF//DTD HTML//EN';
 
+    # Set this to 1 to enable NPH scripts
+    # or: 
+    #    1) use CGI qw(:nph)
+    #    2) $CGI::nph(1)
+    #    3) print header(-nph=>1)
+    $NPH = 0;
+
     # Set this to 1 to make the temporary files created
     # during file uploads safe from prying eyes
     # or do...
@@ -55,7 +49,14 @@ sub initialize_globals {
     #    2) $CGI::private_tempfiles(1);
     $PRIVATE_TEMPFILES = 0;
 
-    # other globals
+    # Change this to 1 to disable uploads entirely:
+    $DISABLE_UPLOADS = 0;
+
+    # Set this to a positive value to limit the size of an uploaded file
+    # to a certain number of bytes:
+    $UPLOAD_MAX = -1;
+
+    # Other globals that you shouldn't worry about.
     undef $Q;
     undef @QUERY_PARAM;
     undef %EXPORT;
@@ -113,7 +114,7 @@ $NPH++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 if (defined($ENV{'GATEWAY_INTERFACE'}) && 
     ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl/)) 
 {
-    $NPH++; $| = 1;
+    $| = 1;
     require Apache;
 }
 
@@ -206,8 +207,10 @@ sub new {
     my($class,$initializer) = @_;
     my $self = {};
     bless $self,ref $class || $class || $DefaultClass;
-    Apache->request->register_cleanup(\&CGI::_reset_globals)
-        if $MOD_PERL;
+    if ($MOD_PERL) {
+	Apache->request->register_cleanup(\&CGI::_reset_globals);
+	undef $NPH;
+    }
     $initializer = to_filehandle($initializer) if $initializer;
     $self->init($initializer);
     return $self;
@@ -985,8 +988,8 @@ sub header {
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
-	next unless my($header,$value) = /([^\s=]+)="?([^"]+)"?/;
-	($_ = $header) =~ s/^(\w)(.*)/$1 . lc $2 . ": $value"/e;
+	next unless my($header,$value) = /([^\s=]+)=\"?([^\"]+)\"?/;
+	($_ = $header) =~ s/^(\w)(.*)/$1 . lc ($2) . ": $value"/e;
     }
 
     $type = $type || 'text/html';
@@ -1014,8 +1017,13 @@ sub header {
     push(@header,@other);
     push(@header,"Content-type: $type");
 
-    my $header = join($CRLF,@header);
-    return $header . "${CRLF}${CRLF}";
+    my $header = join($CRLF,@header)."${CRLF}${CRLF}";
+    if ($MOD_PERL) {
+	my $r = Apache->request;
+	$r->send_cgi_header($header);
+	return '';
+    }
+    return $header;
 }
 END_OF_FUNC
 
@@ -2452,44 +2460,11 @@ sub read_multipart {
 	%header = $buffer->readHeader;
 	die "Malformed multipart POST\n" unless %header;
 
-	my($key) = 'Content-Disposition';
+	my($key) = $header{'Content-disposition'} ? 'Content-disposition' : 'Content-Disposition';
+	my($param)= $header{$key}=~/ name="?([^\";]*)"?/;
 
-	# See RFC 822 sections 3.2 (Header Field Definitions)
-	#   and 3.3 (Lexical Tokens).
-	#
-	# Comments are not allowed in the Content-Disposition field-body.
-	# Parameter name checking is case-insensitive (RFC 2045).
-	#
-	# Check for quoted-string.
-	my($param)= $header{$key}
-        	=~/(?:^|[^-\w!#$%&'*+.^_`|{}~])name=\"	# double-quote
-		 (
-		  (?:
-		   [\000-\014\016-\041\043-\133\135-\177] # any CHAR except CR,
-				# ", or \
-		   |
-		   $CRLF\s+	# linear-white-space
-		   |
-		   \\[\000-\177] # quoted-pair
-		   )*
-		  )
-		 \"		# closing double-quote
-	 /imxo;
-
-	if (!defined $param) {
-		# Check for token.
-		# Also note that the attribute is a token
-		# and so "name" must be preceded by nothing
-		# or a character not allowed in a token.
-		($param) = $header{$key}
-		  =~/(?:^|[^-\w!#$%&'*+.^_`|{}~])name=([-\w!#$%&'*+.^_`|{}~]+)/im;
-	}
-
-	# Netscape doesn't escape quotation marks in file names!!!
-	my($filename);
-	if ($header{$key} =~ /(?:^|[^-\w!#$%&'*+.^_`|{}~])filename="(.*)"/im) {
-		$filename = $1 || "CGI" . ++$filenumber;
-	}
+	# Bug:  Netscape doesn't escape quotation marks in file names!!!
+	my($filename) = $header{$key}=~/ filename="?([^\";]*)"?/;
 
 	# add this parameter to our list
 	$self->add_parameter($param);
@@ -2502,55 +2477,74 @@ sub read_multipart {
 	    next;
 	}
 
-	# If we get here, then we are dealing with a potentially large
-	# uploaded form.  Save the data to a temporary file, then open
-	# the file for reading.
-	my($tmpfile) = new TempFile;
-	my $tmp = $tmpfile->as_string;
+	my ($tmpfile,$tmp);
+      UPLOADS: {
+	  # If we get here, then we are dealing with a potentially large
+	  # uploaded form.  Save the data to a temporary file, then open
+	  # the file for reading.
+	  last UPLOADS if $DISABLE_UPLOADS;
+
+	  $tmpfile = new TempFile;
+	  $tmp = $tmpfile->as_string;
 	
-	# Now create a new filehandle in the caller's namespace.
-	# The name of this filehandle just happens to be identical
-	# to the original filename (NOT the name of the temporary
-	# file, which is hidden!)
-	my($filehandle);
-	if ($filename=~/^[a-zA-Z_]/) {
-	    my($frame,$cp)=(1);
-	    do { $cp = caller($frame++); } until !eval("'$cp'->isaCGI()");
-	    $filehandle = "$cp\:\:$filename";
-	} else {
-	    $filehandle = "\:\:$filename";
+	  # Now create a new filehandle in the caller's namespace.
+	  # The name of this filehandle just happens to be identical
+	  # to the original filename (NOT the name of the temporary
+	  # file, which is hidden!)
+	  my($filehandle);
+	  if ($filename=~/^[a-zA-Z_]/) {
+	      my($frame,$cp)=(1);
+	      do { $cp = caller($frame++); } until !eval("'$cp'->isaCGI()");
+	      $filehandle = "$cp\:\:$filename";
+	  } else {
+	      $filehandle = "\:\:$filename";
+	  }
+
+	  # This technique causes open to fail if file already exists.
+	  unless (defined(&O_RDWR)) {
+	      require Fcntl;
+	      import Fcntl qw/O_RDWR O_CREAT O_EXCL/;
+	  }
+	  sysopen($filehandle,$tmp,&O_RDWR|&O_CREAT|&O_EXCL) || die "CGI open of $tmp: $!\n";
+	  unlink($tmp) if $PRIVATE_TEMPFILES;
+
+	  $CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
+	  chmod 0600,$tmp;    # only the owner can tamper with it
+
+	  my ($data);
+	  my ($maxsize) = $UPLOAD_MAX;
+	  while (defined($data = $buffer->read)) {
+	      if ($UPLOAD_MAX >= 0) {
+		  $maxsize -= length($data);
+		  if ($maxsize <= 0) {
+		      # truncate data if necessary
+		      print $filehandle substr($data,0,$maxsize);
+		      last;
+		  }
+	      }
+	      print $filehandle $data;
+	  }
+
+	  # reportedly seek() doesn't work correctly on some
+	  # windows systems.  Play it safe.
+	  if ($CGI::OS eq 'UNIX') {
+	      seek($filehandle,0,0);
+	  } else {
+	      close($filehandle);
+	      open($filehandle, $tmp) || die "CGI open of $tmp: $!\n";
+	      $CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
+	  }
+
+      }
+	
+	# skip the file if uploads disabled
+	if ($DISABLE_UPLOADS) {
+	    while (defined($data = $buffer->read))
+	    { }
 	}
 
-        # potential security problem -- this type of line can clobber 
-	# tempfile, and can be abused by malicious users.
-	# open ($filehandle,">$tmp") || die "CGI open of $tmpfile: $!\n";
-
-	# This technique causes open to fail if file already exists.
-	unless (defined(&O_RDWR)) {
-	    require Fcntl;
-	    import Fcntl qw/O_RDWR O_CREAT O_EXCL/;
-	}
-	sysopen($filehandle,$tmp,&O_RDWR|&O_CREAT|&O_EXCL) || die "CGI open of $tmp: $!\n";
-	unlink($tmp) if $PRIVATE_TEMPFILES;
-
-	$CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
-	chmod 0600,$tmp;    # only the owner can tamper with it
-	my $data;
-	while (defined($data = $buffer->read)) {
-	    print $filehandle $data;
-	}
-
-	# reportedly seek() doesn't work correctly on some
-        # windows systems.  Play it safe.
-        if ($CGI::OS eq 'UNIX') {
-	    seek($filehandle,0,0);
-	} else {
-	    close($filehandle);
-	    open($filehandle, $tmp) || die "CGI open of $tmp: $!\n";
-	    $CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
-	}
 	push(@{$self->{$param}},$filename);
-
+	
 	# Under Unix, it would be safe to let the temporary file
 	# be deleted immediately.  However, I fear that other operating
 	# systems are not so forgiving.  Therefore we save a reference
@@ -2565,6 +2559,7 @@ sub read_multipart {
 	    info=>{%header}
 	}
     }
+
 }
 END_OF_FUNC
 

@@ -20,7 +20,7 @@ print h1("File Upload Example"),
 @types = ('count lines','count words','count characters');
 
 # Start a multipart form.
-print start_multipart_form(-action=>self_url() . '?andy=foo&cindy=bar'),
+print start_multipart_form(),
     "Enter the file to process:",
     filefield('filename','',45),
     br,
