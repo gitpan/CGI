@@ -28,14 +28,13 @@ $AUTOLOAD_DEBUG=0;
 #    3) print header(-nph=>1)
 $NPH=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.30 1997/1/01 12:12 lstein Exp $';
-$CGI::VERSION='2.30';
+$CGI::revision = '$Id: CGI.pm,v 2.31 1997/1/31 7:54 lstein Exp $';
+$CGI::VERSION='2.31';
 
 # OVERRIDE THE OS HERE IF CGI.pm GUESSES WRONG
 # $OS = 'UNIX';
 # $OS = 'MACINTOSH';
 # $OS = 'WINDOWS';
-# $OS = 'NT';
 # $OS = 'VMS';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
@@ -80,7 +79,7 @@ $SL = {
     }->{$OS};
 
 # Turn on NPH scripts by default when running under IIS server!
-$NPH++ if $ENV{'SERVER_SOFTWARE'}=~/IIS/;
+$NPH++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 
 # This is really "\r\n", but the meaning of \n is different
 # in MacPerl, so we resort to octal here.
@@ -92,7 +91,9 @@ if ($needs_binmode) {
     $CGI::DefaultClass->binmode(main::STDERR);
 }
 
-%OVERLOAD = ('""'=>'as_string');
+# Cute feature, but it broke when the overload mechanism changed...
+# %OVERLOAD = ('""'=>'as_string');
+
 %EXPORT_TAGS = (
 	      ':html2'=>[h1..h6,qw/p br hr ol ul li dl dt dd menu code var strong em
 			 tt i b blockquote pre img a address cite samp dfn html head
@@ -103,7 +104,7 @@ if ($needs_binmode) {
 	      ':form'=>[qw/textfield textarea filefield password_field hidden checkbox checkbox_group 
 		       submit reset defaults radio_group popup_menu button autoEscape
 		       scrolling_list image_button start_form end_form startform endform
-		       start_multipart_form isindex tmpFileName URL_ENCODED MULTIPART/],
+		       start_multipart_form isindex tmpFileName uploadInfo URL_ENCODED MULTIPART/],
 	      ':cgi'=>[qw/param path_info path_translated url self_url script_name cookie 
 		       raw_cookie request_method query_string accept user_agent remote_host 
 		       remote_addr referer server_name server_software server_port server_protocol
@@ -863,7 +864,11 @@ sub header {
 	    push(@header,"Set-cookie: $_");
 	}
     }
+    # if the user indicates an expiration time, then we need
+    # both an Expires and a Date header (so that the browser is
+    # uses OUR clock)
     push(@header,"Expires: " . &expires($expires)) if $expires;
+    push(@header,"Date: " . &expires(0)) if $expires;
     push(@header,"Pragma: no-cache") if $self->cache();
     push(@header,@other);
     push(@header,"Content-type: $type");
@@ -1022,7 +1027,7 @@ END_OF_FUNC
 # synonym for startform
 'start_form' => <<'END_OF_FUNC',
 sub start_form {
-    &startform(@_);
+    &startform;
 }
 END_OF_FUNC
 
@@ -1060,7 +1065,7 @@ END_OF_FUNC
 # synonym for endform
 'end_form' => <<'END_OF_FUNC',
 sub end_form {
-    &endform(@_);
+    &endform;
 }
 END_OF_FUNC
 
@@ -1469,7 +1474,7 @@ sub radio_group {
 	$checked = $default;
     }
     # If no check array is specified, check the first by default
-    $checked = $values->[0] unless defined($checked) && $checked ne '';
+    $checked = $values->[0] unless $checked;
     $name=$self->escapeHTML($name);
 
     my(@elements);
@@ -1713,7 +1718,7 @@ END_OF_FUNC
 # Cookie can then be passed to header().
 # Usual rules apply to the stickiness of -value.
 #  Parameters:
-#   -name -> name for this cookie (required)
+#   -name -> name for this cookie (optional)
 #   -value -> value of this cookie (scalar, array or hash) 
 #   -path -> paths for which this cookie is valid (optional)
 #   -domain -> internet domain in which this cookie is valid (optional)
@@ -1726,6 +1731,8 @@ sub cookie {
     my($self,@p) = self_or_default(@_);
     my($name,$value,$path,$domain,$secure,$expires) =
 	$self->rearrange([NAME,[VALUE,VALUES],PATH,DOMAIN,SECURE,EXPIRES],@p);
+
+
     # if no value is supplied, then we retrieve the
     # value of the cookie, if any.  For efficiency, we cache the parsed
     # cookie in our state variables.
@@ -1738,7 +1745,12 @@ sub cookie {
 		$self->{'.cookies'}->{unescape($key)} = [@values];
 	    }
 	}
-	return wantarray ? @{$self->{'.cookies'}->{$name}} : $self->{'.cookies'}->{$name}->[0];
+
+	# If no name is supplied, then retrieve the names of all our cookies.
+	return () unless $self->{'.cookies'};
+	return wantarray ? @{$self->{'.cookies'}->{$name}} : $self->{'.cookies'}->{$name}->[0]
+	    if defined($name) && $name ne '';
+	return keys %{$self->{'.cookies'}};
     }
     my(@values);
 
@@ -1753,6 +1765,9 @@ sub cookie {
 	@values = ($value);
     }
     @values = map escape($_),@values;
+
+    # I.E. requires the path to be present.
+    ($path = $ENV{'SCRIPT_NAME'})=~s![^/]+$!! unless $path;
 
     my(@constant_values);
     push(@constant_values,"domain=$domain") if $domain;
@@ -1933,7 +1948,7 @@ END_OF_FUNC
 'raw_cookie' => <<'END_OF_FUNC',
 sub raw_cookie {
     my($self) = self_or_CGI(@_);
-    return $self->http('cookie') || '';
+    return $self->http('cookie') || $ENV{'COOKIE'} || '';
 }
 END_OF_FUNC
 
@@ -2285,9 +2300,11 @@ sub read_multipart {
 	# uploaded form.  Save the data to a temporary file, then open
 	# the file for reading.
 	my($tmpfile) = new TempFile;
-	open (OUT,">$tmpfile") || die "CGI open of $tmpfile: $!\n";
+	my $tmp = $tmpfile->as_string;
+	
+	open (OUT,">$tmp") || die "CGI open of $tmpfile: $!\n";
 	$CGI::DefaultClass->binmode(OUT) if $CGI::needs_binmode;
-	chmod 0666,$tmpfile;    # make sure anyone can delete it.
+	chmod 0666,$tmp;    # make sure anyone can delete it.
 	my $data;
 	while ($data = $buffer->read) {
 	    print OUT $data;
@@ -2301,13 +2318,13 @@ sub read_multipart {
 	my($filehandle);
 	if ($filename=~/^[a-zA-Z_]/) {
 	    my($frame,$cp)=(1);
-	    do { $cp = caller($frame++); } until !eval("$cp->isaCGI()");
+	    do { $cp = caller($frame++); } until !eval("'$cp'->isaCGI()");
 	    $filehandle = "$cp\:\:$filename";
 	} else {
 	    $filehandle = "\:\:$filename";
 	}
 
-	open($filehandle,$tmpfile) || die "CGI open of $tmpfile: $!\n";
+	open($filehandle,$tmp) || die "CGI open of $tmp: $!\n";
 	$CGI::DefaultClass->binmode($filehandle) if $CGI::needs_binmode;
 
 	push(@{$self->{$param}},$filename);
@@ -2321,15 +2338,25 @@ sub read_multipart {
 	# effect that one can access the name of the tmpfile by
 	# asking for $query->{$query->param('foo')}, where 'foo'
 	# is the name of the file upload field.
-	$self->{'.tmpfiles'}->{$filename}=$tmpfile;
+	$self->{'.tmpfiles'}->{$filename}= {
+	    name=>$tmpfile,
+	    info=>{%header}
+	}
     }
 }
 END_OF_FUNC
 
-'tmpFileName' => <<'END_OF_FUNC'
+'tmpFileName' => <<'END_OF_FUNC',
 sub tmpFileName {
     my($self,$filename) = self_or_default(@_);
-    return $self->{'.tmpfiles'}->{$filename};
+    return $self->{'.tmpfiles'}->{$filename}->{name}->as_string;
+}
+END_OF_FUNC
+
+'uploadInfo' => <<'END_OF_FUNC'
+sub uploadInfo {
+    my($self,$filename) = self_or_default(@_);
+    return $self->{'.tmpfiles'}->{$filename}->{info};
 }
 END_OF_FUNC
 
@@ -2562,15 +2589,9 @@ unless ($TMPDIRECTORY) {
 $TMPDIRECTORY  = "." unless $TMPDIRECTORY;
 $SEQUENCE="CGItemp$$0000";
 
-%OVERLOAD = ('""'=>'as_string');
+# cute feature, but overload implementation broke it
+# %OVERLOAD = ('""'=>'as_string');
 *TempFile::AUTOLOAD = \&CGI::AUTOLOAD;
-
-# for mysterious reasons, the overloaded variables don't like to be
-# autoloaded.
-sub as_string {
-    my($self) = @_;
-    return $$self;
-}
 
 ###############################################################################
 ################# THESE FUNCTIONS ARE AUTOLOADED ON DEMAND ####################
@@ -2588,10 +2609,17 @@ sub new {
 }
 END_OF_FUNC
 
-'DESTROY' => <<'END_OF_FUNC'
+'DESTROY' => <<'END_OF_FUNC',
 sub DESTROY {
     my($self) = @_;
     unlink $$self;              # get rid of the file
+}
+END_OF_FUNC
+
+'as_string' => <<'END_OF_FUNC'
+sub as_string {
+    my($self) = @_;
+    return $$self;
 }
 END_OF_FUNC
 
@@ -3465,7 +3493,7 @@ by calling param().
 
        $filename = $query->param('uploaded_file');
 
-In Netscape Beta 1, the filename that gets returned is the full local filename
+In Netscape Gold, the filename that gets returned is the full local filename
 on the B<remote user's> machine.  If the remote user is on a Unix
 machine, the filename will follow Unix conventions:
 
@@ -3478,9 +3506,6 @@ On an MS-DOS/Windows machine, the filename will follow DOS conventions:
 On a Macintosh machine, the filename will follow Mac conventions:
 
 	HD 40:Desktop Folder:Sort Through:Reminders
-
-In Netscape Beta 2, only the last part of the file path (the filename
-itself) is returned.  I don't know what the release behavior will be.
 
 The filename returned is also a file handle.  You can read the contents
 of the file using standard Perl file reading calls:
@@ -3495,6 +3520,19 @@ of the file using standard Perl file reading calls:
 	while ($bytesread=read($filename,$buffer,1024)) {
 	   print OUTFILE $buffer;
 	}
+
+When a file is uploaded the browser usually sends along some
+information along with it in the format of headers.  The information
+usually includes the MIME content type.  Future browsers may send
+other information as well (such as modification date and size). To
+retrieve this information, call uploadInfo().  It returns a reference to
+an associative array containing all the document headers.
+
+       $filename = $query->param('uploaded_file');
+       $type = $query->uploadInfo($filename)->{'Content-Type'};
+       unless ($type eq 'text/html') {
+	  die "HTML FILES ONLY!";
+       }
 
 JAVASCRIPTING: The B<-onChange>, B<-onFocus>, B<-onBlur>
 and B<-onSelect> parameters are recognized.  See textfield()

@@ -5,14 +5,13 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.30, 1/01/97, L. Stein
+Version 2.31, 2/8/97, L. Stein
 <p>
 
-<strong>WARNING:</strong> As threatened, the <code>import()</code>
-routine has been changed for compatibility with the standard perl
-module usage.  Please use <code>import_names()</code> to copy CGI
-variables into your name space.  The dependence on the SelfLoader has
-also been removed by popular demand.
+<strong>WARNING:</strong> The overloaded double-quote ("") operator
+has been removed.  In previous versions, CGI objects were
+automatically interpolated as HTML into double-quoted strings.  This
+was useful for debugging, but broke in newer versions of Perl.
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
 fill-out forms on the fly and to parse their contents.  It is similar
@@ -80,10 +79,6 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <BR><A HREF="examples/">More scripting examples</A>
 
 <p>
-(Users of CGI.pm before version 2.20 will notice that the syntax has
-changed a in this example from previous examples.  Don't worry, the
-object-oriented syntax is still accepted.  Read <a
-href="#import">importing CGI methods</a> for an explanation.)
 
 <A NAME="contents">
 <H2>Contents</H2>
@@ -111,7 +106,7 @@ href="#import">importing CGI methods</a> for an explanation.)
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.30?</A>
+  <LI><A HREF="#new">What's new in version 2.31?</A>
 </MENU>
 
 <HR>
@@ -523,12 +518,15 @@ and a message to pass back to the browser:
    print $query-&gt;header(-type=&gt;'image/gif',
                         -status=&gt;'204 No Response');
 </PRE>
+
 This presents the browser with a status code of 204 (No response).
 Properly-behaved browsers will take no action, simply remaining on the
 current page.  (This is appropriate for a script that does some
 processing but doesn't need to display any results, or for a script
 called when a user clicks on an empty part of a clickable image map.)
+
 <P>
+
 Several other named parameters are recognized.  Here's a
 contrived example that uses them all:
 
@@ -542,14 +540,15 @@ contrived example that uses them all:
 
 <h4>-expires</h4>
 
-Most browsers will not cache the output of CGI scripts.  Every time
-the browser reloads the page, the script is invoked again.  You can
-change this behavior with the <strong>-expires</strong> parameter.
-When you specify an absolute or relative expiration interval with this
-parameter, some browsers and proxy servers will cache the script's
-output until the indicated expiration date.  The following forms are
-all valid for the <strong>-expires</strong> field:
-<pre>
+Some browsers, such as Internet Explorer, cache the output of CGI
+scripts.  Others, such as Netscape Navigator do not.  This leads to
+annoying and inconsistent behavior when going from one browser to
+another.  You can force the behavior to be consistent by using the
+<strong>-expires</strong> parameter.  When you specify an absolute or
+relative expiration interval with this parameter, browsers and
+proxy servers will cache the script's output until the indicated
+expiration date.  The following forms are all valid for the
+<strong>-expires</strong> field: <pre>
 	+30s                              30 seconds from now
 	+10m                              ten minutes from now
 	+1h	                          one hour from now
@@ -559,7 +558,14 @@ all valid for the <strong>-expires</strong> field:
         +10y                              in ten years time
 	Thursday, 25-Apr-96 00:40:33 GMT  at the indicated time & date
 </pre>
+
+When you use <strong>-expires</strong>, the script also generates a
+correct time stamp for the generated document to ensure that your
+clock and the browser's clock agree.  This allows you to create
+documents that are reliably cached for short periods of time.
+
 <p>
+
 <strong>CGI::expires()</strong> is the static function call used internally that turns
 relative time intervals into HTTP dates.  You can call it directly if
 you wish.
@@ -570,7 +576,12 @@ The <strong>-cookie</strong> parameter generates a header that tells
 Netscape browsers to return a "magic cookie" during all subsequent
 transactions with your script.  Netscape cookies have a special format
 that includes interesting attributes such as expiration time.  Use the
-<a name="#cookies">cookie()</a> method to create and retrieve session cookies.
+<a name="#cookies">cookie()</a> method to create and retrieve session
+cookies.  The value of this parameter can be either a scalar value or
+an array reference.  You can use the latter to generate multiple
+cookies.  (You can use the alias <strong>-cookies</strong> for
+readability.)
+
 
 <h4>-nph</h4>
 
@@ -967,11 +978,14 @@ two types of encoding that you can specify:
        knows how to handle them.  Unless you are using the file upload
        feature, there's no particular reason to use this type of encoding.
 </DL>
+
 For compatability, the startform() method uses the older form of
 encoding by default.  If you want to use the newer form of encoding
 By default, you can call <A HREF="#multipart">start_multipart_form()</A>
 instead of <CODE>startform()</CODE>.
+
 <p>
+
 If you plan to make use of the <a href="#javascripting">JavaScript features</a>
 of Netscape 2.0, you can provide <code>startform()</code> with the optional
 <code>-name</code> and/or <code>-onSubmit</code>
@@ -1106,7 +1120,9 @@ Netscape 2.0 browsers.  Netscape will prompt the remote
 user to select a file to transmit over the Internet to the
 server.  Other browsers currently ignore this
 field.
+
 <P>
+
 In order to take full advantage of the file upload
 facility you must use the new <A HREF="#multipart">multipart
 form encoding scheme</A>.  You can do this either
@@ -1116,32 +1132,43 @@ or by using the new <A HREF="#multipart">start_multipart_form()</A>
 method.  If you don't use multipart encoding, then you'll be
 able to retreive the name of the file selected by the remote
 user, but you won't be able to access its contents.
+
 <P>
+
 When the form is processed, you can retrieve the entered filename
 by calling param().
+
 <PRE>
        $filename = $query-&gt;param('uploaded_file');
 </PRE>
+
 where "uploaded_file" is whatever you named the file upload field.
 Under Netscape 2.0beta1 the filename that gets returned is the full
 local filename
 on the <STRONG>remote user's</STRONG> machine.  If the remote
 user is on a Unix machine, the filename will follow Unix conventions:
+
 <PRE>
 	/path/to/the/file
 </PRE>
+
 On an MS-DOS/Windows machine, the filename will follow DOS conventions:
 <PRE>
 	C:\PATH\TO\THE\FILE.MSW
 </PRE>
+
 On a Macintosh machine, the filename will follow Mac conventions:
+
 <PRE>
 	HD 40:Desktop Folder:Sort Through:Reminders
 </PRE>
+
 Netscape 2.0beta2 changes this behavior and only returns the name
 of the file itself.  Who knows what the behavior of the release
 browser will be?
+
 <P>
+
 The filename returned is also a file handle.  You can read the contents
 of the file using standard Perl file reading calls:
 <PRE>
@@ -1157,6 +1184,7 @@ of the file using standard Perl file reading calls:
         }
        close $filename;
 </PRE>
+
 You can have several file upload fields in the same form, and even
 give them the same name if you like (in the latter case <CODE>param()</CODE>
 will return a list of file names).
@@ -1183,6 +1211,26 @@ exits unless you manually rename it.  On some operating systems (such
 as Windows NT), you will need to close the temporary file's filehandle
 before your program exits.  Otherwise the attempt to delete the
 temporary file will fail.
+
+<p>
+
+Usually the browser sends along some header information along with the
+text of the file itself. Currently the headers contain only the
+original file name and the MIME content type (if known). Future
+browsers might send other information as well (such as modification
+date and size). To retrieve this information, call
+<strong>uploadInfo()</strong>.  It returns a reference to an
+associative array containing all the document headers.  For example,
+this code fragment retrieves the MIME type of the uploaded file (be
+careful to use the proper capitalization for "Content-Type"!):
+
+<pre>
+       $filename = $query->param('uploaded_file');
+       $type = $query->uploadInfo($filename)->{'Content-Type'};
+       unless ($type eq 'text/html') {
+	  die "HTML FILES ONLY!";
+       }
+</pre>
 
 <p>
 
@@ -2112,7 +2160,7 @@ The interface to Netscape cookies is the <strong>cookie()</strong> method:
       SSL session.
 </dl>
 
-The cookie created by cookie() must be incorporated into the HTTP
+The cookie created by <strong>cookie()</strong> must be incorporated into the HTTP
 header within the string returned by the <a href="#header">header()</a> method:
 <pre>
 	print $query-&gt;header(-cookie=&gt;$my_cookie);
@@ -2125,14 +2173,28 @@ To create multiple cookies, give header() an array reference:
                                   -value=&gt;\%answers);
         print $query-&gt;header(-cookie=&gt;[$cookie1,$cookie2]);
 </pre>
+
 To retrieve a cookie, request it by name by calling cookie()
 method without the <strong>-value</strong> parameter:
+
 <pre>
 	use CGI;
 	$query = new CGI;
 	%answers = $query-&gt;cookie('answers');
 	# $query-&gt;cookie(-name=&gt;'answers') works too!
 </pre>
+
+
+To retrieve the names of all cookies passed to your script, call
+<strong>cookie()</strong> without any parameters.  This allows you to
+iterate through all cookies:
+
+<pre>
+	foreach $name ($query-&gt;cookie()) {
+            print $query-&gt;cookie($name);
+        }
+</pre>
+
 <p>
 
 The cookie and CGI namespaces are separate.  If you have a parameter
@@ -2765,9 +2827,14 @@ instances that break the file upload feature.
 Known problems include:
 
 <ol>
-  <li>Large file uploads may fail when using SSL on the Netscape
-      servers (all platforms).  This is a documented bug in the
+  <li>Large file uploads may fail when using SSL version 2.0.  This
+      affects the Netscape servers and possibly others that use the SSL
+      library.  I have received reports that WebSite Pro suffers from
+      this problem.  This is a documented bug in the
       Netscape implementation of SSL and not a problem with CGI.pm.
+  <li>Microsoft IIS version 3.0 truncates file uploads greater than
+      57 K, regardless of whether or not you're using SSL.  Version 2.0
+      is not affected by this problem.
   <li>If you try to upload a <strong>directory</strong> path with Unix
       Netscape, the browser will hang until you hit the "stop" button.
       I haven't tried to figure this one out since I think it's dumb
@@ -2797,6 +2864,36 @@ deleted automatically.
 <P>
 
 <H3>Frequent Problems</H3>
+
+<h4>When you run a script from the command line, it says "offline
+mode: enter name=value pairs on standard input".  What do I do
+now?</h4>
+This is a prompt to enter some CGI parameters for the purposes of
+debugging.  You can now type in some parameters like this:
+
+<pre>
+    first_name=Fred
+    last_name=Flintstone
+    city=Bedrock
+</pre>
+
+End the list by typing a control-D (or control-Z on DOS/Windows
+systems).
+
+<p>
+
+If you want to run a CGI script from a script or batch file, and don't
+want this behavior, just pass it an empty parameter list like this:
+
+<pre>
+     my_script.pl ''
+</pre>
+
+This will work too on Unix systems:
+
+<pre>
+     my_script.pl </dev/null
+</pre>
 
 <H4>You can't retrieve the name of the uploaded file
 using the param() method</H4>
@@ -2855,12 +2952,14 @@ forms.  If the script generates different pages for the form and the
 results, hitting the "back" button doesn't always return you to the
 previous page; instead Netscape reloads the current page.  This happens
 even if you don't use an upload file field in your form.
+
 <p>
-The workaround
-for this is to use additional path information to trick Netscape into
-thinking that the form and the response have different URLs.  I
-recommend giving each form a sequence number and bumping the
+
+A workaround for this is to use additional path information to trick
+Netscape into thinking that the form and the response have different
+URLs.  I recommend giving each form a sequence number and bumping the
 sequence up by one each time the form is accessed:
+
 <pre>
    my($s) = $query-&gt;path_info=~/(\d+)/; # get sequence
    $s++;                                #bump it up
@@ -2902,7 +3001,6 @@ correct definition:
    # $OS = 'UNIX';
    # $OS = 'MACINTOSH';
    # $OS = 'WINDOWS';
-   # $OS = 'NT';
    # $OS = 'VMS';
 </pre>
 
@@ -3030,15 +3128,11 @@ see the companion pages for my book
 <A HREF="http://www.genome.wi.mit.edu/WWW/">How to Set Up and
 Maintain a World Wide Web Site</A>
 
-<HR>
-<A NAME="distribution">
-<H2>Distribution Information:</H2>
-</A>
-This code is copyright 1995, 1996 by Lincoln Stein and the Whitehead 
-Institute for Biomedical Research.  It may be used and modified 
-freely, but I do request that this copyright notice remain
-attached to the file.  You may modify this module as you wish, but if you
-redistribute a modified version, please attach a note listing the
+<HR> <A NAME="distribution"> <H2>Distribution Information:</H2> </A>
+This code is copyright 1995-1997 by Lincoln Stein.  It may be used and
+modified freely, but I do request that this copyright notice remain
+attached to the file.  You may modify this module as you wish, but if
+you redistribute a modified version, please attach a note listing the
 modifications you have made.
 
 <HR>
@@ -3055,7 +3149,26 @@ Address bug reports and comments to:<BR>
 <P><A HREF="#contents">Up to table of contents</A>
 
 <HR>
+
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.31</h3>
+<ol>
+  <li>New <strong>uploadInfo()</strong> method to obtain header
+      information from uploaded files.
+  <li><strong>cookie()</strong> without any arguments returns all the
+      cookies passed to a script.
+  <li>Removed annoying warnings about $ENV{NPH} when running with the
+      -w switch.
+  <li>Removed operator overloading throughout to make compatible with
+      new versions of perl.
+  <li><strong>-expires</strong> now implies the <strong>-date</strong>
+      header, to avoid clock skew.
+  <li>WebSite passes cookies in $ENV{COOKIE} rather than $ENV{HTTP_COOKIE}.
+      We now handle this, even though it's O'Reilly's fault.
+  <li>Tested successfully against new sfio I/O layer.
+  <li>Documentation fixes.
+</ol>
+
 <h3>Version 2.30</h3>
 <ol>
   <li>Automatic detection of operating system at load time.
@@ -3070,7 +3183,6 @@ Address bug reports and comments to:<BR>
 	<li>server_software()
       </ul>
   <li>Automatic NPH mode when running under Microsoft IIS server.
-  <li>Fixed problems when radio_button() passed a default value of "0".
 </ol>
 
 <h3>Version 2.29</h3>
@@ -3460,6 +3572,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Thu Jan  2 17:40:01 EST 1997
+Last modified: Sat Feb 15 16:32:08 EST 1997
 <!-- hhmts end -->
 </BODY> </HTML>
