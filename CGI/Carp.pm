@@ -175,7 +175,7 @@ use Carp;
 
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
 $main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.08';
+$CGI::Carp::VERSION = '1.09';
 $CGI::Carp::CUSTOM_MSG = undef;
 
 # fancy import routine detects and handles 'errorWrap' specially.
@@ -281,7 +281,7 @@ END
 
     if ($CUSTOM_MSG) {
 	if (ref($CUSTOM_MSG) eq 'CODE') {
-	    $CUSTOM_MSG->($msg);
+	    &$CUSTOM_MSG($msg); # nicer to perl 5.003 users
 	    return;
 	} else {
 	    $outer_message = $CUSTOM_MSG;

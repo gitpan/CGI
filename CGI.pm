@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.24 1998/02/24 22:50:27 lstein Exp $';
-$CGI::VERSION='2.37029';
+$CGI::revision = '$Id: CGI.pm,v 1.25 1998/03/13 21:14:49 lstein Exp lstein $';
+$CGI::VERSION='2.37030';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -61,6 +61,7 @@ sub initialize_globals {
 
     # Other globals that you shouldn't worry about.
     undef $Q;
+    $BEEN_THERE = 0;
     undef @QUERY_PARAM;
     undef %EXPORT;
 
@@ -328,13 +329,15 @@ sub init {
 
   METHOD: {
 
-      # special case for multipart postings
+      # Special convoluted logic for multipart postings.
+      # Allow the first upload to succeed.  Second ones are
+      # read from the filehandle.
       if ($meth eq 'POST'
 	  && defined($ENV{'CONTENT_TYPE'})
 	  && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|
-	  && ( !defined($initializer) || $fh )
+	  && ( !defined($initializer) || ($fh && $BEEN_THERE) )
 	  ) {
-
+	  $BEEN_THERE++;
 	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary=\"?([^\";]+)\"?/;
 	  $self->read_multipart($boundary,$content_length,to_filehandle($initializer));
 	  last METHOD;
@@ -640,7 +643,7 @@ sub _setup_symbols {
     my $compile = 0;
     foreach (@_) {
 	$NPH++, next if /^[:-]nph$/;
-	$NO_DEBUG++, next if /^[:-]no_?debug$/;
+	$NO_DEBUG++, next if /^[:-]no_?[Dd]ebug$/;
 	$PRIVATE_TEMPFILES++, next if /^[:-]private_tempfiles$/;
 	$EXPORT{$_}++, next if /^[:-]any$/;
 	$compile++, next if /^[:-]compile$/;
@@ -742,6 +745,7 @@ sub import_names {
 	    local *symbol = "${namespace}::${_}";
 	    undef $symbol;
 	    undef @symbol;
+	    undef %symbol;
 	}
     }
     my($param,@value,$var);
@@ -1724,7 +1728,8 @@ sub unescapeHTML {
     $string=~s/&quot;/\"/ig;
     $string=~s/&gt;/>/ig;
     $string=~s/&lt;/</ig;
-    $string=~s/&#(\d+);/chr($1)/eig; 
+    $string=~s/&#(\d+);/chr($1)/eg; 
+    $string=~s/&#[xX]([0-9a-fA-F]);/chr(hex($1))/eg; 
     return $string;
 }
 END_OF_FUNC
@@ -1951,7 +1956,7 @@ sub hidden {
 	$self->rearrange([NAME,[DEFAULT,VALUE,VALUES],[OVERRIDE,FORCE]],@p);
 
     my $do_override = 0;
-    if ( substr($p[0],0,1) eq '-' || $self->use_named_parameters ) {
+    if ( ref($p[0]) || substr($p[0],0,1) eq '-' || $self->use_named_parameters ) {
 	@value = ref($default) ? @{$default} : $default;
 	$do_override = $override;
     } else {
@@ -4336,7 +4341,7 @@ It is suitable for forms that contain very large fields or that
 are intended for transferring binary data.  Most importantly,
 it enables the "file upload" feature of Netscape 2.0 forms.  For
 your convenience, CGI.pm stores the name of this encoding type
-in B<$CGI::MULTIPART>
+in B<&CGI::MULTIPART>
 
 Forms that use this type of encoding are not easily interpreted
 by CGI scripts unless they use CGI.pm or another library designed
