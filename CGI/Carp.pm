@@ -119,6 +119,23 @@ import it on the use() line:
     use CGI::Carp qw(fatalsToBrowser set_message);
     set_message("It's not a bug, it's a feature!");
 
+You may also pass in a code reference in order to create a custom
+error message.  At run time, your code will be called with the text
+of the error message that caused the script to die.  Example:
+
+    use CGI::Carp qw(fatalsToBrowser set_message);
+    BEGIN {
+       sub handle_errors {
+          my $msg = shift;
+          print "<h1>Oh gosh</h1>";
+          print "Got an error: $msg";
+      }
+      set_message(\&handle_errors);
+    }
+
+In order to correctly intercept compile-time errors, you should call
+set_message() from within a BEGIN{} block.
+
 =head1 CHANGE LOG
 
 1.05 carpout() added and minor corrections by Marc Hedlund
@@ -129,6 +146,11 @@ import it on the use() line:
 
 1.08 set_message() added and carpout() expanded to allow for FileHandle
      objects.
+
+1.09 set_message() now allows users to pass a code REFERENCE for 
+     really custom error messages.  croak and carp are now
+     exported by default.  Thanks to Gunther Birznieks for the
+     patches.
 
 =head1 AUTHORS
 
@@ -160,7 +182,7 @@ $CGI::Carp::CUSTOM_MSG = undef;
 sub import {
     my $pkg = shift;
     my(%routines);
-    grep($routines{$_}++,@_);
+    grep($routines{$_}++,@_,@EXPORT);
     $WRAP++ if $routines{'fatalsToBrowser'} || $routines{'wrap'};
     my($oldlevel) = $Exporter::ExportLevel;
     $Exporter::ExportLevel = 1;
@@ -204,9 +226,8 @@ sub die {
     my $message = shift;
     my $time = scalar(localtime);
     my($file,$line,$id) = id(1);
-#    return undef if $file=~/^\(eval/;
     $message .= " at $file line $line.\n" unless $message=~/\n$/;
-    &fatalsToBrowser($message) if $WRAP;
+    &fatalsToBrowser($message) if $WRAP && Carp::longmess() !~ /eval [{']/m;
     my $stamp = stamp;
     $message=~s/^/$stamp/gm;
     realdie $message;
@@ -251,18 +272,29 @@ sub fatalsToBrowser {
     my($wm) = $ENV{SERVER_ADMIN} ? 
 	qq[the webmaster (<a href="mailto:$ENV{SERVER_ADMIN}">$ENV{SERVER_ADMIN}</a>)] :
 	"this site's webmaster";
-    my ($MSG) = $CUSTOM_MSG || <<END;
+    my ($outer_message) = <<END;
 For help, please send mail to $wm, giving this error message 
 and the time and date of the error.
 END
     ;
     print STDOUT "Content-type: text/html\n\n";
+
+    if ($CUSTOM_MSG) {
+	if (ref($CUSTOM_MSG) eq 'CODE') {
+	    $CUSTOM_MSG->($msg);
+	    return;
+	} else {
+	    $outer_message = $CUSTOM_MSG;
+	}
+    }
+    
     print STDOUT <<END;
 <H1>Software error:</H1>
 <CODE>$msg</CODE>
 <P>
-$MSG
+$outer_message;
 END
+    ;
 }
 
 # Cut and paste from CGI.pm so that we don't have the overhead of

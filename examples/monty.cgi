@@ -24,19 +24,19 @@ sub print_prompt {
    print "<P><EM>Where can you find English Sparrows?</EM><BR>";
    print $query->checkbox_group(
 				-name=>'Sparrow locations',
-				-values=>[England,France,Spain,Asia,Hoboken],
+				-Values=>[England,France,Spain,Asia,Hoboken],
 				-linebreak=>'yes',
 				-defaults=>[England,Asia]);
  
    print "<P><EM>How far can they fly?</EM><BR>",
    $query->radio_group(
 		       -name=>'how far',
-		       -values=>['10 ft','1 mile','10 miles','real far'],
+		       -Values=>['10 ft','1 mile','10 miles','real far'],
 		       -default=>'1 mile');
    
    print "<P><EM>What's your favorite color?</EM>  ";
    print $query->popup_menu(-name=>'Color',
-			    -values=>['black','brown','red','yellow'],
+			    -Values=>['black','brown','red','yellow'],
 			    -default=>'red');
  
    print $query->hidden('Reference','Monty Python and the Holy Grail');
@@ -44,7 +44,7 @@ sub print_prompt {
    print "<P><EM>What have you got there?</EM><BR>";
    print $query->scrolling_list(
 				-name=>'possessions',
-				-values=>['A Coconut','A Grail','An Icon',
+				-Values=>['A Coconut','A Grail','An Icon',
 					  'A Sword','A Ticket'],
 				-size=>5,
 				-multiple=>'true');

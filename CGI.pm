@@ -18,9 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.10 1998/01/16 21:05:21 lstein Exp $';
-$CGI::VERSION='2.37018';
-use UNIVERSAL qw(isa);
+$CGI::revision = '$Id: CGI.pm,v 1.13 1998/01/26 16:56:58 lstein Exp $';
+$CGI::VERSION='2.37020';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -129,7 +128,7 @@ if (defined($ENV{'GATEWAY_INTERFACE'}) &&
 # doesn't accept CRLF -- instead it wants a LR.  EBCDIC machines don't
 # use ASCII, so \015\012 means something different.  I find this all 
 # really annoying.
-$EBCDIC = "\r" ne "\015";
+$EBCDIC = "\t" ne "\011";
 if ($OS eq 'VMS') {
     $CRLF = "\n";
 } elsif ($EBCDIC) {
@@ -274,7 +273,7 @@ sub param {
 sub self_or_default {
     return @_ if defined($_[0]) && !ref($_[0]) && ($_[0] eq 'CGI');
     unless (defined($_[0]) && 
-	    (ref($_[0]) eq 'CGI' || isa($_[0],'CGI')) # slightly optimized for common case
+	    (ref($_[0]) eq 'CGI' || UNIVERSAL::isa($_[0],'CGI')) # slightly optimized for common case
 	    ) {
 	$Q = $CGI::DefaultClass->new unless defined($Q);
 	unshift(@_,$Q);
@@ -286,7 +285,7 @@ sub self_or_CGI {
     local $^W=0;                # prevent a warning
     if (defined($_[0]) &&
 	(substr(ref($_[0]),0,3) eq 'CGI' 
-	 || isa($_[0],'CGI'))) {
+	 || UNIVERSAL::isa($_[0],'CGI'))) {
 	return @_;
     } else {
 	return ($DefaultClass,@_);
@@ -322,7 +321,7 @@ sub init {
     }
 
     $meth=$ENV{'REQUEST_METHOD'} if defined($ENV{'REQUEST_METHOD'});
-    $content_length = $ENV{'CONTENT_LENGTH'} if defined($ENV{'CONTENT_LENGTH'});
+    $content_length = defined($ENV{'CONTENT_LENGTH'}) ? $ENV{'CONTENT_LENGTH'} : 0;
     die "Client attempted to POST $content_length bytes, but POSTs are limited to $POST_MAX"
 	if ($POST_MAX > 0) && ($content_length > $POST_MAX);
     $fh = to_filehandle($initializer) if $initializer;
@@ -344,7 +343,7 @@ sub init {
       # If initializer is defined, then read parameters
       # from it.
       if (defined($initializer)) {
-	  if (isa($initializer,'CGI')) {
+	  if (UNIVERSAL::isa($initializer,'CGI')) {
 	      $query_string = $initializer->query_string;
 	      last METHOD;
 	  }
@@ -390,11 +389,6 @@ sub init {
 	  last METHOD;
       }
 
-      # Some people want to have their cake and eat it too!
-      # Uncomment this line to have the contents of the query string
-      # APPENDED to the POST data.
-      # $query_string .= (length($query_string) ? '&' : '') . $ENV{'QUERY_STRING'} if defined $ENV{'QUERY_STRING'};
-	  
       # If $meth is not of GET, POST or HEAD, assume we're being debugged offline.
       # Check the command line and then the standard input for data.
       # We use the shellwords package in order to behave the way that
@@ -402,6 +396,11 @@ sub init {
       $query_string = read_from_cmdline() unless $NO_DEBUG;
   }
 
+    # Some people want to have their cake and eat it too!
+    # Uncomment this line to have the contents of the query string
+    # APPENDED to the POST data.
+    # $query_string .= (length($query_string) ? '&' : '') . $ENV{'QUERY_STRING'} if defined $ENV{'QUERY_STRING'};
+	  
     # We now have the query string in hand.  We do slightly
     # different things for keyword lists and parameter lists.
     if ($query_string ne '') {
@@ -437,8 +436,8 @@ sub init {
 sub to_filehandle {
     my $thingy = shift;
     return undef unless $thingy;
-    return $thingy if isa($thingy,'GLOB');
-    return $thingy if isa($thingy,'FileHandle');
+    return $thingy if UNIVERSAL::isa($thingy,'GLOB');
+    return $thingy if UNIVERSAL::isa($thingy,'FileHandle');
     if (!ref($thingy)) {
 	my $caller = 1;
 	while (my $package = caller($caller++)) {
@@ -475,7 +474,7 @@ sub unescape {
 sub escape {
     shift if ref($_[0]) || $_[0] eq $DefaultClass;
     my $toencode = shift;
-    $toencode=~s/([^a-zA-Z0-9_\-.])/uc sprintf("%%%02x",ord($1))/eg;
+    $toencode=~s/([\x00-\x20"#%;<>?{}|\\\\^~`\[\]\x7F-\xFF])/uc sprintf("%%%02x",ord($1))/eg; #"
     return $toencode;
 }
 
@@ -521,6 +520,30 @@ sub binmode {
     CORE::binmode($_[1]);
 }
 
+sub _make_tag_func {
+    my $tagname = shift;
+    return qq{
+	sub $tagname { 
+	    # handle various cases in which we're called
+	    # most of this bizarre stuff is to avoid -w errors
+	    shift if \$_[0] && 
+		(!ref(\$_[0]) && \$_[0] eq \$CGI::DefaultClass) ||
+		    (ref(\$_[0]) &&
+		     (substr(ref(\$_[0]),0,3) eq 'CGI' ||
+		    UNIVERSAL::isa(\$_[0],'CGI')));
+	    
+	    my(\$attr) = '';
+	    if (ref(\$_[0]) && ref(\$_[0]) eq 'HASH') {
+		my(\@attr) = make_attributes('',shift);
+		\$attr = " \@attr" if \@attr;
+	    }
+	    my(\$tag,\$untag) = ("\U<$tagname\E\$attr>","\U</$tagname>\E");
+	    return \$tag unless \@_;
+	    return map { "\$tag\$_\$untag" } (ref(\$_[0]) eq 'ARRAY') ? \@{\$_[0]} : "\@_";
+         }
+}
+}
+
 sub AUTOLOAD {
     print STDERR "CGI::AUTOLOAD for $AUTOLOAD\n" if $CGI::AUTOLOAD_DEBUG;
     my $func = &_compile;
@@ -535,45 +558,37 @@ sub AUTOLOAD {
 sub rearrange {
     my($self,$order,@param) = @_;
     return () unless @param;
-    my($param);
-    
-    unless (ref($param[0]) eq 'HASH') {
-	return @param unless (defined($param[0]) && substr($param[0],0,1) eq '-')
-	    || $self->use_named_parameters;
-	$param = {@param};                # convert into associative array
+
+    if (ref($param[0]) eq 'HASH') {
+	@param = %{$param[0]};
     } else {
-	$param = $param[0];
+	return @param 
+	    unless (defined($param[0]) && substr($param[0],0,1) eq '-')
+		|| $self->use_named_parameters;
     }
 
-    foreach (keys %{$param}) {
-	my $old = $_;
-	s/^\-//;     # get rid of initial - if present
-	tr/a-z/A-Z/; # parameters are upper case
-	next if $_ eq $old;
-	$param->{$_} = $param->{$old};
-	delete $param->{$old};
+    # map parameters into positional indices
+    my ($i,%pos);
+    $i = 0;
+    foreach (@$order) {
+	foreach (ref($_) eq 'ARRAY' ? @$_ : $_) { $pos{$_} = $i; }
+	$i++;
     }
 
-    my(@return_array);
-    my($key)='';
-    foreach $key (@$order) {
-	my($value);
-	# this is an awful hack to fix spurious warnings when the
-	# -w switch is set.
-	if (ref($key) && ref($key) eq 'ARRAY') {
-	    foreach (@$key) {
-		last if defined($value);
-		$value = $param->{$_};
-		delete $param->{$_};
-	    }
+    my (@result,%leftover);
+    $#result = $#$order;  # preextend
+    while (@param) {
+	my $key = uc(shift(@param));
+	$key =~ s/^\-//;
+	if (exists $pos{$key}) {
+	    $result[$pos{$key}] = shift(@param);
 	} else {
-	    $value = $param->{$key};
-	    delete $param->{$key};
+	    $leftover{$key} = shift(@param);
 	}
-	push(@return_array,$value);
     }
-    push (@return_array,$self->make_attributes($param)) if %{$param};
-    return (@return_array);
+
+    push (@result,$self->make_attributes(\%leftover)) if %leftover;
+    @result;
 }
 
 sub _compile {
@@ -602,8 +617,7 @@ sub _compile {
 	       $EXPORT{$func_name} || 
 	       (%EXPORT_OK || grep(++$EXPORT_OK{$_},&expand_tags(':html')))
 	           && $EXPORT_OK{$func_name}) {
-	       $code = $sub->{'HTML_FUNC'};
-	       $code=~s/func_name/$func_name/mg;
+	       $code = _make_tag_func($func_name);
 	   }
        }
        die "Undefined subroutine $AUTOLOAD\n" unless $code;
@@ -665,36 +679,6 @@ END_OF_FUNC
 sub MULTIPART {  'multipart/form-data'; }
 END_OF_FUNC
 
-'HTML_FUNC' => <<'END_OF_FUNC',
-sub func_name { 
-
-    # handle various cases in which we're called
-    # most of this bizarre stuff is to avoid -w errors
-    shift if $_[0] && 
-	(!ref($_[0]) && $_[0] eq $CGI::DefaultClass) ||
-	    (ref($_[0]) &&
-	     (substr(ref($_[0]),0,3) eq 'CGI' ||
-	      isa($_[0],'CGI')));
-
-    my($attr) = '';
-    if (ref($_[0]) && ref($_[0]) eq 'HASH') {
-	my(@attr) = CGI::make_attributes('',shift);
-	$attr = " @attr" if @attr;
-    }
-    my($tag,$untag) = ("\U<func_name\E$attr>","\U</func_name>\E");
-    return $tag unless @_;
-    if (ref($_[0]) eq 'ARRAY') {
-	my(@r);
-	foreach (@{$_[0]}) {
-	    push(@r,"$tag$_$untag");
-	}
-	return "@r";
-    } else {
-	return "$tag@_$untag";
-    }
-}
-END_OF_FUNC
-
 'use_named_parameters' => <<'END_OF_FUNC',
 #### Method: use_named_parameters
 # Force CGI.pm to use named parameter-style method calls
@@ -749,20 +733,23 @@ END_OF_FUNC
 sub import_names {
     my($self,$namespace,$delete) = self_or_default(@_);
     $namespace = 'Q' unless defined($namespace);
-    die "Can't import names into 'main'\n"
-	if $namespace eq 'main';
-    if ($delete) {
-	my $var = "${namespace}::";
-	undef %{$var};
+    die "Can't import names into \"main\"\n" if $namespace eq 'main';
+    if ($delete || $MOD_PERL) {
+	# can anyone find an easier way to do this?
+	foreach (keys %{"${namespace}::"}) {
+	    local *symbol = "${namespace}::${_}";
+	    undef $symbol;
+	    undef @symbol;
+	}
     }
     my($param,@value,$var);
     foreach $param ($self->param) {
 	# protect against silly names
 	($var = $param)=~tr/a-zA-Z0-9_/_/c;
-	$var = "${namespace}::$var";
+	local *symbol = "${namespace}::$var";
 	@value = $self->param($param);
-	@{$var} = @value;
-	${$var} = $value[0];
+	@symbol = @value;
+	$symbol = $value[0];
     }
 }
 END_OF_FUNC
@@ -974,16 +961,20 @@ END_OF_FUNC
 sub url_param {
     my ($self,@p) = self_or_default(@_);
     my $name = shift @p;
-    return undef unless defined($ENV{QUERY_STRING});
-    unless (defined($self->{'.url_param'})) {
+    return undef unless exists($ENV{QUERY_STRING});
+    unless (exists($self->{'.url_param'})) {
 	$self->{'.url_param'}={}; # empty hash
-	my(@pairs) = split('&',$ENV{QUERY_STRING});
-	my($param,$value);
-	foreach (@pairs) {
-	    ($param,$value) = split('=');
-	    $param = unescape($param);
-	    $value = unescape($value);
-	    push(@{$self->{'.url_param'}->{$param}},$value);
+	if ($ENV{QUERY_STRING} =~ /=/) {
+	    my(@pairs) = split('&',$ENV{QUERY_STRING});
+	    my($param,$value);
+	    foreach (@pairs) {
+		($param,$value) = split('=');
+		$param = unescape($param);
+		$value = unescape($value);
+		push(@{$self->{'.url_param'}->{$param}},$value);
+	    }
+	} else {
+	    $self->{'.url_param'}->{'keywords'} = [$self->parse_keywordlist($ENV{QUERY_STRING})];
 	}
     }
     return keys %{$self->{'.url_param'}} unless defined($name);
@@ -1383,6 +1374,24 @@ sub end_form {
 END_OF_FUNC
 
 
+'_textfield' => <<'END_OF_FUNC',
+sub _textfield {
+    my($self,$tag,@p) = self_or_default(@_);
+    my($name,$default,$size,$maxlength,$override,@other) = 
+	$self->rearrange([NAME,[DEFAULT,VALUE],SIZE,MAXLENGTH,[OVERRIDE,FORCE]],@p);
+
+    my $current = $override ? $default : 
+	(defined($self->param($name)) ? $self->param($name) : $default);
+
+    $current = defined($current) ? $self->escapeHTML($current) : '';
+    $name = defined($name) ? $self->escapeHTML($name) : '';
+    my($s) = defined($size) ? qq/ SIZE=$size/ : '';
+    my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
+    my($other) = @other ? " @other" : '';    
+    return qq/<INPUT TYPE="$tag" NAME="$name" VALUE="$current"$s$m$other>/;
+}
+END_OF_FUNC
+
 #### Method: textfield
 # Parameters:
 #   $name -> Name of the text field
@@ -1396,18 +1405,7 @@ END_OF_FUNC
 'textfield' => <<'END_OF_FUNC',
 sub textfield {
     my($self,@p) = self_or_default(@_);
-    my($name,$default,$size,$maxlength,$override,@other) = 
-	$self->rearrange([NAME,[DEFAULT,VALUE],SIZE,MAXLENGTH,[OVERRIDE,FORCE]],@p);
-
-    my $current = $override ? $default : 
-	(defined($self->param($name)) ? $self->param($name) : $default);
-
-    $current = defined($current) ? $self->escapeHTML($current) : '';
-    $name = defined($name) ? $self->escapeHTML($name) : '';
-    my($s) = defined($size) ? qq/ SIZE=$size/ : '';
-    my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
-    my($other) = @other ? " @other" : '';    
-    return qq/<INPUT TYPE="text" NAME="$name" VALUE="$current"$s$m$other>/;
+    $self->_textfield('text',@p);
 }
 END_OF_FUNC
 
@@ -1423,19 +1421,7 @@ END_OF_FUNC
 'filefield' => <<'END_OF_FUNC',
 sub filefield {
     my($self,@p) = self_or_default(@_);
-
-    my($name,$default,$size,$maxlength,$override,@other) = 
-	$self->rearrange([NAME,[DEFAULT,VALUE],SIZE,MAXLENGTH,[OVERRIDE,FORCE]],@p);
-
-    $current = $override ? $default :
-	(defined($self->param($name)) ? $self->param($name) : $default);
-
-    $name = defined($name) ? $self->escapeHTML($name) : '';
-    my($s) = defined($size) ? qq/ SIZE=$size/ : '';
-    my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
-    $current = defined($current) ? $self->escapeHTML($current) : '';
-    $other = ' ' . join(" ",@other);
-    return qq/<INPUT TYPE="file" NAME="$name" VALUE="$current"$s$m$other>/;
+    $self->_textfield('file',@p);
 }
 END_OF_FUNC
 
@@ -1454,22 +1440,9 @@ END_OF_FUNC
 'password_field' => <<'END_OF_FUNC',
 sub password_field {
     my ($self,@p) = self_or_default(@_);
-
-    my($name,$default,$size,$maxlength,$override,@other) = 
-	$self->rearrange([NAME,[DEFAULT,VALUE],SIZE,MAXLENGTH,[OVERRIDE,FORCE]],@p);
-
-    my($current) =  $override ? $default :
-	(defined($self->param($name)) ? $self->param($name) : $default);
-
-    $name = defined($name) ? $self->escapeHTML($name) : '';
-    $current = defined($current) ? $self->escapeHTML($current) : '';
-    my($s) = defined($size) ? qq/ SIZE=$size/ : '';
-    my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
-    my($other) = @other ? " @other" : '';
-    return qq/<INPUT TYPE="password" NAME="$name" VALUE="$current"$s$m$other>/;
+    $self->_textfield('password',@p);
 }
 END_OF_FUNC
-
 
 #### Method: textarea
 # Parameters:
@@ -3133,8 +3106,32 @@ CGI - Simple Common Gateway Interface Class
 
 =head1 SYNOPSIS
 
-  use CGI;
-  # the rest is too complicated for a synopsis; keep reading
+  # CGI script that creates a fill-out form
+  # and echoes back its values.
+
+  use CGI qw/:standard/;
+  print header,
+        start_html('A Simple Example'),
+        h1('A Simple Example'),
+        start_form,
+        "What's your name? ",textfield('name'),p,
+        "What's the combination?", p,
+        checkbox_group(-name=>'words',
+		       -values=>['eenie','meenie','minie','moe'],
+		       -defaults=>['eenie','minie']), p,
+        "What's your favorite color? ",
+        popup_menu(-name=>'color',
+	           -values=>['red','green','blue','chartreuse']),p,
+        submit,
+        end_form,
+        hr;
+
+   if (param()) {
+       print "Your name is",em(param('name')),p,
+	     "The keywords are: ",em(join(", ",param('words'))),p,
+	     "Your favorite color is ",em(param('color')),
+	     hr;
+   }
 
 =head1 ABSTRACT
 
@@ -3157,47 +3154,6 @@ The current version of CGI.pm is available at
 
   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
-
-=head1 INSTALLATION:
-
-To install this package, just change to the directory in which this
-file is found and type the following:
-
-	perl Makefile.PL
-	make
-	make install
-
-This will copy CGI.pm to your perl library directory for use by all
-perl scripts.  You probably must be root to do this.   Now you can
-load the CGI routines in your Perl scripts with the line:
-
-	use CGI;
-
-If you don't have sufficient privileges to install CGI.pm in the Perl
-library directory, you can put CGI.pm into some convenient spot, such
-as your home directory, or in cgi-bin itself and prefix all Perl
-scripts that call it with something along the lines of the following
-preamble:
-
-	use lib '/home/davis/lib';
-	use CGI;
-
-If you are using a version of perl earlier than 5.002 (such as NT perl), use
-this instead:
-
-	BEGIN {
-		unshift(@INC,'/home/davis/lib');
-	}
-	use CGI;
-
-The CGI distribution also comes with a cute module called L<CGI::Carp>.
-It redefines the die(), warn(), confess() and croak() error routines
-so that they write nicely formatted error messages into the server's
-error log (or to the output stream of your choice).  This avoids long
-hours of groping through the error and access logs, trying to figure
-out which CGI script is generating  error messages.  If you choose,
-you can even have fatal error messages echoed to the browser to avoid
-the annoying and uninformative "Server Error" message.
 
 =head1 DESCRIPTION
 
