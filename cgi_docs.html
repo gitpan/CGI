@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.35, 4/20/97, L. Stein
+Version 2.36, 5/10/97, L. Stein
 <p>
 
 <strong>WARNING:</strong> The overloaded double-quote ("") operator
@@ -94,6 +94,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#cookies">Netscape Cookies</A>
   <li><a href="#frames">Support for Netscape frames</a>
   <li><a href="#javascripting">Support for JavaScript</a>
+  <li><a href="#stylesheets">Limited Support for Cascading Style Sheets</a>
   <LI><A HREF="#nph">Using NPH Scripts</A>
   <LI><A HREF="#advanced">Advanced techniques</A>
   <LI><A HREF="#mod_perl">Using CGI.pm with mod_perl and FastCGI</A>
@@ -103,7 +104,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.35?</A>
+  <LI><A HREF="#new">What's new in version 2.36?</A>
 </MENU>
 
 <HR>
@@ -119,8 +120,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 
 <P>This package requires perl 5.001m or higher.  (Perl 5.003 is
 <strong>highly</strong> recommended because of a security hole in
-earlier versions of perl.)  You also must have the <a
-href="#SelfLoader">SelfLoader</a> module installed.  To use CGI.pm
+earlier versions of perl.)  To use CGI.pm
 simply install it in your perl library directory.  On most systems
 this will be <CODE>/usr/local/lib/perl5</CODE>, but check with the
 administrator of your system to be sure.  If you know the location of
@@ -660,6 +660,7 @@ href="#nph">Using NPH Scripts</a> for more information.
                             -base=&gt;'true',
 			    -meta=&gt;{'keywords'=&gt;'pharoah secret mummy',
                                     'copyright'=&gt;'copyright 1996 King Tut'},
+			    -style=>{'src'=>'/styles/style1.css'},
                             -BGCOLOR=&gt;'blue');
 
    <EM>old style</EM>
@@ -690,6 +691,40 @@ All parameters are optional:
       </pre>
       <strong>-target</strong> can be used with either
       <strong>-xbase</strong> or <strong>-base</strong>.
+  <LI>A <strong>-meta</strong> parameter to define one or more &lt;META&gt; tags.  Pass
+      this parameter a reference to an associative array containing key/value pairs.  Each
+      pair becomes a &lt;META&gt; tag in a format similar to this one.
+      <blockquote><pre>
+      &lt;META NAME="keywords" CONTENT="pharoah secret mummy"&gt;
+      &lt;META NAME="description" CONTENT="copyright 1996 King Tut"&gt;
+      </pre></blockquote>
+      There is no support for the HTTP-EQUIV type of &lt;META&gt; tag.  This is
+      because you can modify the HTTP header directly with the
+      <a href="#header">header</a> method.  Example:
+      <blockquote>
+      <pre>
+      print $q-&gt;header(-Refresh=>'10; URL=http://www.capricorn.com');
+      </pre>
+      </blockquote>
+  <li>A <strong>-style</strong> parameter to define a cascading stylesheet.
+      More information on this can be found in <a
+      href="#stylesheets">Limited Support for Cascading Style Sheets</a>
+  <li>A <strong>-head</strong> parameter to define other arbitrary elements
+      of the &lt;HEAD&gt; section.  For example:
+      <pre>
+      print $q-&gt;header(-head=&gt;link({-rel=&gt;'next',
+                       -href=&gt;'http://www.capricorn.com/s2.html'}));
+
+      </pre>
+      or even
+      <pre>
+      print $q-&gt;header(-head=&gt;[ link({-rel=&gt;'next',
+				      -href=&gt;'http://www.capricorn.com/s2.html'}),
+			        link({-rel=&gt;'previous',
+				      -href=&gt;'http://www.capricorn.com/s1.html'})
+			      ]
+		      );
+      </pre>
   <LI>A <strong>-script</strong> parameter to define Netscape <a
       href="#javascripting">JavaScript</a> functions
       to incorporate into the HTML page.  This is the preferred way to
@@ -724,18 +759,36 @@ All parameters are optional:
       print $query-&gt;start_html(-title=&gt;'The Riddle of the Sphinx',
                                -script=&gt;$JSCRIPT);
       </pre>
+
+      Netscape 3.0 allows you to place the JavaScript code in an external
+      document and refer to it by URL.  This allows you to keep the JavaScript
+      code in a file or CGI script rather than cluttering up each page with the
+      source.  Netscape 3.0 and Internet Explorer also recognize a "language"
+      parameter that allows you to use other languages, such as VBScript and
+      PerlScript (yes indeed!)  To use these attributes pass a HASH
+      reference in the <strong>-script</strong> parameter containing one
+      or more of the keys <strong>language</strong>, <strong>src</strong>, or
+      <strong>code</strong>.  Here's how to refer to an external script URL:
+
+      <pre>
+      print $q-&gt;start_html(-title=&gt;'The Riddle of the Sphinx',
+			   -script=>{-language=&gt;'JavaScript',
+                                   -src=>'/javascript/sphinx.js'}
+                              );
+     </pre>
+
+     Here's how to refer to scripting code incorporated directly into the page:
+
+     <pre>
+
+     print $q-&gt;start_html(-title=&gt;'The Riddle of the Sphinx',
+                          -script=&gt;{-language=&gt;'PerlScript',
+                                    -code-&gt;'print "hello world!\n;"'
+                             );
+     </pre>
+
   <LI>A <strong>-noScript</strong> parameter to pass some HTML that will be displayed
       in browsers that do not have JavaScript (or have JavaScript turned off).
-  <LI>A <strong>-meta</strong> parameter to define one or more &lt;META&gt; tags.  Pass
-      this parameter a reference to an associative array containing key/value pairs.  Each
-      pair becomes a &lt;META&gt; tag in a format similar to this one.
-      <blockquote><pre>
-      &lt;META NAME="keywords" CONTENT="pharoah secret mummy"&gt;
-      &lt;META NAME="description" CONTENT="copyright 1996 King Tut"&gt;
-      </pre></blockquote>
-      There is no support for the HTTP-EQUIV type of &lt;META&gt; tag.  This is
-      because you can modify the HTTP header directly with the
-      <a href="#header">header</a> method.
   <LI><strong>-onLoad</strong> and <strong>-onUnload</strong> parameters to
       register JavaScript event handlers to be executed when the
       page generated by your script is opened and closed respectively.
@@ -751,8 +804,7 @@ All parameters are optional:
       Netscape extensions, such as background color and wallpaper pattern.
       (The example above sets the page background to a vibrant blue.)  You can
       use this feature to take advantage of new HTML features without
-waiting for a CGI.pm
-      release.
+      waiting for a CGI.pm release.
 </UL>
 
 <H3>Ending an HTML Document</H3>
@@ -1218,6 +1270,29 @@ exits unless you manually rename it.  On some operating systems (such
 as Windows NT), you will need to close the temporary file's filehandle
 before your program exits.  Otherwise the attempt to delete the
 temporary file will fail.
+
+<p>
+
+A potential problem with the temporary file upload feature is that the
+temporary file is accessible to any local user on the system.  In
+previous versions of this module, the temporary file was world
+readable, meaning that anyone could peak at what was being uploaded.
+As of version 2.36, the modes on the temp file have been changed to
+read/write by owner only.  Only the Web server and its CGI scripts can
+access the temp file.  Unfortunately this means that one CGI script
+can spy on another!  To make the temporary files
+<strong>really</strong> private, set the CGI global variable
+$CGI::PRIVATE_TEMPFILES to 1.  Alternatively, call the built-in
+function CGI::private_tempfiles(1), or just <cite>use CGI
+qw/:private_tempfiles</cite>.  The temp file will now be unlinked as
+soon as it is created, making it inaccessible to other users.  The
+<strong>downside</strong> of this is that you will be unable to obtain
+the name of the temporary file using <cite>tmpFileName()</cite>.  This
+function will return an empty string.  Further, since
+PRIVATE_TEMPFILES is a global variable, its setting will affect all
+instances of CGI.pm if you are running mod_perl.  You can work around
+this limitation by declaring $CGI::PRIVATE_TEMPFILES as a local at the
+top of your script.
 
 <p>
 
@@ -2396,6 +2471,99 @@ demonstration of how this all works.
 <a href="#contents">Table of contents</a>
 
 <hr>
+<a name="stylesheets">
+<h2>Limited Support for Cascading Style Sheets</h2>
+</a>
+
+CGI.pm has limited support for HTML3's cascading style sheets (css).
+To incorporate a stylesheet into your document, pass the
+<strong>start_html()</strong> method a <strong>-style</strong>
+parameter.  The value of this parameter may be a scalar, in which case
+it is incorporated directly into a &lt;STYLE&gt; section, or it may be
+a hash reference.  In the latter case you should provide the hash with
+one or more of <strong>-src</strong> or <strong>-code</strong>.
+<strong>-src</strong> points to a URL where an externally-defined
+stylesheet can be found.  <strong>-code</strong> points to a scalar
+value to be incorporated into a &lt;STYLE&gt; section.  Style
+definitions in <strong>-code</strong> override similarly-named ones in
+<strong>-src</strong>, hence the name "cascading."
+
+<p>
+
+To refer to a style within the body of your document, add the
+<strong>-class</strong> parameter to any HTML element:
+
+<blockquote><pre>
+print h1({-class=&gt;'Fancy'},'Welcome to the Party');
+</pre></blockquote>
+
+Or define styles on the fly with the <strong>-style</strong> parameter:
+
+<blockquote><pre>
+print h1({-style=&gt;'Color: red;'},'Welcome to Hell');
+</pre></blockquote>
+
+You may also use the new <strong>span()</strong> element to apply a
+style to a section of text:
+
+<blockquote><pre>
+print span({-style=&gt;'Color: red;'},
+	       h1('Welcome to Hell'),
+	       "Where did that handbasket get to?"
+          );
+</pre></blockquote>
+
+Note that you must import the ":html3" definitions to get the
+<strong>span()</strong> and <strong>style()</strong> methods.
+
+<p>
+
+You won't be able to do much with this unless you understand the CSS
+specification.  A more intuitive subclassable library for cascading
+style sheets in Perl is in the works, but until then, please
+read the CSS specification at <a
+href="http://www.w3.org/pub/WWW/Style/">http://www.w3.org/pub/WWW/Style/</a>
+to find out how to use these features.  Here's a final example to get
+you started.
+
+<blockquote><pre>
+use CGI qw/:standard :html3/;
+
+#here's a stylesheet incorporated directly into the page
+$newStyle=&lt;&lt;END;
+&gt;!-- 
+    P.Tip {
+	margin-right: 50pt;
+	margin-left: 50pt;
+        color: red;
+    }
+    P.Alert {
+	font-size: 30pt;
+        font-family: sans-serif;
+      color: red;
+    }
+--&gt;
+END
+print header();
+print start_html( -title=>'CGI with Style',
+                  -style=>{-src=>'http://www.capricorn.com/style/st1.css',
+                  -code=>$newStyle}
+	         );
+print h1('CGI with Style'),
+      p({-class=>'Tip'},
+        "Better read the cascading style sheet spec before playing with this!"
+        ),
+      span({-style=>'color: magenta'},"Look Mom, no hands!",
+        p(),
+        "Whooo wee!"
+      );
+print end_html;
+</pre></blockquote>
+
+<p>
+<a href="#contents">Table of contents</a>
+
+<hr>
 <A NAME="nph">
 <H2>Using NPH Scripts</H2>
 </A>
@@ -3115,6 +3283,12 @@ before incorporating them into the CGI hierarchy.  I am continuing to
 maintain and improve this library in order to satisfy people who are
 looking for an easy-to-use introduction to the world of CGI scripting.
 
+<p>
+
+The CGI::* modules are being reworked to be interoperable with the
+excellent LWP modules.  Stay tuned.
+
+
 <P>The current version of CGI.pm can be found at:
 <PRE>  <A HREF="http://www-genome.wi.mit.edu/ftp/pub/software/WWW">
 http://www-genome.wi.mit.edu/ftp/pub/software/WWW/</A>
@@ -3164,8 +3338,9 @@ modifications you have made.
 <H2>The CGI-perl mailing list</H2>
 </A>
 
-The CGI Perl mailing list is defunct.  Please address your questions
-to comp.lang.perl.modules and to comp.lang.perl.misc.
+The CGI Perl mailing list is defunct and is unlikely to be
+resurrected.  Please address your questions to comp.lang.perl.modules
+and to comp.lang.perl.misc.
 
 <H3>Bug Reports</H3>
 Address bug reports and comments to:<BR>
@@ -3175,6 +3350,22 @@ Address bug reports and comments to:<BR>
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.36</h3>
+<ol>
+  <li>Expanded JavaScript functionality
+  <li>Preliminary support for cascading stylesheets
+  <li>Security fixes for file uploads:
+      <ul>
+	<li>Module will bail out if its temporary file already exists
+	<li>Temporary files can now be made completely private to
+	    avoid peeking by other users or CGI scripts.
+      </ul>
+  <li><cite>use CGI qw/:nph/</cite> wasn't working correctly.  Now it
+      is.
+  <li>Cookie and HTTP date formats didn't meet spec.  Thanks to Mark
+      Fisher (fisherm@indy.tce.com) for catching and fixing this.
+</ol>
+
 <h3>Version 2.35</h3>
 <ol>
   <li>Robustified multipart file upload against incorrect syntax in POST.
@@ -3624,6 +3815,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Sun Apr 20 19:26:43 EDT 1997
+Last modified: Fri May  9 11:28:36 EDT 1997
 <!-- hhmts end -->
 </BODY> </HTML>

@@ -1,10 +1,10 @@
-CGI.pm version 2.32 is now available to play with.  
+CGI.pm version 2.36 is now available to play with.  
 New in this version:
 
-* Support for Apache's mod_perl
-* Fixed problems with perl 5.003_92
-* Detects and configures correctly for OS/2
-* More robust (?) inheritance.
+* Preliminary support for cascading style sheets
+* More flexible support for browser-side scripting
+* Fixes problems with cookie dates
+* Closes some security holes in the file upload mechanism
 
 Lincoln Stein
 
