@@ -1,0 +1,11 @@
+use lib '..','../blib/lib','../blib/arch';
+use CGI3 (':standard');
+sub test {
+    local($^W) = 0;
+    my($num, $true,$msg) = @_;
+    print($true ? "ok $num\n" : "not ok $num $msg\n");
+}
+
+
+test(23,param('weather') eq 'nice',"CGI3::param() from POST");
+test(24,url_param('big_balls') eq 'basketball',"CGI3::url_param()");
