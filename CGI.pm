@@ -28,8 +28,8 @@ $AUTOLOAD_DEBUG=0;
 #    3) print header(-nph=>1)
 $NPH=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.32 1997/3/19 10:10 lstein Exp $';
-$CGI::VERSION='2.32';
+$CGI::revision = '$Id: CGI.pm,v 2.33 1997/4/5 9:10 lstein Exp $';
+$CGI::VERSION='2.33';
 
 # OVERRIDE THE OS HERE IF CGI.pm GUESSES WRONG
 # $OS = 'UNIX';
@@ -87,7 +87,7 @@ $SL = {
 $NPH++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 
 # Turn on special checking for Doug MacEachern's modperl
-if ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl/) {
+if (defined($ENV{'GATEWAY_INTERFACE'} && ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl/)) {
     $NPH++;
     $| = 1;
     $SEQNO = 1;
@@ -174,7 +174,6 @@ sub new {
     my($class,$initializer) = @_;
     my $self = {};
     bless $self,ref $class || $class || $DefaultClass;
-    $CGI::DefaultClass->_reset_globals() if $MOD_PERL;
     $initializer = to_filehandle($initializer) if $initializer;
     $self->init($initializer);
     return $self;
@@ -988,11 +987,21 @@ sub redirect {
     $url = $url || $self->self_url;
     my(@o);
     foreach (@other) { push(@o,split("=")); }
-    push(@o,
-	 '-Status'=>'302 Found',
-	 '-Location'=>$url,
-	 '-URI'=>$url,
-	 '-nph'=>($nph||$NPH));
+    if($MOD_PERL or exists $self->{'.req'}) {
+	my $r = $self->{'.req'} || Apache->request;
+	$r->header_out(Location => $url);
+	$r->err_header_out(Location => $url);
+	$r->status(302);
+	return;
+    }
+    else {
+	push(@o,
+	     '-Status'=>'302 Found',
+	     '-Location'=>$url,
+	     '-nph'=>($nph||$NPH),
+	     );
+    }
+    push(@o, '-URI'=>$url);
     push(@o,'-Target'=>$target) if $target;
     push(@o,'-Cookie'=>$cookie) if $cookie;
     return $self->header(@o);

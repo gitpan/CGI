@@ -5,7 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.32, 3/19/97, L. Stein
+Version 2.33, 4/4/97, L. Stein
 <p>
 
 <strong>WARNING:</strong> The overloaded double-quote ("") operator
@@ -103,7 +103,7 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.31?</A>
+  <LI><A HREF="#new">What's new in version 2.33?</A>
 </MENU>
 
 <HR>
@@ -573,7 +573,7 @@ The <strong>-cookie</strong> parameter generates a header that tells
 Netscape browsers to return a "magic cookie" during all subsequent
 transactions with your script.  Netscape cookies have a special format
 that includes interesting attributes such as expiration time.  Use the
-<a name="#cookies">cookie()</a> method to create and retrieve session
+<a href="#cookies">cookie()</a> method to create and retrieve session
 cookies.  The value of this parameter can be either a scalar value or
 an array reference.  You can use the latter to generate multiple
 cookies.  (You can use the alias <strong>-cookies</strong> for
@@ -757,7 +757,7 @@ waiting for a CGI.pm
 <PRE>
   print $query-&gt;end_html
 </PRE>
-This ends an HTML document by printing the &lt;/BODY&gt;&lt;/HTML&gt; tags.
+This ends an HTML document by printing the &lt;/BODY&gt; &lt;/HTML&gt; tags.
 
 <H3>Other HTML Tags</H3>
 
@@ -902,7 +902,7 @@ provide for form elements are escaped according to HTML rules.  This means
 that you can safely use "&lt;CLICK ME&gt;" as the label for a button. However,
 this behavior may interfere with your ability to incorporate special HTML
 character sequences, such as &amp;Aacute; (&Aacute;) into your fields.  If
-you wish to turn of automatic escaping, call the <CODE>autoEscape()</CODE>
+you wish to turn off automatic escaping, call the <CODE>autoEscape()</CODE>
 method with a false value immediately after creating the CGI object:
 
 <PRE>
@@ -1042,7 +1042,7 @@ as the default.
 As with all these methods, the field will be initialized with its 
 previous contents from earlier invocations of the script.  If you
 want to force in the new value, overriding the existing one, see
-<A HREF="#overriding">Generate note 2</A>.
+<A HREF="#overriding">General note 2</A>.
 <P>
 When the form is processed, the value of the text field can be
 retrieved with:
@@ -1456,17 +1456,17 @@ in the group.
 <STRONG>checkbox()</STRONG> is used to create an isolated checkbox that isn't logically
 related to any others.
 <UL>
-  <LI>The first parameter (<STRONG>-name</STRONG>is the required name
+  <LI>The first parameter (<STRONG>-name</STRONG> is the required name
        for the checkbox.  It
        will also be used for the user-readable label printed next to
        the checkbox.
-  <LI>The optional second parameter (<STRONG>-checked</STRONG>specifies
+  <LI>The optional second parameter (<STRONG>-checked</STRONG> specifies
        that the checkbox is turned on by default.  Aliases for this
        parameter are <STRONG>-selected</STRONG> and <STRONG>-on</STRONG>.
-  <LI>The optional third parameter (<STRONG>-value</STRONG>specifies
+  <LI>The optional third parameter (<STRONG>-value</STRONG> specifies
        the value of the checkbox
        when it is checked.  If not provided, the word "on" is assumed.
-  <LI>The optional fourth parameter (<STRONG>-label</STRONG>assigns a
+  <LI>The optional fourth parameter (<STRONG>-label</STRONG> assigns a
        user-visible label to the button.
        If not provided, the checkbox's name will be used.
 </UL>
@@ -1503,23 +1503,23 @@ code to be performed every time the user clicks on the button.
 <STRONG>radio_group()</STRONG> creates a set of logically-related radio buttons.
   Turning one member of the group on turns the others off.
 <UL>
-  <LI>The first argument (<STRONG>-name</STRONG>is the name of the
+  <LI>The first argument (<STRONG>-name</STRONG> is the name of the
        group and is required.
-  <LI>The second argument (<STRONG>-values</STRONG>is the list of
+  <LI>The second argument (<STRONG>-values</STRONG> is the list of
        values for the radio buttons.
        The values and the labels that appear on the page are identical.
        Pass an array <EM>reference</EM> in the second argument, either using 
        an anonymous array, as shown, or by referencing a named array as 
        in <CODE>\@foo</CODE>.
-  <LI>The optional third parameter (<STRONG>-default</STRONG>is the
+  <LI>The optional third parameter (<STRONG>-default</STRONG> is the
        value of the default button to
        turn on. If not specified, the first item will be the default.  Specify
        some nonexistent value, such as "-" if you don't want any button
        to be turned on.
-  <LI>The optional fourth parameter (<STRONG>-linebreak</STRONG>can be
+  <LI>The optional fourth parameter (<STRONG>-linebreak</STRONG> can be
        set to 'true' to put
        line breaks between the buttons, creating a vertical list.
-  <LI>The optional fifth parameter (<STRONG>-labels</STRONG>specifies
+  <LI>The optional fifth parameter (<STRONG>-labels</STRONG> specifies
        an associative array containing labels to be printed next to
        each the button.  If not provided the button value will be
        used instead.  This example assumes that the associative array
@@ -1820,7 +1820,7 @@ Similarly, instead of creating a form like this:
 print $query-&gt;start_form,
       "Check here if you're happy: ",
       $query-&gt;checkbox(-name=&gt;'happy',-value=&gt;'Y',-checked=&gt;1),
-      "<P>",
+      "&lt;P&gt;",
       $query-&gt;submit,
       $query-&gt;end_form;
 </pre></blockquote>
@@ -2156,7 +2156,7 @@ The interface to Netscape cookies is the <strong>cookie()</strong> method:
       above.
   <dt><strong>-expires</strong>
   <dd>The optional expiration date for this cookie.  The format is as described 
-      in the section on the B<header()> method:
+      in the section on the <strong>header()</strong> method:
       <pre>
 	"+1h"  one hour from now
       </pre>
@@ -2477,8 +2477,8 @@ print $query-&gt;start_html("Save and Restore Example");
 print "&lt;H1&gt;Save and Restore Example&lt;/H1&gt;\n";
 
 # Here's where we take action on the previous request
-&save_parameters($query)              if $query-&gt;param('action') eq 'save';
-$query = &restore_parameters($query)  if $query-&gt;param('action') eq 'restore';
+&amp;save_parameters($query)              if $query-&gt;param('action') eq 'save';
+$query = &amp;restore_parameters($query)  if $query-&gt;param('action') eq 'restore';
 
 # Here's where we create the form
 print $query-&gt;startform;
@@ -2496,7 +2496,7 @@ print $query-&gt;end_html;
 
 sub save_parameters {
     local($query) = @_;
-    local($filename) = &clean_name($query-&gt;param('savefile'));
+    local($filename) = &amp;clean_name($query-&gt;param('savefile'));
     if (open(FILE,"&gt;$filename")) {
 	$query-&gt;save(FILE);
 	close FILE;
@@ -2508,7 +2508,7 @@ sub save_parameters {
 
 sub restore_parameters {
     local($query) = @_;
-    local($filename) = &clean_name($query-&gt;param('savefile'));
+    local($filename) = &amp;clean_name($query-&gt;param('savefile'));
     if (open(FILE,$filename)) {
 	$query = new CGI(FILE);  # Throw out the old query, replace it with a new one
 	close FILE;
@@ -2766,7 +2766,7 @@ versions (or use the sfio version of Perl!)
 
 To make it easier to convert older scripts that use cgi-lib.pl,
 CGI.pm provides a <strong>CGI::ReadParse()</strong> call that
-is compatible with cgi-lib.pl's <strong>&ReadParse</strong>
+is compatible with cgi-lib.pl's <strong>ReadParse()</strong>
 subroutine.
 <p>
 
@@ -2779,14 +2779,14 @@ port an old script to CGI.pm, you have to make just two changes:
 <h4>Old Script</h4>
 <pre>
     require "cgi-lib.pl";
-    &ReadParse;
+    ReadParse();
     print "The price of your purchase is $in{price}.\n";
 </pre>
 
 <h4>New Script</h4>
 <pre>
     use CGI qw(:cgi-lib);
-    &ReadParse;
+    ReadParse();
     print "The price of your purchase is $in{price}.\n";
 </pre>
 
@@ -2802,7 +2802,7 @@ The associative array created by CGI::ReadParse() contains
 a special key 'CGI', which returns the CGI query object
 itself:
 <pre>
-    ReadParse;
+    ReadParse();
     $q = $in{CGI};
     print $q-&gt;textfield(-name=&gt;'wow',
                         -value=&gt;'does this really work?');
@@ -2914,7 +2914,7 @@ want this behavior, just pass it an empty parameter list like this:
 This will work too on Unix systems:
 
 <pre>
-     my_script.pl </dev/null
+     my_script.pl &lt;/dev/null
 </pre>
 
 <H4>You can't retrieve the name of the uploaded file
@@ -3173,6 +3173,21 @@ Address bug reports and comments to:<BR>
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 2.33</h3>
+<ol>
+  <li>Fixed a warning about an undefined environment variable.
+  <li>Doug's patch for redirect() under mod_perl
+  <li>Partial fix for busted inheritence from CGI::Apache
+  <li>Documentation fixes.
+</ol>
+
+<h3>Version 2.32</h3>
+<ol>
+  <li>Improved support for Apache's mod_perl.
+  <li>Changes to better support inheritance.
+  <li>Support for OS/2.
+</ol>
+
 <h3>Version 2.31</h3>
 <ol>
   <li>New <strong>uploadInfo()</strong> method to obtain header
@@ -3510,7 +3525,7 @@ to bump up the major version number.
        length 1 even when there were no parameters to be had.  Bad bug!
        Bad!
   <LI> The HTML code generated would break if input fields contained
-       the forbidden characters &quot;&gt;&lt or &amp;.  You can now use these characters
+       the forbidden characters &quot;&gt;&lt; or &amp;.  You can now use these characters
        freely.
 </OL>
 <H3>New features added in version 1.50</H3>
@@ -3594,6 +3609,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Wed Mar 19 22:27:07 EST 1997
+Last modified: Fri Apr  4 23:31:18 EST 1997
 <!-- hhmts end -->
 </BODY> </HTML>
