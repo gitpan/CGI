@@ -6,7 +6,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.66, 4/12/2000, L. Stein
+Version 2.67, 5/15/2000, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -840,6 +840,7 @@ contrived example that uses them all:
                         -expires=&gt;'+3d',
                         -cookie=&gt;$my_cookie,
                         -charset=&gt;'UTF-7',
+                        -attachment=&gt;'foo.gif',
                         -Cost=&gt;'$0.02');
 </PRE>
 
@@ -887,7 +888,6 @@ an array reference.  You can use the latter to generate multiple
 cookies.  (You can use the alias <strong>-cookies</strong> for
 readability.)
 
-
 <h4>-nph</h4>
 
 The <strong>-nph</strong> parameter, if set to a non-zero value, will
@@ -917,6 +917,13 @@ The <b>-charset</b> parameter can be used to control the character set
 sent to the browser.  If not provided, defaults to ISO-8859-1.  As a
 side effect, this calls the charset() method to set the behavior for
 escapeHTML().
+
+<h4>-attachment</h4>
+The <b>-attachment</b> parameter can be used to turn the page into an
+attachment.  Instead of displaying the page, some browsers will prompt
+the user to save it to disk.  The value of the argument is the
+suggested name for the saved file.  In order for this to work, you may
+have to set the <b>-type</b> to "application/octet-stream".
 
 <h4>Other header fields</h4>
 
@@ -1040,6 +1047,11 @@ All parameters are optional:
       print $q-&gt;header(-Refresh=&gt;'10; URL=http://www.capricorn.com');
       </pre>
       </blockquote>
+  <li>A <strong>-lang</strong>> argument is used to incorporate a language attribute into
+      the &lt;HTM&gt;> tag.  The default if not specified is "en-US" for US English.  For example:
+<blockquote><pre>
+    print $q->header(-lang=>'fr-CA');
+</pre></blockquote>
   <LI>A <strong>-dtd</strong> parameter to make start_html()
       generate an SGML document type definition for the document.
       This is used by SGML editors and high-end Web publishing systems
@@ -2559,6 +2571,20 @@ dashes.
       <cite>hr</cite>, or add something like <em>use subs qw/hr p
       header/</em> to the top of your script.
       <p>
+  <dt><b>-nosticky</b>
+  <dd>Turns off "sticky" behavior in fill-out forms.  Every form
+      element will act as if you passed -override.
+      <p>
+  <dt><b>-xhtml</b>
+  <dd>Enable support for XHTML (<a
+href="http://www.w3.org/TR/xhtml1/">http://www.w3.org/TR/xhtml1/</a>)
+      output.  This
+      changes the default DTD and adds a closing / to all unpaired tags,
+      such as &lt;BR /&gt;.
+      <p>
+      This doesn't yet (May 2000) make the document fully XHTML compliant, because
+      the tags are still in all-caps.
+      <p>
   <dt><b>-nph</b>
   <dd>This makes CGI.pm produce a header appropriate for an NPH (no
       parsed header) script.  You may need to do other things as well
@@ -2576,7 +2602,7 @@ dashes.
       $href = escapeHTML($href);
       print <a href="$href">I'm talking to myself</a>
       </pre>
-      <blockquote>
+      </blockquote>
       <p>
   <dt><b>-newstyle_urls</b>
   <dd>Separate the name=value pairs in CGI parameter query strings with
@@ -2584,7 +2610,8 @@ dashes.
       <blockquote><pre>
       <pre>
       name=fred;age=24;favorite_color=3
-      </pre></blockquote>
+      </pre>
+      </blockquote>
       As of version 2.64, this is the default style.
   <dt><b>-no_debug</b>
   <dd>This turns off the command-line processing features.  If you
@@ -4418,34 +4445,12 @@ Microsoft IIS server.  CGI.pm must be put in the perl5 library
 directory, and all CGI scripts that use it should be placed in cgi-bin
 directory.  You also need to associate the <CODE>.pl</CODE> suffix
 with perl5 using the NT file manager (Website, Purveyor), or install
-the correct script mapping registry keys for IIS.  There are two ports
-of Perl for Windows, one done by the ActiveWare company, and the other
-by Gurusamy Sarathy.  I have only tested CGI.pm with the former.  The
-home site for the ActiveWare port is:
+the correct script mapping registry keys for IIS.  Perl for Windows is
+available from the ActiveState company, which can be found at:
 
 <blockquote>
-<a href="http://www.activeware.com/">http://www.activeware.com/</a>
+<a href="http://www.activestate.com/">http://www.activestate.com/</a>
 </blockquote>
-
-<p>
-
-The ActiveWare port comes in two parts.  The first part is a standard
-standalone Perl interpreter.  The second part is a small DLL library
-that implements a Perl ISAPI interface for IIS and other Web servers.
-As of build 307, the DLL library is <strong>seriously broken</strong>.
-It is seriously unreliable when used for any Perl CGI script, with or
-without CGI.pm.  Symptoms include truncated CGI parameters, missing
-parameters, scrambled output, and failed file uploads.  I strongly
-recommend that you use the standalone interpreter instead.
-
-<p>
-
-The Microsoft IIS server is broken with respect to the handling of <a
-href="#path_info">additional path information</a>.  If you use the DLL
-version of ActiveWare Perl, IIS will attempt to execute the additional
-path information as a script.  If you use the external Perl
-interpreter, the additional path information may contain incorrect
-information.  This is not a bug in CGI.pm.
 
 <p>
 
@@ -4627,6 +4632,17 @@ you.
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+
+<h3>Version 2.67</h3>
+<ol>
+  <li>Added XHTML support (incomplete; tags need to be lowercased).
+  <li>Fixed CGI/Carp when running under mod_perl.  Probably broke in other contexts.
+  <li>Fixed problems when passing multiple cookies.
+  <li>Suppress warnings from _tableize() that were appearing when using -w switch with
+      radio_group() and checkbox_group().
+  <li>Support for the header() -attachment argument, which can give
+      pages a default file name when saving to disk.
+</ol>
 
 <h3>Version 2.66</h3>
 <ol>
@@ -5429,6 +5445,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Wed Apr 12 16:10:19 EDT 2000
+Last modified: Mon May 15 21:35:42 EDT 2000
 <!-- hhmts end -->
 </BODY> </HTML>
