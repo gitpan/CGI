@@ -18,8 +18,8 @@ require 5.004;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.32 1998/05/28 21:55:43 lstein Exp lstein $';
-$CGI::VERSION='2.42';
+$CGI::revision = '$Id: CGI.pm,v 1.1.1.1 1998/10/08 20:23:02 lstein Exp $';
+$CGI::VERSION='2.43';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -58,6 +58,12 @@ sub initialize_globals {
 
     # Change this to 1 to disable uploads entirely:
     $DISABLE_UPLOADS = 0;
+
+    # Change this to 1 to suppress redundant HTTP headers
+    $HEADERS_ONCE = 0;
+
+    # separate the name=value pairs by semicolons rather than ampersands
+    $USE_PARAM_SEMICOLONS = 0;
 
     # Other globals that you shouldn't worry about.
     undef $Q;
@@ -165,6 +171,7 @@ if ($needs_binmode) {
 			 save_parameters restore_parameters param_fetch
 			 remote_user user_name header redirect import_names put Delete Delete_all url_param/],
 		':ssl' => [qw/https/],
+		':imagemap' => [qw/Area Map/],
 		':cgi-lib' => [qw/ReadParse PrintHeader HtmlTop HtmlBot SplitParam/],
 		':html' => [qw/:html2 :html3 :netscape/],
 		':standard' => [qw/:html2 :html3 :form :cgi/],
@@ -341,7 +348,7 @@ sub init {
 	  && $ENV{'CONTENT_TYPE'}=~m|^multipart/form-data|
 	  && !defined($initializer)
 	  ) {
-	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary=\"?([^\";]+)\"?/;
+	  my($boundary) = $ENV{'CONTENT_TYPE'} =~ /boundary=\"?([^\";,]+)\"?/;
 	  $self->read_multipart($boundary,$content_length);
 	  last METHOD;
       } 
@@ -496,7 +503,7 @@ sub save_request {
 
 sub parse_params {
     my($self,$tosplit) = @_;
-    my(@pairs) = split('&',$tosplit);
+    my(@pairs) = split(/[&;]/,$tosplit);
     my($param,$value);
     foreach (@pairs) {
 	($param,$value) = split('=',$_,2);
@@ -644,8 +651,10 @@ sub _setup_symbols {
     my $self = shift;
     my $compile = 0;
     foreach (@_) {
+	$HEADERS_ONCE++, next if /^[:-]unique_headers$/;
 	$NPH++, next if /^[:-]nph$/;
 	$NO_DEBUG++, next if /^[:-]no_?[Dd]ebug$/;
+	$USE_PARAM_SEMICOLONS++, next if /^[:-]newstyle_urls$/;
 	$PRIVATE_TEMPFILES++, next if /^[:-]private_tempfiles$/;
 	$EXPORT{$_}++, next if /^[:-]any$/;
 	$compile++, next if /^[:-]compile$/;
@@ -978,7 +987,7 @@ sub url_param {
     unless (exists($self->{'.url_param'})) {
 	$self->{'.url_param'}={}; # empty hash
 	if ($ENV{QUERY_STRING} =~ /=/) {
-	    my(@pairs) = split('&',$ENV{QUERY_STRING});
+	    my(@pairs) = split(/[&;]/,$ENV{QUERY_STRING});
 	    my($param,$value);
 	    foreach (@pairs) {
 		($param,$value) = split('=',$_,2);
@@ -1141,18 +1150,21 @@ sub header {
     my($self,@p) = self_or_default(@_);
     my(@header);
 
+    return undef if $self->{'.header_printed'}++ and $HEADERS_ONCE;
+
     my($type,$status,$cookie,$target,$expires,$nph,@other) = 
-	$self->rearrange([TYPE,STATUS,[COOKIE,COOKIES],TARGET,EXPIRES,NPH],@p);
+	$self->rearrange([['TYPE','CONTENT_TYPE','CONTENT-TYPE'],
+			  STATUS,[COOKIE,COOKIES],TARGET,EXPIRES,NPH],@p);
 
     $nph ||= $NPH;
     # rearrange() was designed for the HTML portion, so we
     # need to fix it up a little.
     foreach (@other) {
-	next unless my($header,$value) = /([^\s=]+)=\"?([^\"]+)\"?/;
+	next unless my($header,$value) = /([^\s=]+)=\"?(.+?)\"?$/;
 	($_ = $header) =~ s/^(\w)(.*)/$1 . lc ($2) . ": $value"/e;
     }
 
-    $type = $type || 'text/html';
+    $type ||= 'text/html' unless defined($type);
 
     # Maybe future compatibility.  Maybe not.
     my $protocol = $ENV{SERVER_PROTOCOL} || 'HTTP/1.0';
@@ -1175,7 +1187,7 @@ sub header {
     push(@header,"Date: " . expires(0,'http')) if $expires || $cookie;
     push(@header,"Pragma: no-cache") if $self->cache();
     push(@header,@other);
-    push(@header,"Content-Type: $type");
+    push(@header,"Content-Type: $type") if $type ne '';
 
     my $header = join($CRLF,@header)."${CRLF}${CRLF}";
     if ($MOD_PERL and not $nph) {
@@ -1221,6 +1233,7 @@ sub redirect {
 	 '-nph'=>$nph);
     unshift(@o,'-Target'=>$target) if $target;
     unshift(@o,'-Cookie'=>$cookie) if $cookie;
+    unshift(@o,'-Type'=>'');
     return $self->header(@o);
 }
 END_OF_FUNC
@@ -1459,8 +1472,11 @@ sub _textfield {
     $name = defined($name) ? $self->escapeHTML($name) : '';
     my($s) = defined($size) ? qq/ SIZE=$size/ : '';
     my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
-    my($other) = @other ? " @other" : '';    
-    return qq/<INPUT TYPE="$tag" NAME="$name" VALUE="$current"$s$m$other>/;
+    my($other) = @other ? " @other" : '';
+    # this entered at cristy's request to fix problems with file upload fields
+    # and WebTV -- not sure it won't break stuff
+    my($value) = $current ne '' ? qq(VALUE="$current") : '';
+    return qq/<INPUT TYPE="$tag" NAME="$name" $value$s$m$other>/;
 }
 END_OF_FUNC
 
@@ -1787,12 +1803,17 @@ END_OF_FUNC
 sub unescapeHTML {
     my $string = ref($_[0]) ? $_[1] : $_[0];
     return undef unless defined($string);
-    $string=~s/&amp;/&/ig;
-    $string=~s/&quot;/\"/ig;
-    $string=~s/&gt;/>/ig;
-    $string=~s/&lt;/</ig;
-    $string=~s/&#(\d+);/chr($1)/eg; 
-    $string=~s/&#[xX]([0-9a-fA-F]);/chr(hex($1))/eg; 
+    # thanks to Randal Schwartz for the correct solution to this one
+    $string=~ s[&(.*?);]{
+	local $_ = $1;
+	/^amp$/i	? "&" :
+	/^quot$/i	? '"' :
+        /^gt$/i		? ">" :
+	/^lt$/i		? "<" :
+	/^#(\d+)$/	? chr($1) :
+	/^#x([0-9a-f]+)$/i ? chr(hex($1)) :
+	$_
+	}gex;
     return $string;
 }
 END_OF_FUNC
@@ -1867,13 +1888,12 @@ sub radio_group {
     } else {
 	$checked = $default;
     }
-    # If no check array is specified, check the first by default
-    $checked = $values->[0] unless defined($checked) && $checked ne '';
-    $name=$self->escapeHTML($name);
-
     my(@elements,@values);
-
     @values = $self->_set_values_and_labels($values,\$labels,$name);
+
+    # If no check array is specified, check the first by default
+    $checked = $values[0] unless defined($checked) && $checked ne '';
+    $name=$self->escapeHTML($name);
 
     my($other) = @other ? " @other" : '';
     foreach (@values) {
@@ -2321,7 +2341,7 @@ sub query_string {
 	    push(@pairs,"$eparam=$value");
 	}
     }
-    return join("&",@pairs);
+    return join($USE_PARAM_SEMICOLONS ? ';' : '&',@pairs);
 }
 END_OF_FUNC
 
@@ -2758,6 +2778,7 @@ sub read_multipart {
 	  chmod 0600,$tmp;    # only the owner can tamper with it
 
 	  my ($data);
+	  local($\) = '';
 	  while (defined($data = $buffer->read)) {
 	      print $filehandle $data;
 	  }
@@ -2841,10 +2862,7 @@ $AUTOLOADED_ROUTINES=<<'END_OF_AUTOLOAD';
 'asString' => <<'END_OF_FUNC',
 sub asString {
     my $self = shift;
-    my $i = $$self;
-    $i=~ s/^\*(\w+::)+//; # get rid of package name
-    $i =~ s/\\(.)/$1/g;
-    return $i;
+    return ${*{$self}{SCALAR}};
 }
 END_OF_FUNC
 
@@ -2861,7 +2879,8 @@ sub new {
     my($pack,$name,$file,$delete) = @_;
     require Fcntl unless defined &Fcntl::O_RDWR;
     ++$FH;
-    *{$FH} = quotemeta($name);
+     *{$FH} = $FH;
+     ${*{$FH}{SCALAR}}=$name;
     sysopen($FH,$file,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL()) 
 	|| die "CGI open of $file: $!\n";
     unlink($file) if $delete;
@@ -2930,8 +2949,8 @@ sub new {
 	# characters "--" PLUS the Boundary string
 
 	# BUG: IE 3.01 on the Macintosh uses just the boundary -- not
-	# the two extra spaces.  We do a special case here on the user-agent!!!!
-	$boundary = "--$boundary" unless CGI::user_agent('MSIE 3\.0[12];  Mac');
+	# the two extra hyphens.  We do a special case here on the user-agent!!!!
+	$boundary = "--$boundary" unless CGI::user_agent('MSIE 3\.0[12];  ?Mac');
 
     } else { # otherwise we find it ourselves
 	my($old);
@@ -3129,7 +3148,7 @@ $MAC = $CGI::OS eq 'MACINTOSH';
 my ($vol) = $MAC ? MacPerl::Volumes() =~ /:(.*)/ : "";
 unless ($TMPDIRECTORY) {
     @TEMP=("${SL}usr${SL}tmp","${SL}var${SL}tmp",
-	   "${SL}tmp","${SL}temp","${vol}${SL}Temporary Items",
+	   "C:${SL}temp","${SL}tmp","${SL}temp","${vol}${SL}Temporary Items",
 	   "${SL}WWW_ROOT");
     foreach (@TEMP) {
 	do {$TMPDIRECTORY = $_; last} if -d $_ && -w _;
@@ -3276,7 +3295,7 @@ script and restore it later.
 For example, using the object oriented style, here is now you create
 a simple "Hello World" HTML page:
 
-   #!/usr/local/bin/pelr
+   #!/usr/local/bin/perl
    use CGI;                             # load CGI routines
    $q = new CGI;                        # create new CGI object
    print $q->header,                    # create the HTTP header
@@ -3294,7 +3313,7 @@ The main differences are that we now need to import a set of functions
 into our name space (usually the "standard" functions), and we don't
 need to create the CGI object.
 
-   #!/usr/local/bin/pelr
+   #!/usr/local/bin/perl
    use CGI qw/:standard/;           # load standard CGI routines
    print header,                    # create the HTTP header
          start_html('hello world'), # start the HTML
@@ -3819,6 +3838,17 @@ parsed header) script.  You may need to do other things as well
 to tell the server that the script is NPH.  See the discussion
 of NPH scripts below.
 
+=item -newstyle_urls
+
+Separate the name=value pairs in CGI parameter query strings with
+semicolons rather than ampersands.  For example:
+
+   ?name=fred;age=24;favorite_color=3
+
+Semicolon-delimited query strings are always accepted, but will not be
+emitted by self_url() and query_string() unless the -newstyle_urls
+pragma is specified.
+
 =item -autoload
 
 This overrides the autoloader so that any function in your program
@@ -4247,6 +4277,25 @@ as a synonym.
 
 =back
 
+=head2 MIXING POST AND URL PARAMETERS
+
+   $color = $query-&gt;url_param('color');
+
+It is possible for a script to receive CGI parameters in the URL as
+well as in the fill-out form by creating a form that POSTs to a URL
+containing a query string (a "?" mark followed by arguments).  The
+B<param()> method will always return the contents of the POSTed
+fill-out form, ignoring the URL's query string.  To retrieve URL
+parameters, call the B<url_param()> method.  Use it in the same way as
+B<param()>.  The main difference is that it allows you to read the
+parameters, but not set them.
+
+
+Under no circumstances will the contents of the URL query string
+interfere with similarly-named CGI parameters in POSTed forms.  If you
+try to mix a URL query string with a form submitted with the GET
+method, the results will not be what you expect.
+
 =head1 CREATING STANDARD HTML ELEMENTS:
 
 CGI.pm defines general HTML shortcut methods for most, if not all of
@@ -4469,7 +4518,7 @@ default is to process the query with the current script.
 
     print $query->startform(-method=>$method,
 			    -action=>$action,
-			    -encoding=>$encoding);
+			    -enctype=>$encoding);
       <... various form stuff ...>
     print $query->endform;
 
@@ -4484,11 +4533,11 @@ action and form encoding that you specify.  The defaults are:
 	
     method: POST
     action: this script
-    encoding: application/x-www-form-urlencoded
+    enctype: application/x-www-form-urlencoded
 
 endform() returns the closing </FORM> tag.  
 
-Startform()'s encoding method tells the browser how to package the various
+Startform()'s enctype argument tells the browser how to package the various
 fields of the form before sending the form to the server.  Two
 values are possible:
 
@@ -5591,13 +5640,8 @@ Produces something that looks like:
 	</UL>
     </UL>
 
-You can pass a value of 'true' to dump() in order to get it to
-print the results out as plain text, suitable for incorporating
-into a <PRE> section.
-
-As a shortcut, as of version 1.56 you can interpolate the entire CGI
-object into a string and it will be replaced with the a nice HTML dump
-shown above:
+As a shortcut, you can interpolate the entire CGI object into a string
+and it will be replaced with the a nice HTML dump shown above:
 
     $query=new CGI;
     print "<H2>Current Values</H2> $query\n";
@@ -5962,7 +6006,7 @@ Thanks very much to:
 
 =item Joergen Haegg (jh@axis.se)
 
-=item Laurent Delfosse (delfosse@csgrad1.cs.wvu.edu)
+=item Laurent Delfosse (delfosse@delfosse.com)
 
 =item Richard Resnick (applepi1@aol.com)
 

@@ -5,7 +5,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.42, 6/9/98, L. Stein
+Version 2.43, 10/14/98, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -64,7 +64,7 @@ if (param()) {
 	"Your favorite color is ",em(param('color')),
 	hr;
 }
-print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
+print end_html;
 </PRE>
 
 <A HREF="examples/tryit.cgi">Select this link to try the script</A>
@@ -109,7 +109,7 @@ examples from <cite>The Official Guide to CGI.pm</cite></a>
   <LI><A HREF="#book">The CGI.pm Book</A>
   <LI><A HREF="#y2000">CGI.pm and the Year 2000 Problem</A>
   <LI><A HREF="#bugs">Bug Reporting and Support</A>
-  <LI><A HREF="#new">What's new in version 2.42?</A>
+  <LI><A HREF="#new">What's new in version 2.43?</A>
 </MENU>
 
 <HR>
@@ -117,8 +117,8 @@ examples from <cite>The Official Guide to CGI.pm</cite></a>
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm-2.42.tar.gz">Download 2.42 (gzip tar archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm-2.42.zip">Download 2.42 (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.43.tar.gz">Download 2.43 (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.43.zip">Download 2.43 (pkzip archive)</A></STRONG>
   <li><STRONG><A HREF="CGI.pm-2.41.sit">Download 2.41
       (Macintosh stuffit archive)</A></STRONG>
   <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
@@ -131,7 +131,7 @@ version 2.42!</em>
 
 The current version of the software can always be downloaded from the
 master copy of this document maintained at <a
-href="http://www.genome.wi.mit.edu/ftp/pub/software/WWW/">http://www.genome.wi.mit.edu/ftp/pub/software/WWW/</a>.
+href="http://stein.cshl.org/WWW/software/CGI/">http://stein.cshl.org/WWW/software/CGI/</a>.
 
 <P>
 
@@ -2475,6 +2475,20 @@ dashes.
       to tell the server that the script is NPH.  See the <a href="#nph">discussion
       of NPH scripts</a> below.
       <p>
+  <dt><b>-newstyle_urls</b>
+  <dd>Separate the name=value pairs in CGI parameter query strings with
+      semicolons rather than ampersands.  For example:
+      <blockquote>
+<pre>
+?name=fred;age=24;favorite_color=3
+</pre>
+      </blockquote>
+      
+      Semicolon-delimited query strings are always accepted, but will not be
+      emitted by <cite>self_url()</cite> and
+      <cite>query_string()</cite> unless the <b>-newstyle_urls</b>
+      pragma is specified.
+      <p>
   <dt><b>-no_debug</b>
   <dd>This turns off the command-line processing features.  If you
       want to run a CGI.pm script from the command line to produce
@@ -4312,7 +4326,7 @@ The CGI Perl mailing list is defunct and is unlikely to be
 resurrected.  Please address your questions to <a
 href="news:comp.infosystems.www.authoring.cgi">comp.infosystems.www.authoring.cgi</a>
 if they relate to the CGI protocol or the usage of CGI.pm <i>per
-se</i>, or to <a href="comp.lang.perl.misc">comp.lang.perl.misc</a>
+gse</i>, or to <a href="news:comp.lang.perl.misc">comp.lang.perl.misc</a>
 for Perl <STRONG>language</STRONG> issues.  Please read this
 documentation thoroughly, read the FAQs for these newsgroups and scan
 through previous messages before you make a posting.  Respondents are
@@ -4344,6 +4358,24 @@ perl -V
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+
+<h3>Version 2.43</h3>
+<ol>
+  <li>Fixed problem with "use strict" and file uploads (thanks to Peter Haworth)
+  <li>Fixed problem with not MSIE 3.01 for the power_mac not doing
+      file uploads right.
+  <li>Fixed problem with file upload on IIS 4.0 when authorization in
+      use.
+  <li>-content_type and '-content-type' can now be provided to
+      header() as synonyms for -type.
+  <li>CGI::Carp now escapes the ampersand BEFORE escaping the &gt; and
+      &lt; signs.
+  <li>Fixed "not an array reference" error when passing a hash
+      reference to radio_group().
+  <li>Fixed non-removal of uploaded TMP files on NT platforms which
+      occurs when server runs on non-C drive (thanks to Steve Kilbane
+      for finding this one).
+</ol>
 
 <h3>Version 2.42</h3>
 <ol>
@@ -4939,6 +4971,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Tue Jun  9 12:00:18 EDT 1998
+Last modified: Wed Oct 14 14:36:58 EDT 1998
 <!-- hhmts end -->
 </BODY> </HTML>

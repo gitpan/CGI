@@ -178,7 +178,7 @@ use Carp;
 
 $main::SIG{__WARN__}=\&CGI::Carp::warn;
 $main::SIG{__DIE__}=\&CGI::Carp::die;
-$CGI::Carp::VERSION = '1.10';
+$CGI::Carp::VERSION = '1.11';
 $CGI::Carp::CUSTOM_MSG = undef;
 
 # fancy import routine detects and handles 'errorWrap' specially.
@@ -278,9 +278,9 @@ sub carpout {
 # headers
 sub fatalsToBrowser {
     my($msg) = @_;
+    $msg=~s/&/&amp;/g;
     $msg=~s/>/&gt;/g;
     $msg=~s/</&lt;/g;
-    $msg=~s/&/&amp;/g;
     $msg=~s/\"/&quot;/g;
     my($wm) = $ENV{SERVER_ADMIN} ? 
 	qq[the webmaster (<a href="mailto:$ENV{SERVER_ADMIN}">$ENV{SERVER_ADMIN}</a>)] :
@@ -305,7 +305,7 @@ END
 <H1>Software error:</H1>
 <CODE>$msg</CODE>
 <P>
-$outer_message;
+$outer_message
 END
     ;
 }

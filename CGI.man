@@ -1,7 +1,10 @@
 .rn '' }`
-''' $RCSfile$$Revision$$Date$
+''' $RCSfile: CGI.man,v $$Revision: 1.1.1.1 $$Date: 1998/10/08 20:23:03 $
 '''
-''' $Log$
+''' $Log: CGI.man,v $
+''' Revision 1.1.1.1  1998/10/08 20:23:03  lstein
+''' This is CGI.pm.  Yet another attempt at CVSing it.
+'''
 '''
 .de Sh
 .br

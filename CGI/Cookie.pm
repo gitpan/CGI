@@ -69,7 +69,9 @@ sub parse {
 	my($key,$value) = split("=");
 	my(@values) = map CGI::unescape($_),split('&',$value);
 	$key = CGI::unescape($key);
-	$results{$key} = $self->new(-name=>$key,-value=>\@values);
+	# A bug in Netscape can cause several cookies with same name to
+	# appear.  The FIRST one in HTTP_COOKIE is the most recent version.
+	$results{$key} ||= $self->new(-name=>$key,-value=>\@values);
     }
     return \%results unless wantarray;
     return %results;
