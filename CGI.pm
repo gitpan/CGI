@@ -28,8 +28,8 @@ $AUTOLOAD_DEBUG=0;
 #    3) print header(-nph=>1)
 $NPH=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.33 1997/4/5 9:10 lstein Exp $';
-$CGI::VERSION='2.33';
+$CGI::revision = '$Id: CGI.pm,v 2.34 1997/4/7 7:23 lstein Exp $';
+$CGI::VERSION='2.34';
 
 # OVERRIDE THE OS HERE IF CGI.pm GUESSES WRONG
 # $OS = 'UNIX';
@@ -87,7 +87,7 @@ $SL = {
 $NPH++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 
 # Turn on special checking for Doug MacEachern's modperl
-if (defined($ENV{'GATEWAY_INTERFACE'} && ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl/)) {
+if (defined($ENV{'GATEWAY_INTERFACE'}) && ($MOD_PERL = $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-Perl/)) {
     $NPH++;
     $| = 1;
     $SEQNO = 1;
