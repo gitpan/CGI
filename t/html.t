@@ -4,7 +4,7 @@
 ######################### We start with some black magic to print on failure.
 use lib '../blib/lib','../blib/arch';
 
-BEGIN {$| = 1; print "1..23\n"; }
+BEGIN {$| = 1; print "1..24\n"; }
 END {print "not ok 1\n" unless $loaded;}
 use CGI (':standard','-no_debug','*h3','start_table');
 $loaded = 1;
@@ -66,4 +66,5 @@ test(21,h1(escapeHTML("this is <not> \x8bright\x9b")) eq '<H1>this is &lt;not&gt
 charset('utf-8');
 test(22,h1(escapeHTML("this is <not> \x8bright\x9b")) eq '<H1>&#116;&#104;&#105;&#115;&#32;&#105;&#115;&#32;&#60;&#110;&#111;&#116;&#62;&#32;&#139;&#114;&#105;&#103;&#104;&#116;&#155;</H1>');
 test(23,i(p('hello there')) eq '<I><P>hello there</P></I>');
-
+my $q = new CGI;
+test(24,$q->h1('hi') eq '<H1>hi</H1>');
