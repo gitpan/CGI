@@ -1,7 +1,7 @@
 #!/usr/local/bin/perl
 
 use CGI qw(:standard);
-use CGI::Carp;
+use CGI::Carp qw/fatalsToBrowser/;
 
 print header();
 print start_html("File Upload Example");

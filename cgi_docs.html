@@ -5,18 +5,23 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.37b6, 10/8/97, L. Stein
+Version 2.37b10, 11/22/97, L. Stein
 <p>
 
 <strong>This is a beta release.</strong> 2.36 is the official release.
-If there are no bugs reported in this beta release by October 18, the
-final will be released.
+This is a <i>near final</i> version.  Problems with the ActiveWare
+port of Perl5 to Windows NT are still being resolved.
 
 <p>
 
 <strong>Windows NT Users:</strong> <a href="#windows">See below</a>
 for advice on using PerlIS build 307.
+<p>
 
+<strong>Macintosh Users:</strong> Due to a change of workplaces, I no
+longer have access to a Macintosh.  I am looking for a volunteer to
+put the complete CGI distribution into StuffIt format for the benefit
+of other Mac uses.
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
 fill-out forms on the fly and to parse their contents.  It provides a
@@ -118,18 +123,30 @@ print a({href=&gt;'../cgi_docs.html'},'Go to the documentation');
 <H2>Downloading & Installation</H2>
 </A>
 <ul>
-  <li><STRONG><A HREF="CGI.pm-2.37b3.tar.gz">Download 2.37 beta (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b10.tar.gz">Download 2.37 beta (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b10.zip">Download 2.37 beta (pkzip archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.37b9.sit">Download 2.37 beta package (Macintosh stuffit archive)</A></STRONG>
   <li><STRONG><A HREF="CGI.pm.tar.gz">Download 2.36 package (gzip tar archive)</A></STRONG>
   <li><STRONG><A HREF="CGIpm.zip">Download 2.36 package (pkzip archive)</A></STRONG>
-  <li><STRONG><A HREF="CGI.pm.sit.hqx">Download 2.35 package (Macintosh stuffit archive)</A></STRONG>
+  <li><STRONG><A HREF="CGI.pm-2.36.sit">Download 2.36 package (Macintosh stuffit archive)</A></STRONG>
   <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</a></strong>
 </ul>
 
 <P>
 
-This package requires perl 5.003 or higher.  In most cases, 
-you should have perl do the installation for you.  Move to the
-directory containing CGI.pm and type the following commands:
+This package requires perl 5.003 <strong>patch level 7</strong> or
+higher.  This is because it makes use of the UNIVERSAL.pm module,
+which was added to the distribution at about this time.  If you have
+an earlier version of Perl, you are urged to upgrade.  If you can't,
+you can use CGI.pm if you obtain and install the UNIVERSAL.pm module.
+You can find this module on <a
+href="http://www.perl.com/CPAN-local//modules/by-module/UNIVERSAL/">CPAN</a>
+or one of its mirrors.
+
+<p>
+
+In most cases, you should have perl do the installation for you.  Move
+to the directory containing CGI.pm and type the following commands:
 
 <PRE>
    % perl Makefile.PL
@@ -140,6 +157,7 @@ directory containing CGI.pm and type the following commands:
 You may need to be root to do the last step.
 
 <p>
+
 This will create two new files in your Perl library.  <b>CGI.pm</b> is the
 main library file.  <b>Carp.pm</b> (in the subdirectory "CGI") contains
 some optional utility
@@ -154,12 +172,11 @@ then you are either:
 <ol>
   <li> Running a Windows NT port of Perl (or another port) that
       doesn't have make or the MakeMaker program built into it.
-  <li> Have an old version of perl.  In particular, version 5.000
-      will complain that (nonexistent) .c and .o files are missing.  
+  <li> Have an old version of Perl.  Upgrade to 5.003_92 or higher.
 </ol>
 
-In either of these cases, don't panic.  Here's a recipe that will
-work (commands are given in MS-DOS form):
+In the former case don't panic.  Here's a recipe that will work
+(commands are given in MS-DOS form):
 
 <pre>
   &gt; cd CGI.pm-2.37
@@ -173,18 +190,26 @@ Modify this if your Perl library has a different location.
 <p>
 
 <STRONG>If you do not have sufficient privileges to install into
-/usr/local/lib/perl5</STRONG>, you can still use CGI.pm.  Place it
-in some convenient place, for example, in
-<CODE>/usr/local/etc/httpd/cgi-bin</CODE> and preface your CGI
+/usr/local/lib/perl5</STRONG>, you can still use CGI.pm.  Modify the
+installation recipe as follows:
+
+<PRE>
+   % perl Makefile.PL INSTALLDIRS=site INSTALLSITELIB=/home/your/private/dir
+   % make
+   % make install
+</PRE>
+
+Replace <cite>/home/your/private/dir</cite> with the full path to the
+directory you want the library placed in.  Now preface your CGI
 scripts with a preamble something like the following:
 
 <blockquote><pre>
-use lib '/usr/local/etc/httpd/cgi-bin';
+use lib '/home/your/private/dir';
 use CGI;
 </pre></blockquote>
 
-Be sure to replace /usr/local/etc/httpd/cgi-bin with the true
-location of CGI.pm.
+Be sure to replace /home/your/private/dir with the true location of
+CGI.pm.
 
 <P>
 
@@ -227,7 +252,7 @@ or over a period of time.  You can then reload the multiple records
 into an array of query objects with something like this:
 
 <blockquote><pre>
-open (IN,"test.out") || die;
+open (IN,"test.in") || die;
 while (!eof(IN)) {
     my $q = new CGI(IN);
     push(@queries,$q);
@@ -245,6 +270,19 @@ filehandles in Perl5:
 
 (If you don't know what I'm talking about, then you're not a Perl
 purist and you needn't worry about it.)
+
+<p>
+
+If you are using the function-oriented interface and want to
+initialize CGI state from a file handle, the way to do this is with
+<cite>restore_parameters()</cite>.  This will (re)initialize the
+default CGI object from the indicated file handle.
+
+<blockquote><pre>
+open (IN,"test.in") || die;
+restore_parameters(IN);
+close IN;
+</pre></blockquote>
 
 <p>
 
@@ -422,6 +460,11 @@ with the new() method at some later time.  You can write out multiple
 queries to the same file and later read them into query objects one by one.
 
 <p>
+
+If you wish to use this method from the function-oriented (non-OO)
+interface, the exported name for this method is
+<cite>save_parameters()</cite>.
+
 See <A HREF="#advanced"> advanced techniques</A> for more information.
 
 <H3><A NAME="self_referencing">
@@ -481,6 +524,7 @@ series of name=&gt;argument pairs, like this:
                                 -values=&gt;[Unix,Windows,Macintosh],
                                 -default=&gt;'Unix');
 </PRE>
+
 The advantages of this style are that you don't have to remember the
 exact order of the arguments, and if you leave out a parameter, iit
 will usually default to some reasonable value.  If you provide
@@ -531,6 +575,20 @@ all string constants just to play it safe.
 HTML/HTTP parameters that contain internal hyphens, such as <i>-Content-language</i>
 can be passed by putting quotes around them, or by using an underscore
 for the second hyphen, e.g. <cite>-Content_language</cite>.
+
+<p>
+
+The fact that you must use curly {} braces around the attributes
+passed to functions that create simple HTML tags but don't use them
+around the arguments passed to all other functions has many people,
+including myself, confused.  As of 2.37b7, the syntax is extended to
+allow you to use curly braces for all function calls:
+
+<PRE>
+   $field = $query-&gt;radio_group({-name=&gt;'OS',
+                                -values=&gt;[Unix,Windows,Macintosh],
+                                -default=&gt;'Unix'});
+</PRE>
 
 <A HREF="#contents">Table of contents</A>
 
@@ -895,6 +953,11 @@ HTML3 tags that are in common usage (including tables).  Unpaired
 tags, paired tags, and tags that contain attributes are all supported
 using a simple syntax.
 
+<p>
+
+To see the list of HTML tags that are supported, open up the CGI.pm
+file and look at the functions defined in the %EXPORT_TAGS array.
+
 <h4>Unpaired Tags</h4>
 
 Unpaired tags include &lt;P&gt;, &lt;HR&gt; and &lt;BR&gt;.  The
@@ -940,12 +1003,12 @@ facility, the HTML shortcuts can make CGI scripts easier to read.  For
 example:
 
 <pre>
-   use CGI ':standard';
+   use CGI qw/:standard/;
    print h1("Road Guide"),
          ol(
-          li(a {href=&gt;"start.html"},"The beginning"),
-          li(a {href=&gt;"middle.html"},"The middle"),
-          li(a {href=&gt;"end.html"},"The end")
+          li(a({href=&gt;"start.html"},"The beginning")),
+          li(a({href=&gt;"middle.html"},"The middle")),
+          li(a({href=&gt;"end.html"},"The end"))
          );
 </pre>
 
@@ -974,11 +1037,90 @@ can use an initial hyphen (<cite>-name</cite>) for readability if you
 wish:
 
 <pre>
-   use CGI shortcuts;
-   print a({href=&gt;"bad_art.html"},"Jump to the silly exhibit");
+   use CGI qw/:standard/;
+   print a({-href=&gt;"bad_art.html"},"Jump to the silly exhibit");
 </pre>
 
+<h4>Distributive HTML Tags and Tables</h4>
+
+All HTML tags are distributive.  If you give them an argument
+consisting of a <b>reference</b> to a list, the tag will be
+distributed across each element of the list.  For example, here's one
+way to make an ordered list:
+
+<blockquote><pre>
+print ul(
+        li({-type=>'disc'},['Sneezy','Doc','Sleepy','Happy']);
+      );
+</pre></blockquote>
+
+This example will result in HTML output that looks like this:
+
+<blockquote><pre>
+&lt;UL&gt;
+  &lt;LI TYPE="disc"&gt;Sneezy&lt;/LI&gt;
+  &lt;LI TYPE="disc"&gt;Doc&lt;/LI&gt;
+  &lt;LI TYPE="disc"&gt;Sleepy&lt;/LI&gt;
+  &lt;LI TYPE="disc"&gt;Happy&lt;/LI&gt;
+&lt;/UL&gt;
+</pre></blockquote>
+
+You can take advantage of this to create HTML tables easily and
+naturally.  Here is some code and the HTML it outputs:
+
+<blockquote><pre>
+use CGI qw/:standard :html3 -no_debug/;
+print table({-border=>''},
+        caption(strong('When Should You Eat Your Vegetables?')),
+        Tr({-align=>CENTER,-valign=>TOP},
+        [
+           th(['','Breakfast','Lunch','Dinner']),
+           th('Tomatoes').td(['no','yes','yes']),
+           th('Broccoli').td(['no','no','yes']),
+           th('Onions').td(['yes','yes','yes'])
+        ]
+      )
+);
+</pre></blockquote>
+
+<TABLE BORDER><CAPTION><STRONG>When Should You Eat Your Vegetables?</STRONG></CAPTION>
+<TR ALIGN="CENTER" VALIGN="TOP"><TH></TH> <TH>Breakfast</TH> <TH>Lunch</TH> <TH>Dinner</TH></TR>
+<TR ALIGN="CENTER" VALIGN="TOP"><TH>Tomatoes</TH><TD>no</TD> <TD>yes</TD> <TD>yes</TD></TR>
+<TR ALIGN="CENTER" VALIGN="TOP"><TH>Broccoli</TH><TD>no</TD> <TD>no</TD> <TD>yes</TD></TR>
+<TR ALIGN="CENTER" VALIGN="TOP"><TH>Onions</TH><TD>yes</TD> <TD>yes</TD> <TD>yes</TD></TR>
+</TABLE>
 <P>
+
+Notice the use of <b>-no_debug</b> in a program that we intend to call
+from the command line.
+
+<p>
+
+If you want to produce tables programatically, you can do it this way:
+
+<blockquote><pre>
+use CGI qw/:standard :html3 -no_debug/;
+@values = (1..5);
+
+@headings = ('N','N'.sup('2'),'N'.sup('3'));
+@rows = th(\@headings);
+foreach $n (@values) {
+   push(@rows,td([$n,$n**2,$n**3]));
+}
+print table({-border=>'',-width=>'25%'},
+            caption(b('Wow.  I can multiply!')),
+            Tr(\@rows)
+           );
+</pre></blockquote>
+
+<TABLE BORDER WIDTH="25%"><CAPTION><B>Wow.  I can multiply!</B></CAPTION> 
+<TR><TH>N</TH> <TH>N<SUP>2</SUP></TH> <TH>N<SUP>3</SUP></TH></TR> 
+<TR><TD>1</TD> <TD>1</TD> <TD>1</TD></TR> 
+<TR><TD>2</TD> <TD>4</TD> <TD>8</TD></TR> 
+<TR><TD>3</TD> <TD>9</TD> <TD>27</TD></TR> 
+<TR><TD>4</TD> <TD>16</TD> <TD>64</TD></TR> 
+<TR><TD>5</TD> <TD>25</TD> <TD>125</TD></TR>
+</TABLE>
 <A HREF="#contents">Table of contents</A>
 
 <HR>
@@ -1358,7 +1500,7 @@ can spy on another!  To make the temporary files
 <strong>really</strong> private, set the CGI global variable
 $CGI::PRIVATE_TEMPFILES to 1.  Alternatively, call the built-in
 function CGI::private_tempfiles(1), or just <cite>use CGI
-qw/:private_tempfiles</cite>.  The temp file will now be unlinked as
+qw/-private_tempfiles</cite>.  The temp file will now be unlinked as
 soon as it is created, making it inaccessible to other users.  The
 <strong>downside</strong> of this is that you will be unable to obtain
 the name of the temporary file using <cite>tmpFileName()</cite>.  This
@@ -1648,7 +1790,7 @@ code to be performed every time the user clicks on the button.
    <EM>HTML3-compatible browsers only</EM>
    print $query-&gt;radio_group(-name=&gt;'group_name',
                                 -values=&gt;['eenie','meenie','minie','moe'],
-	                        -rows=2,-columns=&gt;2);
+	                        -rows=&gt;2,-columns=&gt;2);
 </PRE>
 
 <STRONG>radio_group()</STRONG> creates a set of logically-related radio buttons.
@@ -2053,8 +2195,8 @@ Currently there are 8 method families defined in CGI.pm.  They are:
 </dl>
 
 In addition to these method families, there is a special one named
-<cite>:any</cite> that changes the behavior of the CGI query object.
-If you import <cite>:any</cite>, then any method that the query object
+<cite>-any</cite> that changes the behavior of the CGI query object.
+If you import <cite>-any</cite>, then any method that the query object
 doesn't recognize will be interpreted as a new HTML tag.  This allows
 you to support the next <cite>ad hoc</cite> Netscape or Microsoft HTML
 extension.  For example, to support Netscape's latest tag,
@@ -2063,7 +2205,7 @@ rotating gradient fill until his machine reboots), you can use
 something like this:
 
 <blockquote><pre>
-use CGI qw(:any :all);
+use CGI qw(-any);
 $q=new CGI;
 print $q-&gt;gradient({speed=&gt;'fast',start=&gt;'red',end=&gt;'blue'});
 </pre></blockquote>
@@ -2110,7 +2252,7 @@ character to escape spaces and other funny characters in exactly
 the way you would in the shell (which isn't surprising since CGI.pm
 uses "shellwords.pl" internally).  This lets you do this sort of thing:
 <PRE>
-    my_script.pl "'name 1'='I am a long value'" "'name 2'=two\ words"
+    my_script.pl 'name 1=I am a long value' name\ 2=two\ words
 </PRE>
 
 <p>
@@ -2145,11 +2287,11 @@ You can suppress this behavior in any of the following ways:
       my_script.pl &lt;/dev/null
       </pre>
       <p>
-  <dt>3. Include ":no_debug" in the list of symbols to import on the
+  <dt>3. Include "-no_debug" in the list of symbols to import on the
       "use" line.
   <dd>Example:
       <pre>
-      use CGI qw/:standard :no_debug/;
+      use CGI qw/:standard -no_debug/;
       </pre>
 </dl>
 
@@ -2731,10 +2873,10 @@ There are a number of ways to put CGI.pm into NPH mode:
 
 <dl>
   <dt>In the <strong>use</strong> statement:
-  <dd>Simply add ":nph" to the list of symbols to be imported into
+  <dd>Simply add "-nph" to the list of symbols to be imported into
       your script:
       <blockquote><pre>
-      use CGI qw(:standard :nph)
+      use CGI qw(:standard -nph)
       </pre></blockquote>
       <p>
   <dt>By calling the <strong>nph()</strong> method:
@@ -3210,11 +3352,11 @@ This will work too on Unix systems:
      my_script.pl &lt;/dev/null
 </pre>
 
-Another option is to use the ":no_debug" pragma when you "use"
+Another option is to use the "-no_debug" pragma when you "use"
 CGI.pm.  This will suppress command-line debugging completely:
 
 <pre>
-use CGI qw/:standard :no_debug/;
+use CGI qw/:standard -no_debug/;
 </pre>
 
 <H4>You can't retrieve the name of the uploaded file
@@ -3574,6 +3716,20 @@ Address bug reports and comments to:<BR>
 
 <h3>Version 2.37</h3>
 <ol>
+  <li>Now requires the UNIVERSAL.pm module, present in Perl 5.003_7 or
+      higher.
+  <li>Fixed problem with uppercase-only parameters being ignored.
+  <li>Fixed vanishing cookie problem.
+  <li>Fixed warning in initialize_globals() under mod_perl.
+  <li>File uploads from Macintosh versions of MSIE should now work.
+  <li>Pragmas now preceded by dashes (-nph) rather than colons (:nph).
+      Old style is supported for backward compatability.
+  <li>Can now pass arguments to all functions using {} brackets,
+      resolving historical inconsistencies.
+  <li>Removed autoloader warnings about absent MultipartBuffer::DESTROY.
+  <li>Fixed non-sticky checkbox() when -name used without -value.
+  <li>Hack to fix path_info() in IIS 2.0.  Doesn't help with IIS 3.0.
+  <li>Parameter syntax for debugging from command line now more straightforward.
   <li>Added $DISABLE_UPLOAD to disable file uploads.
   <li>Added $POST_MAX to error out if POSTings exceed some ceiling.
   <li>Fixed url_param(), which wasn't working at all.
@@ -4070,6 +4226,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Sun Oct 12 10:08:41 EDT 1997
+Last modified: Sun Nov 23 12:31:38 EST 1997
 <!-- hhmts end -->
 </BODY> </HTML>

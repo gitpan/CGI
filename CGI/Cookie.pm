@@ -17,11 +17,9 @@ package CGI::Cookie;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::Cookie::VERSION='1.00';
+$CGI::Cookie::VERSION='1.02';
 
 use CGI qw/unescape escape/;
-use overload
-    '""' => 'as_string';
 
 # fetch a list of cookies from the environment and
 # return as a hash.
@@ -35,8 +33,10 @@ sub fetch {
     foreach (@pairs) {
 	my($key,$value) = split("=");
 	my(@values) = map unescape($_),split('&',$value);
-	$results{$key} = $class->new(-name=>$key,-value=>[@values]);
+	$key = unescape($key);
+	$results{$key} = $class->new(-name=>$key,-value=>\@values);
     }
+    return \%results unless wantarray;
     return %results;
 }
 
@@ -251,7 +251,7 @@ cookie only when a cryptographic protocol is in use.
 
 	%cookies = fetch CGI::Cookie;
 
-B<fetch> creates an associative array consisting of all cookies
+B<fetch> returns an associative array consisting of all cookies
 returned by the browser.  The keys of the array are the cookie names.  You
 can iterate through the cookies this way:
 
@@ -259,6 +259,9 @@ can iterate through the cookies this way:
 	foreach (keys %cookies) {
 	   do_something($cookies{$_});
         }
+
+In a scalar context, fetch() returns a hash reference, which may be more
+efficient if you are manipulating multiple cookies.
     
 =head2 Manipulating Cookies
 
