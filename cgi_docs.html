@@ -7,7 +7,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 3.00, 8/18/2003, L. Stein
+Version 3.01, 12/10/2003, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -1027,10 +1027,8 @@ Nothing else will be displayed.
 <P>
 You can add your own headers to this as in the header() method.
 <P>
-You should always use absolute or full URLs in
-redirection requests.  Relative URLs will <strong>not</strong> work
-correctly.
-
+You should always use full URLs (including the http: or ftp: part) in
+redirection requests.  Relative URLs will <b>not</b> work correctly.
 <p>
 
 An alternative syntax for <code>redirect()</code> is:
@@ -1866,6 +1864,37 @@ temporary file will fail.
 
 <p>
 
+You can set up a callback that will be called whenever a file upload
+is being read during the form processing. This is much like the
+UPLOAD_HOOK facility available in Apache::Request, with the exception
+that the first argument to the callback is an Apache::Upload object,
+here it's the remote filename.
+
+<p>
+
+<pre>
+ $q = CGI-&gt;new();
+ $q-&gt;upload_hook(\&hook,$data);
+ sub hook  {
+        my ($filename, $buffer, $bytes_read, $data) = @_;
+        print  "Read $bytes_read bytes of $filename\n";         
+ }
+</pre>
+
+<p>
+
+If using the function-oriented interface, call the CGI::upload_hook()
+method before calling param() or any other CGI functions:
+
+  CGI::upload_hook(\&hook,$data);
+
+<p>
+
+This method is not exported by default.  You will have to import it
+explicitly if you wish to use it without the CGI:: prefix.
+
+<p>
+
 A potential problem with the temporary file upload feature is that the
 temporary file is accessible to any local user on the system.  In
 previous versions of this module, the temporary file was world
@@ -1912,6 +1941,25 @@ careful to use the proper capitalization for "Content-Type"!):
 	  die "HTML FILES ONLY!";
        }
 </pre>
+
+<p>
+
+You can set up a callback that will be called whenever a file upload
+is being read during the form processing. This is much like the
+UPLOAD_HOOK facility available in Apache::Request, with the exception
+that the first argument to the callback is an Apache::Upload object,
+here it's the remote filename.
+
+<pre>
+ $q = CGI->new(undef, \&hook, $data);
+
+ sub hook
+ {
+        my ($filename, $buffer, $bytes_read, $data) = @_;
+        print  "Read $bytes_read bytes of $filename\n";         
+ }
+</pre>
+
 
 <p>
 
@@ -3076,6 +3124,8 @@ through this interface.  The methods are as follows:
       name of the virtual host the browser is accessing.
   <DT>server_port()
   <DD>Return the communications port the server is using.
+  <DT>virtual_port()
+  <DD>Like server_port() except that it takes virtual hosts into account.
   <DT>user_agent()
   <DD>Returns the identity of the remote user's browser software,
        e.g. "Mozilla/1.1N (Macintosh; I; 68K)"
@@ -4802,6 +4852,22 @@ you.
 <HR>
 
 <H2><A NAME="new">Revision History</A></H2>
+<h3>Version 3.01</h3>
+<ol>
+  <li>No fix yet for upload failures when running on EBCDIC server.
+  <li>Fixed uninitialized glob warnings that appeared when file uploading under perl 5.8.2.
+  <li>Added patch from Schlomi Fish to allow debugging of PATH_INFO from command line.
+  <li>Added patch from Steve Hay to correctly unlink tmp files under mod_perl/windows
+  <li>Added upload_hook functionality from Jamie LeTaul
+  <li>Workarounds for mod_perl 2 IO issues.  Check that file upload and state saving still working.
+  <li>Added code for underreads.
+  <li>Fixed misleading description of redirect() and relative URLs in the POD docs.
+  <li>Workaround for weird interaction of CGI::Carp with Safe module reported by William McKee.
+  <li>Added patches from Ilmari Karonen to improve behavior of CGI::Carp.
+  <li>Fixed documentation error in -style argument.
+  <li>Added virtual_port() method for finding out what port server is listening on
+      in a virtual-host aware fashion.
+</ol>
 <h3>Version 3.00</h3>
 <ol>
   <li>Patch from Randal Schwartz to fix bug introduced by cross-site
@@ -5903,6 +5969,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Mon Aug 18 13:47:54 EDT 2003
+Last modified: Wed Dec 10 12:03:06 EST 2003
 <!-- hhmts end -->
 </BODY> </HTML>
