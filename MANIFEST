@@ -4,7 +4,6 @@ CGI.pm
 CGI/Carp.pm
 CGI/Fast.pm
 MANIFEST
-Makefile
 Makefile.PL
 README
 cgi-lib_porting.html
@@ -22,10 +21,10 @@ examples/frameset.cgi
 examples/index.html
 examples/internal_links.cgi
 examples/javascript.cgi
+examples/make_links.pl
 examples/monty.cgi
 examples/multiple_forms.cgi
 examples/popup.cgi
 examples/save_state.cgi
 examples/tryit.cgi
 examples/wilogo.gif
-

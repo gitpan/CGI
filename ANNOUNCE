@@ -1,4 +1,4 @@
-CGI.pm version 2.22 is now available to play with.  
+CGI.pm version 2.23 is now available to play with.  
 New in this version:
 
 * CGI::Fast for use with FastCGI standard.
@@ -11,15 +11,13 @@ New in this version:
   Because of conflicts with tr// function and CGI::param()
   these are uppercase now.
 
-* Minimal support for the SSL protocol.
-
 * Bug fixes for inheritance.
 
 * I/O now goes through a bottleneck method CGI::readStream.  You can
   subclass and override it to make it compatible with things like
   Apache mod_perl (but I haven't tried this yet).
 
-* Improvements and fixes for CGI::Carp.
+DON'T USE VERSION 2.22.  It contained some bad bugs.
 
 Lincoln
 

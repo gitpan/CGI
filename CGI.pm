@@ -21,8 +21,8 @@ require 5.001;
 # Set this to 1 to enable copious autoloader debugging messages
 $AUTOLOAD_DEBUG=0;
 
-$CGI::revision = '$Id: CGI.pm,v 2.22 1996/08/09 09:32 lstein Exp $';
-$CGI::VERSION='2.22';
+$CGI::revision = '$Id: CGI.pm,v 2.23 1996/08/12 09:32 lstein Exp $';
+$CGI::VERSION='2.23';
 
 # ------------------ START OF THE LIBRARY ------------
 
@@ -165,7 +165,7 @@ sub param {
 	$name = $p[0];
     }
 
-    return () unless $self->{$name};
+    return () unless $name && $self->{$name};
     return wantarray ? @{$self->{$name}} : $self->{$name}->[0];
 }
 
@@ -180,20 +180,25 @@ sub delete {
 }
 
 sub self_or_default {
-    my (@param) = @_;
-    unless (ref($_[0]) eq 'CGI' || eval "\$_[0]->isaCGI()") { # optimize for the common case
+    return @_ if defined($_[0]) && !ref($_[0]) && ($_[0] eq 'CGI');
+    unless (defined($_[0]) && 
+	    ref($_[0]) &&
+	    (ref($_[0]) eq 'CGI' ||
+	     eval "\$_[0]->isaCGI()")) { # optimize for the common case
 	$Q = $CGI::DefaultClass->new unless defined($Q);
-	unshift(@param,$Q);
+	unshift(@_,$Q);
     }
-    return @param;
+    return @_;
 }
 
 sub self_or_CGI {
-    my(@param) = @_;
-    if ($_[0] && (substr(ref($_[0]),0,3) eq 'CGI' || eval "\$_[0]->isaCGI()")) {
-	return @param;
+    local $^W=0;		# prevent a warning
+    if (defined($_[0]) &&
+	(substr(ref($_[0]),0,3) eq 'CGI' 
+	 || eval "\$_[0]->isaCGI()")) {
+	return @_;
     } else {
-	return ($DefaultClass,@param);
+	return ($DefaultClass,@_);
     }
 }
 
@@ -227,6 +232,8 @@ sub import_names {
 # will happen automatically if the first parameter
 # begins with a -.
 sub use_named_parameters {
+#    warn "use_named_parameters: @_ from ",join(" ",caller());
+
     my($self,$use_named) = self_or_default(@_);
     return $self->{'.named'} unless defined ($use_named);
 
@@ -511,9 +518,15 @@ END_OF_FUNC
 
 'HTML_FUNC' => <<'END_OF_FUNC',
 sub func_name { 
-    shift if $_[0] &&
-	(substr(ref($_[0]),0,3) eq 'CGI' ||
-	    eval "\$_[0]->isaCGI()");
+
+    # handle various cases in which we're called
+    # most of this bizarre stuff is to avoid -w errors
+    shift if $_[0] && 
+	(!ref($_[0]) && $_[0] eq $CGI::DefaultClass) ||
+	    (ref($_[0]) &&
+	     (substr(ref($_[0]),0,3) eq 'CGI' ||
+	      eval "\$_[0]->isaCGI()"));
+
     my($attr) = '';
     if (ref($_[0]) && ref($_[0]) eq 'HASH') {
 	my(@attr) = CGI::make_attributes('',shift);
@@ -1026,14 +1039,14 @@ sub filefield {
     my($name,$default,$size,$maxlength,$override,@other) = 
 	$self->rearrange([NAME,[DEFAULT,VALUE],SIZE,MAXLENGTH,[OVERRIDE,FORCE]],@p);
 
-    my($current);
     $current = $override ? $default :
 	(defined($self->param($name)) ? $self->param($name) : $default);
 
     $name = defined($name) ? $self->escapeHTML($name) : '';
     my($s) = defined($size) ? qq/ SIZE=$size/ : '';
     my($m) = defined($maxlength) ? qq/ MAXLENGTH=$maxlength/ : '';
-    my($other) = join(" ",@other);
+    $current = defined($current) ? $self->escapeHTML($current) : '';
+    my($other) =join(" ",@other);
     return qq/<INPUT TYPE="file" NAME="$name" VALUE="$current"$s$m$other>/;
 }
 END_OF_FUNC
@@ -1940,6 +1953,7 @@ END_OF_FUNC
 ####
 'https' => <<'END_OF_FUNC',
 sub https {
+    local($^W)=0;
     my ($self,$parameter) = self_or_CGI(@_);
     return $ENV{$parameter} if $parameter=~/^HTTPS/;
     return $ENV{"HTTPS_\U$parameter\E"} if $parameter;
@@ -2019,7 +2033,6 @@ sub inited {
 }
 END_OF_FUNC
 
-
 # -------------- really private subroutines -----------------
 # Smart rearrangement of parameters to allow named parameter
 # calling.  We do the rearangement if:
@@ -2028,9 +2041,8 @@ END_OF_FUNC
 'rearrange' => <<'END_OF_FUNC',
 sub rearrange {
     my($self,$order,@param) = @_;
-
     return () unless @param;
-
+    
     return @param unless (defined($param[0]) && substr($param[0],0,1) eq '-')
 	|| $self->use_named_parameters;
 

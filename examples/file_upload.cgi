@@ -1,4 +1,4 @@
-#!/usr/local/bin/perl -w
+#!/usr/local/bin/perl
 
 use CGI qw(:standard);
 use CGI::Carp;
@@ -20,7 +20,7 @@ print h1("File Upload Example"),
 @types = ('count lines','count words','count characters');
 
 # Start a multipart form.
-print  start_multipart_form(),
+print start_multipart_form,
     "Enter the file to process:",
     filefield('filename','',45),
     br,
@@ -32,7 +32,7 @@ print  start_multipart_form(),
 # Process the form if there is a file name entered
 if ($file = param('filename')) {
     $tmpfile=tmpFileName($file);
-    print hr(),
+    print hr,
           h2($file),
           h3($tmpfile);
     my($lines,$words,$characters,@words) = (0,0,0,0);
@@ -51,7 +51,7 @@ if ($file = param('filename')) {
     }
 }
 
-print hr(),
+print hr,
     a({href=>"../cgi_docs.html"},"CGI documentation"),
     hr,
     address(

@@ -5,13 +5,7 @@
 <BODY>
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.22, 8/7/96, L. Stein
-<p>
-Mirrors of this document may be found at:
-<ul>
-  <li><a href="http://victim.earthlink.net/~websupport/CGI.pm">
-      http://victim.earthlink.net/~websupport/CGI.pm</a>
-</ul>
+Version 2.23, 8/12/96, L. Stein
 <p>
 
 <strong>WARNING:</strong> As threatened, the <code>import()</code>
@@ -95,7 +89,7 @@ href="#import">importing CGI methods</a> for an explanation.)
 <H2>Contents</H2>
 </A>
 <MENU>
-  <LI><A HREF="#installation">Installation</A>
+  <LI><A HREF="#installation">Downloading & Installation</A>
   <LI><A HREF="#query">Creating a new CGI query object</A>
   <LI><A HREF="#saving">Saving the state of the form</A>
   <LI><A HREF="#named_param">CGI Functions that Take Multiple Arguments</A>
@@ -116,23 +110,27 @@ href="#import">importing CGI methods</a> for an explanation.)
   <LI><A HREF="#future">The Relationship of CGI.pm to the CGI::* Modules</A>
   <LI><A HREF="#distribution">Distribution information</A>
   <LI><A HREF="#mailingList">CGI-perl mailing list</A>
-  <LI><A HREF="#new">What's new in version 2.22?</A>
+  <LI><A HREF="#new">What's new in version 2.23?</A>
 </MENU>
 
 <HR>
 <A NAME="installation">
-<H2>Installation</H2>
+<H2>Downloading & Installation</H2>
 </A>
-<STRONG><A HREF="CGI.pm.tar.gz">Download CGI.pm and its documentation (tar archive)</A></STRONG>
-or <A HREF="CGI.pm">download the module only.</A>
+<ul>
+  <li><STRONG><A HREF="CGI.pm.tar.gz">Download full package (gzip tar archive)</A></STRONG>
+  <li><STRONG><A HREF="CGIpm.zip">Download full package (pkzip archive)</A></STRONG>
+  <li><strong><A HREF="CGI.pm">Download just the CGI module (uncompressed)</strong>
+</ul>
 
-<P>This package requires perl 5.001m or higher.  You also must
-have the <a href="#SelfLoader">SelfLoader</a> module installed.  
-To use CGI.pm simply install it in your perl library directory.  On most
-systems this will be <CODE>/usr/local/lib/perl5</CODE>, but check with
-the administrator of your system to be sure.  If you know the location
-of the directory, you can move the module directly:
-<pre>
+<P>This package requires perl 5.001m or higher.  (Perl 5.003 is
+<strong>highly</strong> recommended because of a security hole in
+earlier versions of perl.)  You also must have the <a
+href="#SelfLoader">SelfLoader</a> module installed.  To use CGI.pm
+simply install it in your perl library directory.  On most systems
+this will be <CODE>/usr/local/lib/perl5</CODE>, but check with the
+administrator of your system to be sure.  If you know the location of
+the directory, you can move the module directly: <pre>
     cp CGI.pm /usr/local/lib/perl5/
 </pre>
 (This assumes that the perl library is located at <code>/usr/local/lib/perl5</code>.
@@ -780,43 +778,6 @@ wish:
 <pre>
    use CGI shortcuts;
    print a({href=&gt;"bad_art.html"},"Jump to the silly exhibit");
-</pre>
-
-<h4>Repeating Patterns</h4>
-
-As a convenience for creating lists, tables and other repeating HTML
-patterns, if you pass a reference to an array as an HTML shortcut's
-argument, it will <em>distribute</em> the tag across the array's
-values.  This is easier to show than to explain:
-
-<pre>
-   use CGI shortcuts;
-   print ol(li(['fee','fie','foe','fum']));
-</pre>
-
-This will return the following HTML (newlines have been inserted to
-improve readability):
-
-<pre>
-   &lt;ol&gt;
-     &lt;li&gt;fee&lt;/li&gt;
-     &lt;li&gt;fie&lt;/li&gt;
-     &lt;li&gt;foe&lt;/li&gt;
-     &lt;li&gt;fum&lt;/li&gt;
-   &lt;/ol&gt;
-</pre>
-
-This feature also works correctly with tag attributes:
-
-<pre>
-   print TR(td({align=>'left'},[qw/eenie meenie minie moe/]);
-</pre>
-
-Be aware the behavior of HTML shortcuts when you provide additional
-arguments after the array reference is currently undefined.
-
-<pre>
-   print li([qw/eenie meenie minie/],'moe'); # <strong>UNDEFINED BEHAVIOR!</strong>
 </pre>
 
 <P>
@@ -1919,7 +1880,6 @@ into a string, as in:
 <A NAME="environment">
 <H2>HTTP Session Variables</H2>
 </A>
-
 Some of the more useful environment variables can be fetched
 through this interface.  The methods are as follows:
 <DL>
@@ -1982,68 +1942,6 @@ through this interface.  The methods are as follows:
        such as Mosaic.  Netscape does not reliably report the user
        name!
 </DL>
-
-<h3>http() and https() methods</h3>
-
-In addition to these methods, CGI.pm defines http() and https()
-methods.  The first is used to fetch variables set by the browser in
-the HTTP header.  The second is used to fetch variables pertaining to
-the SSL protocol, when the server is running in "secure" mode.
-
-<p>
-
-To get a list of all the HTTP variables:
-
-<pre>
-  @variables = $q->http();
-</pre>
-
-This will return an array of HTTP variable names, such as
-<cite>HTTP_HOST</cite>, <cite>HTTP_REFERER</cite> and
-<cite>HTTP_ACCEPT</cite>.
-
-To get the value of a specific HTTP variable:
-
-<pre>
-   $host = $q->http('HTTP_HOST');
-      <em>-or just-</em>
-   $host = $q->http('host');
-</pre>
-
-As a convenience, this method will add the 'HTTP_' prefix for you and
-fix the capitalization.
-
-<p>
-
-The https() function works similarly, but it returns information only
-when the server is running in "secure" mode using the SSL protocol.
-On my system the environment variables set during SSL operation
-include:
-
-<dl>
-  <dt>HTTPS
-  <dd>Set to 'on' if SSL is running.
-  <dt>HTTPS_CIPHER
-  <dd>Set to the method being used to encipher the data.
-  <dt>HTTPS_KEYSIZE
-  <dd>Set to the length (in bits) of the RSA public/private key pair.
-  <dt>HTTPS_SECRETKEYSIZE
-  <dd>Set to the length (in bits) of the symmetrical (DES)
-      key.
-</dl>
-
-You can find out whether the script is running in SSL mode this way:
-
-<pre>
-   $secret = $q->https
-</pre>
-
-or fetch the size of the secret key like this:
-
-<pre>
-   $keysize = $q->https('secretkeysize');
-</pre>
-
 <A HREF="#contents">Table of contents</A>
 
 <HR>
@@ -3016,14 +2914,16 @@ Address bug reports and comments to:<BR>
 
 <HR>
 <H2><A NAME="new">Revision History</A></H2>
+<H3>Version 2.23</H3>
+<ol>
+  <li>Fixed an obscure bug that caused scripts to fail mysteriously.
+  <li>Fixed auto-caching bug.
+  <li>Fixed bug that prevented HTML shortcuts from passing taint checks.
+  <li>Fixed some -w warning problems.
+</ol>
+
 <H3>Version 2.22</H3>
 <ol>
-  <li>Fixed self_url() and url() so that they work properly when
-      running under SSL.
-  <li>http() and https() methods for fetching arbitrary HTTP and HTTPS
-      variables.
-  <li>Fancied-up HTML shortcuts to allow for
-      li(['multiple','values','here']) behavior.
   <li>New CGI::Fast module for use with FastCGI protocol.  See pod
       documentation for details.
   <li>Fixed problems with inheritance and autoloading.
@@ -3343,6 +3243,6 @@ to bump up the major version number.
 <a href="/">Whitehead Institute/MIT Center for Genome Research</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Wed Aug  7 10:32:03 EDT 1996
+Last modified: Wed Aug 14 10:06:33 EDT 1996
 <!-- hhmts end -->
 </BODY> </HTML>
