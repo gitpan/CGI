@@ -18,8 +18,8 @@ use Carp 'croak';
 # The most recent version and complete docs are available at:
 #   http://stein.cshl.org/WWW/software/CGI/
 
-$CGI::revision = '$Id: CGI.pm,v 1.121 2003/06/06 19:25:22 lstein Exp $';
-$CGI::VERSION='2.95';
+$CGI::revision = '$Id: CGI.pm,v 1.124 2003/06/16 18:40:28 lstein Exp $';
+$CGI::VERSION='2.96';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -1509,8 +1509,9 @@ sub _style {
     my $cdata_end   = $XHTML ? "\n/* ]]> */-->\n" : " -->\n";
 
     if (ref($style)) {
-     my($src,$code,$verbatim,$stype,@other) =
+     my($src,$code,$verbatim,$stype,$foo,@other) =
          rearrange([SRC,CODE,VERBATIM,TYPE],
+                    '-foo'=>'bar',    # trick to allow dash to be omitted
                     ref($style) eq 'ARRAY' ? @$style : %$style);
      $type = $stype if $stype;
 
