@@ -18,8 +18,8 @@ require 5.00307;
 #   http://www.genome.wi.mit.edu/ftp/pub/software/WWW/cgi_docs.html
 #   ftp://ftp-genome.wi.mit.edu/pub/software/WWW/
 
-$CGI::revision = '$Id: CGI.pm,v 1.13 1998/01/26 16:56:58 lstein Exp $';
-$CGI::VERSION='2.37020';
+$CGI::revision = '$Id: CGI.pm,v 1.15 1998/01/30 01:45:29 lstein Exp $';
+$CGI::VERSION='2.37021';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -539,7 +539,8 @@ sub _make_tag_func {
 	    }
 	    my(\$tag,\$untag) = ("\U<$tagname\E\$attr>","\U</$tagname>\E");
 	    return \$tag unless \@_;
-	    return map { "\$tag\$_\$untag" } (ref(\$_[0]) eq 'ARRAY') ? \@{\$_[0]} : "\@_";
+	    my \@result = map { "\$tag\$_\$untag" } (ref(\$_[0]) eq 'ARRAY') ? \@{\$_[0]} : "\@_";
+	    return wantarray ? \@result : join('',\@result);
          }
 }
 }
@@ -646,8 +647,8 @@ sub _setup_symbols {
 	# This is probably extremely evil code -- to be deleted
 	# some day.
 	if (/^[-]autoload$/) {
-	    my ($caller) = caller(1);
-	    *{"${caller}::AUTOLOAD"} = sub { 
+	    my($pkg) = caller(1);
+	    *{"${pkg}::AUTOLOAD"} = sub { 
 		my($routine) = $AUTOLOAD;
 		$routine =~ s/^.*::/CGI::/;
 		&$routine;
@@ -1184,9 +1185,9 @@ sub start_html {
     # strangely enough, the title needs to be escaped as HTML
     # while the author needs to be escaped as a URL
     $title = $self->escapeHTML($title || 'Untitled Document');
-    $author = $self->escapeHTML($author);
+    $author = $self->escape($author);
     my(@result);
-    $dtd = $DEFAULT_DTD if $dtd && $dtd !~ m|^-//|;
+    $dtd = $DEFAULT_DTD unless $dtd && $dtd !~ m|^-//|;
     push(@result,qq(<!DOCTYPE HTML PUBLIC "$dtd">)) if $dtd;
     push(@result,"<HTML><HEAD><TITLE>$title</TITLE>");
     push(@result,"<LINK REV=MADE HREF=\"mailto:$author\">") if $author;
