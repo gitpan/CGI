@@ -1,3 +1,6 @@
+  Version 3.07
+    1. Fixed typo in mod_perl detection.
+
   Version 3.06
 
     1. Fixed bare call to script() in start_html
