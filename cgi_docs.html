@@ -1,12 +1,13 @@
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
 <HTML> <HEAD>
+<!-- $Id -->
 <TITLE>CGI.pm - a Perl5 CGI Library</TITLE>
 </HEAD>
 
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.73, 9/12/2000, L. Stein
+Version 2.74, 9/13/2000, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -2613,7 +2614,7 @@ dashes.
   <dt><b>-newstyle_urls</b>
   <dd>Separate the name=value pairs in CGI parameter query strings with
       semicolons rather than ampersands.  For example:
-      <blockquote><pre>
+      <blockquote>
       <pre>
       name=fred;age=24;favorite_color=3
       </pre>
@@ -4644,6 +4645,13 @@ you.
 
 <H2><A NAME="new">Revision History</A></H2>
 
+<h3>Version 2.74</h3>
+<p>
+September 13, 2000
+<ol>
+  <li>Quashed one-character bug that caused CGI.pm to fail on file uploads.
+</ol>
+
 <h3>Version 2.73</h3>
 <p>
 September 12, 2000
@@ -5519,6 +5527,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Tue Sep 12 22:52:02 EDT 2000
+Last modified: Wed Sep 13 12:30:45 EDT 2000
 <!-- hhmts end -->
 </BODY> </HTML>
