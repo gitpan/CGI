@@ -34,7 +34,7 @@ $ENV{HTTP_LOVE}       = 'true';
 $q = new CGI;
 test(2,$q,"CGI::new()");
 test(3,$q->request_method eq 'GET',"CGI::request_method()");
-test(4,$q->query_string eq 'game=chess&game=checkers&weather=dull',"CGI::query_string()");
+test(4,$q->query_string eq 'game=chess;game=checkers;weather=dull',"CGI::query_string()");
 test(5,$q->param() == 2,"CGI::param()");
 test(6,join(' ',sort $q->param()) eq 'game weather',"CGI::param()");
 test(7,$q->param('game') eq 'chess',"CGI::param()");
@@ -42,18 +42,18 @@ test(8,$q->param('weather') eq 'dull',"CGI::param()");
 test(9,join(' ',$q->param('game')) eq 'chess checkers',"CGI::param()");
 test(10,$q->param(-name=>'foo',-value=>'bar'),'CGI::param() put');
 test(11,$q->param(-name=>'foo') eq 'bar','CGI::param() get');
-test(12,$q->query_string eq 'game=chess&game=checkers&weather=dull&foo=bar',"CGI::query_string() redux");
+test(12,$q->query_string eq 'game=chess;game=checkers;weather=dull;foo=bar',"CGI::query_string() redux");
 test(13,$q->http('love') eq 'true',"CGI::http()");
 test(14,$q->script_name eq '/cgi-bin/foo.cgi',"CGI::script_name()");
 test(15,$q->url eq 'http://the.good.ship.lollypop.com:8080/cgi-bin/foo.cgi',"CGI::url()");
 test(16,$q->self_url eq 
-     'http://the.good.ship.lollypop.com:8080/cgi-bin/foo.cgi/somewhere/else?game=chess&game=checkers&weather=dull&foo=bar',
+     'http://the.good.ship.lollypop.com:8080/cgi-bin/foo.cgi/somewhere/else?game=chess;game=checkers;weather=dull;foo=bar',
      "CGI::url()");
 test(17,$q->url(-absolute=>1) eq '/cgi-bin/foo.cgi','CGI::url(-absolute=>1)');
 test(18,$q->url(-relative=>1) eq 'foo.cgi','CGI::url(-relative=>1)');
 test(19,$q->url(-relative=>1,-path=>1) eq 'foo.cgi/somewhere/else','CGI::url(-relative=>1,-path=>1)');
 test(20,$q->url(-relative=>1,-path=>1,-query=>1) eq 
-     'foo.cgi/somewhere/else?game=chess&game=checkers&weather=dull&foo=bar',
+     'foo.cgi/somewhere/else?game=chess;game=checkers;weather=dull;foo=bar',
      'CGI::url(-relative=>1,-path=>1,-query=>1)');
 $q->delete('foo');
 test(21,!$q->param('foo'),'CGI::delete()');

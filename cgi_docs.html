@@ -6,7 +6,7 @@
 <BODY bgcolor="#FFFFFF">
 <H1><IMG SRC="examples/dna.small.gif" ALT="[logo]">
 CGI.pm - a Perl5 CGI Library</H1>
-Version 2.63, 4/10/2000, L. Stein
+Version 2.64, 4/11/2000, L. Stein
 <p>
 
 <H2>Abstract</H2> This perl 5 library uses objects to create Web
@@ -2565,20 +2565,27 @@ dashes.
       to tell the server that the script is NPH.  See the <a href="#nph">discussion
       of NPH scripts</a> below.
       <p>
+  <dt><b>-oldstyle_urls</b>
+  <dd>Separate the name=value pairs in CGI parameter query strings emitted by
+      self_url() and query_string() with ampersands.  Otherwise, CGI.pm emits
+      HTML-compliant semicolons.  If you use this form, be sure to escape ampersands
+      into HTML entities with escapeHTML.  Example:
+      <blockquote>
+      <pre>
+      $href = $q->self_url();
+      $href = escapeHTML($href);
+      print <a href="$href">I'm talking to myself</a>
+      </pre>
+      <blockquote>
+      <p>
   <dt><b>-newstyle_urls</b>
   <dd>Separate the name=value pairs in CGI parameter query strings with
       semicolons rather than ampersands.  For example:
-      <blockquote>
-<pre>
-?name=fred;age=24;favorite_color=3
-</pre>
-      </blockquote>
-      
-      Semicolon-delimited query strings are always accepted, but will not be
-      emitted by <cite>self_url()</cite> and
-      <cite>query_string()</cite> unless the <b>-newstyle_urls</b>
-      pragma is specified.
-      <p>
+      <blockquote><pre>
+      <pre>
+      name=fred;age=24;favorite_color=3
+      </pre></blockquote>
+      As of version 2.64, this is the default style.
   <dt><b>-no_debug</b>
   <dd>This turns off the command-line processing features.  If you
       want to run a CGI.pm script from the command line to produce
@@ -4621,6 +4628,14 @@ you.
 
 <H2><A NAME="new">Revision History</A></H2>
 
+<h3>Version 2.64</h3>
+<ol>
+  <li>Changes introduced in 2.63 broke param() when retrieving parameter lists
+      containing only a single argument.  This is now fixed.
+  <li>self_url() now defaults to returning parameters delimited with
+      semicolon. Use the pragma -oldstyle_urls to get the old "&" delimiter.
+</ol>
+
 <h3>Version 2.63</h3>
 <ol>
   <li>Fixed CGI::Push to pull out parameters correctly.
@@ -5399,6 +5414,6 @@ v  <LI> Added string interpolation of the CGI object.
 <a href="http://www.cshl.org/">Cold Spring Harbor Laboratory</a></ADDRESS>
 <P>
 <!-- hhmts start -->
-Last modified: Mon Apr 10 10:59:43 EDT 2000
+Last modified: Tue Apr 11 11:03:37 EDT 2000
 <!-- hhmts end -->
 </BODY> </HTML>

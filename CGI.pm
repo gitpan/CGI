@@ -18,7 +18,7 @@ require 5.004;
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.30 2000/03/28 21:31:40 lstein Exp $';
-$CGI::VERSION='2.63';
+$CGI::VERSION='2.64';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -73,7 +73,7 @@ sub initialize_globals {
     $HEADERS_ONCE = 0;
 
     # separate the name=value pairs by semicolons rather than ampersands
-    $USE_PARAM_SEMICOLONS = 0;
+    $USE_PARAM_SEMICOLONS = 1;
 
     # Other globals that you shouldn't worry about.
     undef $Q;
@@ -444,7 +444,7 @@ sub init {
     # We now have the query string in hand.  We do slightly
     # different things for keyword lists and parameter lists.
     if (defined $query_string && $query_string) {
-	if ($query_string =~ /&/) {
+	if ($query_string =~ /[&=;]/) {
 	    $self->parse_params($query_string);
 	} else {
 	    $self->add_parameter('keywords');
@@ -644,6 +644,7 @@ sub _setup_symbols {
 	$DEBUG=0,                next if /^[:-]no_?[Dd]ebug$/;
 	$DEBUG=2,                next if /^[:-][Dd]ebug$/;
 	$USE_PARAM_SEMICOLONS++, next if /^[:-]newstyle_urls$/;
+	$USE_PARAM_SEMICOLONS=0, next if /^[:-]oldstyle_urls$/;
 	$PRIVATE_TEMPFILES++,    next if /^[:-]private_tempfiles$/;
 	$EXPORT{$_}++,           next if /^[:-]any$/;
 	$compile++,              next if /^[:-]compile$/;
@@ -3958,6 +3959,13 @@ semicolons rather than ampersands.  For example:
 Semicolon-delimited query strings are always accepted, but will not be
 emitted by self_url() and query_string() unless the -newstyle_urls
 pragma is specified.
+
+This became the default in version 2.64.
+
+=item -oldstyle_urls
+
+Separate the name=value pairs in CGI parameter query strings with
+ampersands rather than semicolons.  This is no longer the default.
 
 =item -autoload
 

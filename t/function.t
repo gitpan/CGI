@@ -33,7 +33,7 @@ $ENV{SERVER_NAME} = 'the.good.ship.lollypop.com';
 $ENV{HTTP_LOVE} = 'true';
 
 test(2,request_method() eq 'GET',"CGI::request_method()");
-test(3,query_string() eq 'game=chess&game=checkers&weather=dull',"CGI::query_string()");
+test(3,query_string() eq 'game=chess;game=checkers;weather=dull',"CGI::query_string()");
 test(4,param() == 2,"CGI::param()");
 test(5,join(' ',sort {$a cmp $b} param()) eq 'game weather',"CGI::param()");
 test(6,param('game') eq 'chess',"CGI::param()");
@@ -41,18 +41,18 @@ test(7,param('weather') eq 'dull',"CGI::param()");
 test(8,join(' ',param('game')) eq 'chess checkers',"CGI::param()");
 test(9,param(-name=>'foo',-value=>'bar'),'CGI::param() put');
 test(10,param(-name=>'foo') eq 'bar','CGI::param() get');
-test(11,query_string() eq 'game=chess&game=checkers&weather=dull&foo=bar',"CGI::query_string() redux");
+test(11,query_string() eq 'game=chess;game=checkers;weather=dull;foo=bar',"CGI::query_string() redux");
 test(12,http('love') eq 'true',"CGI::http()");
 test(13,script_name() eq '/cgi-bin/foo.cgi',"CGI::script_name()");
 test(14,url() eq 'http://the.good.ship.lollypop.com:8080/cgi-bin/foo.cgi',"CGI::url()");
 test(15,self_url() eq 
-     'http://the.good.ship.lollypop.com:8080/cgi-bin/foo.cgi/somewhere/else?game=chess&game=checkers&weather=dull&foo=bar',
+     'http://the.good.ship.lollypop.com:8080/cgi-bin/foo.cgi/somewhere/else?game=chess;game=checkers;weather=dull;foo=bar',
      "CGI::url()");
 test(16,url(-absolute=>1) eq '/cgi-bin/foo.cgi','CGI::url(-absolute=>1)');
 test(17,url(-relative=>1) eq 'foo.cgi','CGI::url(-relative=>1)');
 test(18,url(-relative=>1,-path=>1) eq 'foo.cgi/somewhere/else','CGI::url(-relative=>1,-path=>1)');
 test(19,url(-relative=>1,-path=>1,-query=>1) eq 
-     'foo.cgi/somewhere/else?game=chess&game=checkers&weather=dull&foo=bar',
+     'foo.cgi/somewhere/else?game=chess;game=checkers;weather=dull;foo=bar',
      'CGI::url(-relative=>1,-path=>1,-query=>1)');
 Delete('foo');
 test(20,!param('foo'),'CGI::delete()');

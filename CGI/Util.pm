@@ -76,9 +76,24 @@ sub make_attributes {
 	my($key) = $_;
 	$key=~s/^\-//;     # get rid of initial - if present
 	$key=~tr/a-z_/A-Z-/; # parameters are upper case, use dashes
-	push(@att,defined($attr->{$_}) ? qq/$key="$attr->{$_}"/ : qq/$key/);
+	my $value = simple_escape($attr->{$_});
+	push(@att,defined($attr->{$_}) ? qq/$key="$value"/ : qq/$key/);
     }
     return @att;
+}
+
+sub simple_escape {
+  return unless defined (my $toencode = shift);
+  $toencode =~ s{(.)}{
+              if    ($1 eq '<')                            { '&lt;'    }
+              elsif ($1 eq '>')                            { '&gt;'    }
+              elsif ($1 eq '&')                            { '&amp;'   }
+              elsif ($1 eq '"')                            { '&quot;'  }
+              elsif ($1 eq "\x8b")                         { '&#139;'  }
+              elsif ($1 eq "\x9b")                         { '&#155;'  }
+              else                                         { $1        }
+       }gsex;
+  $toencode;
 }
 
 # unescape URL-encoded data
