@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                CGI.pm
-version:             3.28
+version:             3.29
 abstract:            ~
 license:             ~
 generated_by:        ExtUtils::MakeMaker version 6.32
