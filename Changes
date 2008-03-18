@@ -1,5 +1,11 @@
+  Version 3.34
+  1. Handle Unicode %uXXXX  escapes properly -- patch from DANKOGAI@cpan.org
+  2. Fix url() method to not choke on path names that contain regex characters.
+
   Version 3.33
   1. Remove uninit variable warning when calling url(-relative=>1)
+  2. Fix uninit variable warnings for two lc calls
+  3. Fixed failure of tempfile upload due to sprintf() taint failure in perl 5.10
 
   Version 3.32
   1. Patch from Miguel Santinho to prevent sending premature headers under mod_perl 2.0
