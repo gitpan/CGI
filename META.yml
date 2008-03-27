@@ -1,7 +1,7 @@
 # http://module-build.sourceforge.net/META-spec.html
 #XXXXXXX This is a prototype!!!  It will change in the future!!! XXXXX#
 name:         CGI.pm
-version:      3.34
+version:      3.35
 version_from: CGI.pm
 installdirs:  perl
 requires:
