@@ -1,12 +1,13 @@
 --- #YAML:1.0
 name:                CGI.pm
-version:             3.39
+version:             3.40
 abstract:            ~
 license:             ~
 author:              ~
 generated_by:        ExtUtils::MakeMaker version 6.44
 distribution_type:   module
 requires:     
+    FCGI:                          0.67
     File::Spec:                    0.82
 meta-spec:
     url:     http://module-build.sourceforge.net/META-spec-v1.3.html
