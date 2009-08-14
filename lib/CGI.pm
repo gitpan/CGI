@@ -19,7 +19,7 @@ use Carp 'croak';
 #   http://stein.cshl.org/WWW/software/CGI/
 
 $CGI::revision = '$Id: CGI.pm,v 1.266 2009/07/30 16:32:34 lstein Exp $';
-$CGI::VERSION='3.44';
+$CGI::VERSION='3.45';
 
 # HARD-CODED LOCATION FOR FILE UPLOAD TEMPORARY FILES.
 # UNCOMMENT THIS ONLY IF YOU KNOW WHAT YOU'RE DOING.
@@ -61,8 +61,8 @@ sub initialize_globals {
 
     # Set this to 1 to enable NOSTICKY scripts
     # or: 
-    #    1) use CGI qw(-nosticky)
-    #    2) $CGI::nosticky(1)
+    #    1) use CGI '-nosticky';
+    #    2) $CGI::NOSTICKY = 1;
     $NOSTICKY = 0;
 
     # Set this to 1 to enable NPH scripts
@@ -156,12 +156,14 @@ if ($OS =~ /^MSWin/i) {
     $OS = 'EPOC';
 } elsif ($OS =~ /^cygwin/i) {
     $OS = 'CYGWIN';
+} elsif ($OS =~ /^NetWare/i) {
+    $OS = 'NETWARE';
 } else {
     $OS = 'UNIX';
 }
 
 # Some OS logic.  Binary mode enabled on DOS, NT and VMS
-$needs_binmode = $OS=~/^(WINDOWS|DOS|OS2|MSWin|CYGWIN)/;
+$needs_binmode = $OS=~/^(WINDOWS|DOS|OS2|MSWin|CYGWIN|NETWARE)/;
 
 # This is the default class for the CGI object to use when all else fails.
 $DefaultClass = 'CGI' unless defined $CGI::DefaultClass;
@@ -172,7 +174,7 @@ $AutoloadClass = $DefaultClass unless defined $CGI::AutoloadClass;
 # The path separator is a slash, backslash or semicolon, depending
 # on the paltform.
 $SL = {
-     UNIX    => '/',  OS2 => '\\', EPOC      => '/', CYGWIN => '/',
+     UNIX    => '/',  OS2 => '\\', EPOC      => '/', CYGWIN => '/', NETWARE => '/',
      WINDOWS => '\\', DOS => '\\', MACINTOSH => ':', VMS    => '/'
     }->{$OS};
 
@@ -181,8 +183,12 @@ $SL = {
 # $NPH++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 $IIS++ if defined($ENV{'SERVER_SOFTWARE'}) && $ENV{'SERVER_SOFTWARE'}=~/IIS/;
 
+# Turn on special checking for ActiveState's PerlEx
+$PERLEX++ if defined($ENV{'GATEWAY_INTERFACE'}) && $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-PerlEx/;
+
 # Turn on special checking for Doug MacEachern's modperl
-if (exists $ENV{MOD_PERL}) {
+# PerlEx::DBI tries to fool DBI by setting MOD_PERL
+if (exists $ENV{MOD_PERL} && ! $PERLEX) {
   # mod_perl handlers may run system() on scripts using CGI.pm;
   # Make sure so we don't get fooled by inherited $ENV{MOD_PERL}
   if (exists $ENV{MOD_PERL_API_VERSION} && $ENV{MOD_PERL_API_VERSION} == 2) {
@@ -197,9 +203,6 @@ if (exists $ENV{MOD_PERL}) {
     require Apache;
   }
 }
-
-# Turn on special checking for ActiveState's PerlEx
-$PERLEX++ if defined($ENV{'GATEWAY_INTERFACE'}) && $ENV{'GATEWAY_INTERFACE'} =~ /^CGI-PerlEx/;
 
 # Define the CRLF sequence.  I can't use a simple "\r\n" because the meaning
 # of "\n" is different on different OS's (sometimes it generates CRLF, sometimes LF
@@ -1357,7 +1360,7 @@ sub Dump {
     push(@result,"<ul>");
     for $param ($self->param) {
 	my($name)=$self->escapeHTML($param);
-	push(@result,"<li><strong>$param</strong></li>");
+	push(@result,"<li><strong>$name</strong></li>");
 	push(@result,"<ul>");
 	for $value ($self->param($param)) {
 	    $value = $self->escapeHTML($value);
@@ -2508,7 +2511,7 @@ sub popup_menu {
 
     if (!$override && defined($self->param($name))) {
 	$selected{$self->param($name)}++;
-    } elsif ($default) {
+    } elsif (defined $default) {
 	%selected = map {$_=>1} ref($default) eq 'ARRAY' 
                                 ? @$default 
                                 : $default;
@@ -2649,14 +2652,26 @@ sub scrolling_list {
     $tabindex = $self->element_tab($tabindex);
     $result = qq/<select name="$name" $tabindex$has_size$is_multiple$other>\n/;
     for (@values) {
-	my($selectit) = $self->_selected($selected{$_});
-	my($label) = $_;
-	$label = $labels->{$_} if defined($labels) && defined($labels->{$_});
-	$label=$self->escapeHTML($label);
-	my($value)=$self->escapeHTML($_,1);
-        my $attribs = $self->_set_attributes($_, $attributes);
-        $result .= "<option ${selectit}${attribs}value=\"$value\">$label</option>\n";
+        if (/<optgroup/) {
+            for my $v (split(/\n/)) {
+                my $selectit = $XHTML ? 'selected="selected"' : 'selected';
+		for my $selected (keys %selected) {
+		    $v =~ s/(value="$selected")/$selectit $1/;
+		}
+                $result .= "$v\n";
+            }
+        }
+        else {
+          my $attribs   = $self->_set_attributes($_, $attributes);
+	  my($selectit) = $self->_selected($selected{$_});
+	  my($label)    = $_;
+	  $label        = $labels->{$_} if defined($labels) && defined($labels->{$_});
+	  my($value)    = $self->escapeHTML($_);
+	  $label        = $self->escapeHTML($label,1);
+          $result      .= "<option${attribs} ${selectit}value=\"$value\">$label</option>\n";
+        }
     }
+
     $result .= "</select>";
     $self->register_parameter($name);
     return $result;
@@ -2967,7 +2982,7 @@ END_OF_FUNC
 ####
 'request_method' => <<'END_OF_FUNC',
 sub request_method {
-    return $ENV{'REQUEST_METHOD'};
+    return (defined $ENV{'REQUEST_METHOD'}) ? $ENV{'REQUEST_METHOD'} : undef;
 }
 END_OF_FUNC
 
@@ -2976,7 +2991,7 @@ END_OF_FUNC
 ####
 'content_type' => <<'END_OF_FUNC',
 sub content_type {
-    return $ENV{'CONTENT_TYPE'};
+    return (defined $ENV{'CONTENT_TYPE'}) ? $ENV{'CONTENT_TYPE'} : undef;
 }
 END_OF_FUNC
 
@@ -2986,7 +3001,7 @@ END_OF_FUNC
 ####
 'path_translated' => <<'END_OF_FUNC',
 sub path_translated {
-    return $ENV{'PATH_TRANSLATED'};
+    return (defined $ENV{'PATH_TRANSLATED'}) ? $ENV{'PATH_TRANSLATED'} : undef;
 }
 END_OF_FUNC
 
@@ -2996,7 +3011,7 @@ END_OF_FUNC
 ####
 'request_uri' => <<'END_OF_FUNC',
 sub request_uri {
-    return $ENV{'REQUEST_URI'};
+    return (defined $ENV{'REQUEST_URI'}) ? $ENV{'REQUEST_URI'} : undef;
 }
 END_OF_FUNC
 
@@ -3010,12 +3025,12 @@ sub query_string {
     my($self) = self_or_default(@_);
     my($param,$value,@pairs);
     for $param ($self->param) {
-	my($eparam) = escape($param);
-	for $value ($self->param($param)) {
-	    $value = escape($value);
+       my($eparam) = escape($param);
+       for $value ($self->param($param)) {
+           $value = escape($value);
             next unless defined $value;
-	    push(@pairs,"$eparam=$value");
-	}
+           push(@pairs,"$eparam=$value");
+       }
     }
     for (keys %{$self->{'.fieldnames'}}) {
       push(@pairs,".cgifields=".escape("$_"));
@@ -3082,8 +3097,9 @@ END_OF_FUNC
 'user_agent' => <<'END_OF_FUNC',
 sub user_agent {
     my($self,$match)=self_or_CGI(@_);
-    return $self->http('user_agent') unless $match;
-    return $self->http('user_agent') =~ /$match/i;
+    my $user_agent = $self->http('user_agent');
+    return $user_agent unless $match && $user_agent;
+    return $user_agent =~ /$match/i;
 }
 END_OF_FUNC
 
@@ -3296,7 +3312,7 @@ END_OF_FUNC
 ####
 'remote_ident' => <<'END_OF_FUNC',
 sub remote_ident {
-    return $ENV{'REMOTE_IDENT'};
+    return (defined $ENV{'REMOTE_IDENT'}) ? $ENV{'REMOTE_IDENT'} : undef;
 }
 END_OF_FUNC
 
@@ -3306,7 +3322,7 @@ END_OF_FUNC
 ####
 'auth_type' => <<'END_OF_FUNC',
 sub auth_type {
-    return $ENV{'AUTH_TYPE'};
+    return (defined $ENV{'AUTH_TYPE'}) ? $ENV{'AUTH_TYPE'} : undef;
 }
 END_OF_FUNC
 
@@ -3317,7 +3333,7 @@ END_OF_FUNC
 ####
 'remote_user' => <<'END_OF_FUNC',
 sub remote_user {
-    return $ENV{'REMOTE_USER'};
+    return (defined $ENV{'REMOTE_USER'}) ? $ENV{'REMOTE_USER'} : undef;
 }
 END_OF_FUNC
 
@@ -3822,7 +3838,9 @@ sub new {
     (my $safename = $name) =~ s/([':%])/ sprintf '%%%02X', ord $1 /eg;
     my $fv = ++$FH . $safename;
     my $ref = \*{"Fh::$fv"};
-    $file =~ m!^([a-zA-Z0-9_\+ \'\":/.\$\\~-]+)$! || return;
+
+    # Note this same regex is also used elsewhere in the same file for CGITempFile::new
+    $file =~ m!^([a-zA-Z0-9_ \'\":/.\$\\\+-]+)$! || return;
     my $safe = $1;
     sysopen($ref,$safe,Fcntl::O_RDWR()|Fcntl::O_CREAT()|Fcntl::O_EXCL(),0600) || return;
     unlink($safe) if $delete;
@@ -4122,10 +4140,11 @@ sub find_tempdir {
 	   "C:${SL}system${SL}temp");
     
     if( $CGI::OS eq 'WINDOWS' ){
-       unshift @TEMP,
-           $ENV{TEMP},
-           $ENV{TMP},
-           $ENV{WINDIR} . $SL . 'TEMP';
+         # PeterH: These evars may not exist if this is invoked within a service and untainting
+         # is in effect - with 'use warnings' the undefined array entries causes Perl to die
+         unshift(@TEMP,$ENV{TEMP}) if defined $ENV{TEMP};
+         unshift(@TEMP,$ENV{TMP}) if defined $ENV{TMP};
+         unshift(@TEMP,$ENV{WINDIR} . $SL . 'TEMP') if defined $ENV{WINDIR};
     }
 
     unshift(@TEMP,$ENV{'TMPDIR'}) if defined $ENV{'TMPDIR'};
@@ -4177,7 +4196,8 @@ sub new {
 	last if ! -f ($filename = sprintf("\%s${SL}CGItemp%d", $TMPDIRECTORY, $sequence++));
     }
     # check that it is a more-or-less valid filename
-    return unless $filename =~ m!^([a-zA-Z0-9_\+ \'\":/.\$\\~-]+)$!;
+    # Note this same regex is also used elsewhere in the same file for Fh::new
+    return unless $filename =~ m!^([a-zA-Z0-9_ \'\":/.\$\\\+-]+)$!;
     # this used to untaint, now it doesn't
     # $filename = $1;
     return bless \$filename;
@@ -5195,13 +5215,13 @@ In either case, the outgoing header will be formatted as:
 
 =head2 GENERATING A REDIRECTION HEADER
 
-   print redirect('http://somewhere.else/in/movie/land');
+   print $q->redirect('http://somewhere.else/in/movie/land');
 
 Sometimes you don't want to produce a document yourself, but simply
 redirect the browser elsewhere, perhaps choosing a URL based on the
 time of day or the identity of the user.  
 
-The redirect() function redirects the browser to a different URL.  If
+The redirect() method redirects the browser to a different URL.  If
 you use redirection like this, you should B<not> print out a header as
 well.
 
@@ -5210,9 +5230,14 @@ redirection requests.  Relative URLs will not work correctly.
 
 You can also use named arguments:
 
-    print redirect(-uri=>'http://somewhere.else/in/movie/land',
-			   -nph=>1,
-                           -status=>301);
+    print $q->redirect(
+        -uri=>'http://somewhere.else/in/movie/land',
+	    -nph=>1,
+         -status=>301);
+
+All names arguments recognized by header() are also recognized by
+redirect(). However, most HTTP headers, including those generated by
+-cookie and -target, are ignored by the browser.
 
 The B<-nph> parameter, if set to a true value, will issue the correct
 headers to work with a NPH (no-parse-header) script.  This is important
@@ -5666,7 +5691,7 @@ This is extremely useful for creating tables.  For example:
 
    print table({-border=>undef},
            caption('When Should You Eat Your Vegetables?'),
-           Tr({-align=>CENTER,-valign=>TOP},
+           Tr({-align=>'CENTER',-valign=>'TOP'},
            [
               th(['Vegetable', 'Breakfast','Lunch','Dinner']),
               td(['Tomatoes' , 'no', 'yes', 'yes']),
@@ -5847,13 +5872,13 @@ default is to process the query with the current script.
 		    -action=>$action,
 		    -enctype=>$encoding);
       <... various form stuff ...>
-    print endform;
+    print end_form;
 
 	-or-
 
     print start_form($method,$action,$encoding);
       <... various form stuff ...>
-    print endform;
+    print end_form;
 
 start_form() will return a <form> tag with the optional method,
 action and form encoding that you specify.  The defaults are:
@@ -5862,14 +5887,14 @@ action and form encoding that you specify.  The defaults are:
     action: this script
     enctype: application/x-www-form-urlencoded
 
-endform() returns the closing </form> tag.  
+end_form() returns the closing </form> tag.  
 
 Start_form()'s enctype argument tells the browser how to package the various
 fields of the form before sending the form to the server.  Two
 values are possible:
 
-B<Note:> This method was previously named startform(), and startform()
-is still recognized as an alias.
+B<Note:> These methods were previously named startform() and endform(), and they
+are still recognized as aliases of start_form() and end_form().
 
 =over 4
 
@@ -5955,7 +5980,7 @@ JavaScript and DHTML.
 
 A boolean, which, if true, forces the element to take on the value
 specified by B<-value>, overriding the sticky behavior described
-earlier for the B<-no_sticky> pragma.
+earlier for the B<-nosticky> pragma.
 
 =item B<-onChange>, B<-onFocus>, B<-onBlur>, B<-onMouseOver>, B<-onMouseOut>, B<-onSelect>
 
@@ -7790,7 +7815,7 @@ of CGI.pm without rewriting your old scripts from scratch.
 
 =head1 AUTHOR INFORMATION
 
-The GD.pm interface is copyright 1995-2007, Lincoln D. Stein.  It is
+The CGI.pm distribution is copyright 1995-2007, Lincoln D. Stein.  It is
 distributed under GPL and the Artistic License 2.0.
 
 Address bug reports and comments to: lstein@cshl.org.  When sending
@@ -7909,7 +7934,7 @@ for suggestions and bug fixes.
 	   print "<p>",reset;
 	   print submit('Action','Shout');
 	   print submit('Action','Scream');
-	   print endform;
+	   print end_form;
 	   print "<hr>\n";
 	}
 
