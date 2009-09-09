@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:                CGI.pm
-version:             3.45
+version:             3.46
 abstract:            ~
 license:             ~
 author:              ~
@@ -9,6 +9,7 @@ distribution_type:   module
 requires:     
     FCGI:                          0.67
     File::Spec:                    0.82
+    Test::More:                    0.8
 meta-spec:
     url:     http://module-build.sourceforge.net/META-spec-v1.3.html
     version: 1.3
