@@ -1,5 +1,26 @@
+Version 3.48
+
+  [BUG FIXES]
+  1. <optgroup> default values are now properly escaped.
+     Thanks to #raleigh.pm and Mark Stosberg. (RT#49606)
+  2. The change to exception handling in CGI::Carp introduced in 3.47 has been
+     reverted for now. It caused regressions reported in RT#49630. 
+     Thanks to mkanat for the report.
+
+  [DOCUMENTATION]
+  1. Documentation for upload() has been overhauled, thanks to Mark Stosberg. 
+  2. Documentation for tmpFileName has been added. Thanks to Mark Stosberg and Nathaniel K. Smith.
+  3. URLS were updated, thanks to Leon Brocard and Yanick Champoux. (RT#49770)
+
+  [INTERNALS]
+  1. More tests were added for autoescape, thanks to Bob Kuo. (RT#25485)
+
 Version 3.47
-  Re-release of 3.46, which did not contain a proper MANIFEST
+  Released September 9th, 2009.
+  No code changes. 
+
+  [INTERNALS]
+    Re-release of 3.46, which did not contain a proper MANIFEST
 
 Version 3.46
   [BUG FIXES]
