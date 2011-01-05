@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               CGI.pm
-version:            3.50
+version:            3.51
 abstract:           ~
 author:  []
 license:            unknown
