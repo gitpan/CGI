@@ -41,6 +41,7 @@ t/carp.t
 t/charset.t
 t/checkbox_group.t
 t/cookie.t
+t/delete.t
 t/Dump.t
 t/end_form.t
 t/fast.t
@@ -65,7 +66,7 @@ t/start_end_asterisk.t
 t/start_end_end.t
 t/start_end_start.t
 t/switch.t
-t/tmpfile.t
+t/tmpdir.t
 t/unescapeHTML.t
 t/upload.t
 t/upload_post_text.txt
