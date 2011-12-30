@@ -1,6 +1,6 @@
 --- #YAML:1.0
 name:               CGI.pm
-version:            3.58
+version:            3.59
 abstract:           ~
 author:  []
 license:            unknown
@@ -19,7 +19,7 @@ no_index:
         - t
         - inc
         - t
-generated_by:       ExtUtils::MakeMaker version 6.55_02
+generated_by:       ExtUtils::MakeMaker version 6.56
 meta-spec:
     url:      http://module-build.sourceforge.net/META-spec-v1.4.html
     version:  1.4
