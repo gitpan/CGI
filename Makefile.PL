@@ -1,7 +1,7 @@
 use ExtUtils::MakeMaker;
 my $mm = $ExtUtils::MakeMaker::VERSION;
 
-require 5.6.0;
+require 5.008001;
 
 system("perl", "t/gen-tests/gen-start-end-tags.pl");
 
@@ -13,6 +13,7 @@ WriteMakefile(
     'DISTNAME'  => 'CGI.pm',
     'VERSION_FROM'   => 'lib/CGI.pm',
      'PREREQ_PM' => {
+       'if'          => 0, # core in 5.6.2 and later, for deprecate.pm
        'Test::More'  => 0.98, # Ideally, this could be just a "test_requires". Version requirement is for 'subtest' support.
        'File::Spec'  => .82,
        'FCGI'        => 0.67,
@@ -24,14 +25,23 @@ WriteMakefile(
    (   $mm < 6.46
         ? ()
         : ( META_MERGE => {
-                requires  => {perl => '5.006000'},
+                requires  => {perl => '5.008001'},
                 resources => {
                     # homepage => 'http://FIXME.org',
                     # license  => 'http://dev.perl.org/licenses/',
                     # MailingList => 'http://FIXME',
-                    repository => 'http://github.com/markstos/CGI.pm/tree/master'
+                    repository => {
+                        type => 'git',
+                        url  => 'git://github.com/markstos/CGI.pm.git',
+                        web  => 'https://github.com/markstos/CGI.pm/tree/master',
+                    },
+                    bugtracker => {
+                        # mailto => '...',
+                        web => 'https://github.com/markstos/CGI.pm/issues',
+                    },
+
                 },
-                no_index => {directory => [qw/t/]}
+                no_index => {directory => [qw/t/]},
             },
             META_ADD => {
                 build_requires     => {},
