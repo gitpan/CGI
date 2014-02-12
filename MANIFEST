@@ -79,4 +79,3 @@ t/utf8.t
 t/util-58.t
 t/util.t
 META.yml                                 Module meta-data (added by MakeMaker)
-META.json                                Module JSON meta-data (added by MakeMaker)
