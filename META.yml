@@ -1,31 +1,30 @@
---- #YAML:1.0
-name:               CGI.pm
-version:            3.65
-abstract:           ~
-author:  []
-license:            unknown
-distribution_type:  module
-configure_requires:  {}
-build_requires:  {}
-requires:
-    FCGI:        0.67
-    File::Spec:  0.82
-    if:          0
-    perl:        5.008001
-    Test::More:  0.98
-resources:
-    bugtracker:
-        web:  https://github.com/markstos/CGI.pm/issues
-    repository:
-        type:  git
-        url:   git://github.com/markstos/CGI.pm.git
-        web:   https://github.com/markstos/CGI.pm/tree/master
-no_index:
-    directory:
-        - t
-        - inc
-        - t
-generated_by:       ExtUtils::MakeMaker version 6.57_05
+---
+abstract: unknown
+author:
+  - unknown
+build_requires: {}
+configure_requires: {}
+dynamic_config: 1
+generated_by: 'ExtUtils::MakeMaker version 6.8, CPAN::Meta::Converter version 2.132830'
+license: unknown
 meta-spec:
-    url:      http://module-build.sourceforge.net/META-spec-v1.4.html
-    version:  1.4
+  url: http://module-build.sourceforge.net/META-spec-v1.4.html
+  version: 1.4
+name: CGI.pm
+no_index:
+  directory:
+    - t
+    - inc
+    - t
+requires:
+  FCGI: 0.67
+  File::Spec: 0.82
+  Test::More: 0.98
+  if: 0
+  perl: 5.008001
+resources:
+  bugtracker: https://github.com/leejo/CGI.pm/issues
+  homepage: https://metacpan.org/module/CGI
+  license: http://dev.perl.org/licenses/
+  repository: https://github.com/leejo/CGI.pm
+version: 3.65_01
